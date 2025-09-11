@@ -1,0 +1,31 @@
+{
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file", // required to format on save
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[svelte]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "editor.codeActionsOnSave": {
+    // ensures we auto-fix eslint issues on save
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": [
+    "javascript",
+    "svelte"
+  ],
+  "prettier.documentSelectors": [
+    "**/*.svelte"
+  ],
+  "svelte.enable-ts-plugin": true,
+}
+
+
+
+
+

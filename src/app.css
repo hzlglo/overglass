@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for automation curves */
+.automation-curve {
+  stroke: hsl(var(--p));
+  stroke-width: 2;
+  fill: none;
+}
+
+.automation-point {
+  fill: hsl(var(--p));
+  cursor: grab;
+}
+
+.automation-point:hover {
+  fill: hsl(var(--pf));
+  r: 6;
+}
+
+.track-muted {
+  opacity: 0.4;
+}
+
+.track-muted .automation-curve {
+  stroke: hsl(var(--nc));
+}

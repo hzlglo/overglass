@@ -1,0 +1,7 @@
+build/
+.svelte-kit/
+dist/
+node_modules/
+*.min.js
+*.wasm
+*.worker.js
