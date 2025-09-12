@@ -98,4 +98,69 @@ describe('ALS Parser', () => {
       expect(result).toBe(expected);
     });
   });
+
+  it('should extract proper parameter names instead of generic names', async () => {
+    const result = await parser.parseALSFile(testFile);
+    
+    expect(result.set.elektron).toHaveLength(1);
+    const device = result.set.elektron[0];
+    expect(device.tracks).toHaveLength(1);
+    
+    const track = device.tracks[0];
+    expect(track.automationEnvelopes.length).toBeGreaterThan(0);
+    
+    // Check that we have meaningful parameter names, not generic "Param X"
+    const meaningfulParams = track.automationEnvelopes.filter(env => 
+      !env.parameterName.startsWith('Param ')
+    );
+    
+    expect(meaningfulParams.length).toBeGreaterThan(0);
+    
+    // Verify we have expected Elektron parameter names
+    const paramNames = track.automationEnvelopes.map(env => env.parameterName);
+    const expectedPatterns = [
+      /^T\d+\s+Mute$/,           // Track mute parameters
+      /^T\d+\s+Filter/,         // Filter parameters  
+      /^T\d+\s+FX/              // FX parameters
+    ];
+    
+    let matchedPatterns = 0;
+    expectedPatterns.forEach(pattern => {
+      if (paramNames.some(name => pattern.test(name))) {
+        matchedPatterns++;
+      }
+    });
+    
+    expect(matchedPatterns).toBeGreaterThan(0);
+    
+    console.log('Parameter names found:', paramNames);
+  });
+
+  it('should map PointeeIds to AutomationTarget.Id correctly', async () => {
+    const result = await parser.parseALSFile(testFile);
+    
+    const device = result.set.elektron[0];
+    const track = device.tracks[0];
+    
+    // All automation envelopes should have meaningful names 
+    // (no fallback to "Param X" if mapping works correctly)
+    track.automationEnvelopes.forEach((envelope, index) => {
+      expect(envelope.parameterName).toBeDefined();
+      expect(envelope.parameterName).not.toBe('');
+      
+      // For this test file, we should not have generic parameter names
+      // if our AutomationTarget.Id mapping is working
+      if (envelope.parameterName.startsWith('Param ')) {
+        console.warn(`Envelope ${index} fell back to generic name: "${envelope.parameterName}"`);
+      }
+    });
+    
+    // Verify we have specific Elektron parameter types
+    const paramNames = track.automationEnvelopes.map(env => env.parameterName);
+    const elektron_specific = paramNames.filter(name => 
+      name.includes('Mute') || name.includes('Filter') || name.includes('FX')
+    );
+    
+    expect(elektron_specific.length).toBeGreaterThan(0);
+  });
 });

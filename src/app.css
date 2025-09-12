@@ -1,6 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@plugin "daisyui" {
+  themes: all;
+}
+
 
 /* Custom styles for automation curves */
 .automation-curve {

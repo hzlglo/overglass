@@ -1,6 +1,5 @@
 <script lang="ts">
   interface FileChooserProps {
-    selectedFile: File | null;
     fileName: string;
     loading: boolean;
     error: string | null;
@@ -9,15 +8,8 @@
     onDebugFile: () => void;
   }
 
-  let {
-    selectedFile,
-    fileName,
-    loading,
-    error,
-    onFileSelect,
-    onLoadSet,
-    onDebugFile,
-  }: FileChooserProps = $props();
+  let { fileName, loading, error, onFileSelect, onLoadSet, onDebugFile }: FileChooserProps =
+    $props();
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;

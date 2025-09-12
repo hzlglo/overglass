@@ -4,17 +4,3 @@ export interface DatabaseAdapter {
   execute(sql: string, params?: any[]): Promise<any[]>;
   close(): Promise<void>;
 }
-
-export interface DatabaseConnection {
-  query(sql: string): Promise<any>;
-  prepare(sql: string): Promise<DatabaseStatement>;
-}
-
-export interface DatabaseStatement {
-  query(...params: any[]): Promise<any>;
-  close(): Promise<void>;
-}
-
-export interface DatabaseResult {
-  toArray(): any[];
-}

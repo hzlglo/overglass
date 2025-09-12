@@ -24,6 +24,7 @@ export class WasmDuckDBAdapter implements DatabaseAdapter {
       this.connection = await this.db.connect();
 
       this.isInitialized = true;
+      return;
     } catch (error) {
       console.error('Failed to initialize DuckDB WASM:', error);
       throw error;

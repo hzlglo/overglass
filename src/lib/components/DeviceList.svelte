@@ -7,7 +7,7 @@
   let expandedTracks = $state<Set<string>>(new Set());
 
   // Reactive database queries
-  let databaseDevices = $derived(automationDb.getDevices());
+  let databaseDevices = $derived(automationDb.get().devices.getDevicesWithTracks());
   let isRecalculating = $derived(automationDb.isRecalculating());
 
   function toggleDeviceExpansion(deviceId: string) {
@@ -37,6 +37,7 @@
     Loading devices...
   </div>
 {:then devices}
+  {$inspect('here devices', devices)}
   {#if devices.length > 0}
     <!-- Database-powered hierarchical view -->
     <div class="mb-6">
@@ -51,9 +52,9 @@
         {#each devices as device}
           <DeviceTrack
             {device}
-            isDeviceExpanded={expandedDevices.has(device.device_id)}
+            isDeviceExpanded={expandedDevices.has(device.id)}
             {expandedTracks}
-            onToggleDevice={() => toggleDeviceExpansion(device.device_id)}
+            onToggleDevice={() => toggleDeviceExpansion(device.id)}
             onToggleTrack={toggleTrackExpansion}
           />
         {/each}

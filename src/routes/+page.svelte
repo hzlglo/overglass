@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
   import { ALSParser } from '$lib/parsers/alsParser';
   import { ALSDebugger } from '$lib/utils/alsDebugger';
   import { automationDb } from '$lib/stores/database.svelte';
@@ -7,6 +6,7 @@
   import FileChooser from '$lib/components/FileChooser.svelte';
   import SetSummary from '$lib/components/SetSummary.svelte';
   import type { ParsedALS } from '$lib/types/automation';
+  import Debugger from '$lib/components/Debugger.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
@@ -76,7 +76,6 @@
 
     <!-- File Upload Section -->
     <FileChooser
-      {selectedFile}
       {fileName}
       {loading}
       {error}
@@ -100,15 +99,10 @@
           <DeviceList />
 
           <!-- Fallback view with parsed data -->
-          {#if parsedSet.set.elektron.length > 0}
-            <SetSummary {parsedSet} />
-          {:else}
-            <div class="py-8 text-center">
-              <div class="text-base-content/60">No Elektron devices found in this .als file</div>
-            </div>
-          {/if}
+          <!-- <SetSummary {parsedSet} /> -->
         {/if}
       </div>
     </div>
+    <Debugger />
   </div>
 </div>

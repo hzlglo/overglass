@@ -4,7 +4,7 @@
 
   interface DeviceTrackProps {
     device: {
-      device_id: string;
+      id: string;
       device_name: string;
       device_type: string;
       track_count: number;
@@ -40,12 +40,14 @@
 
   // Reactive queries
   let tracks = $derived(
-    isDeviceExpanded ? automationDb.getTracksForDevice(device.device_id) : Promise.resolve([]),
+    isDeviceExpanded
+      ? automationDb.get().devices.getTracksForDevice(device.id)
+      : Promise.resolve([]),
   );
 
   function getTrackParameters(trackId: string) {
     return expandedTracks.has(trackId)
-      ? automationDb.getParametersForTrack(trackId)
+      ? automationDb.get().devices.getParametersForTrack(trackId)
       : Promise.resolve([]);
   }
 </script>
@@ -77,17 +79,19 @@
           Loading tracks...
         </div>
       {:then trackList}
+        {$inspect('trackList', trackList)}
         <div class="mt-4 ml-6 space-y-3">
           {#each trackList as track}
+            {$inspect(track)}
             <div class="border-base-300 border-l-2 pl-4">
               <!-- Track Header -->
               <div
                 class="hover:bg-base-200 -ml-2 flex cursor-pointer items-center justify-between rounded py-1 pr-2 pl-2 transition-colors"
-                onclick={() => onToggleTrack(track.track_id)}
+                onclick={() => onToggleTrack(track.id)}
               >
                 <div class="flex items-center gap-3">
                   <div class="text-sm">
-                    {expandedTracks.has(track.track_id) ? '▼' : '▶'}
+                    {expandedTracks.has(track.id) ? '▼' : '▶'}
                   </div>
                   <div class="font-medium">
                     Track {track.track_number}
@@ -105,8 +109,8 @@
               </div>
 
               <!-- Expanded Track Parameters -->
-              {#if expandedTracks.has(track.track_id)}
-                {#await getTrackParameters(track.track_id)}
+              {#if expandedTracks.has(track.id)}
+                {#await getTrackParameters(track.id)}
                   <div class="text-base-content/60 mt-2 ml-6 flex items-center gap-2 text-sm">
                     <div class="loading loading-spinner loading-sm"></div>
                     Loading parameters...
@@ -116,8 +120,8 @@
                     {#each parameterList as param}
                       <AutomationParameter
                         parameter={param}
-                        isExpanded={expandedParameters.has(param.parameter_id)}
-                        onToggle={() => toggleParameterExpansion(param.parameter_id)}
+                        isExpanded={expandedParameters.has(param.id)}
+                        onToggle={() => toggleParameterExpansion(param.id)}
                       />
                     {/each}
                   </div>

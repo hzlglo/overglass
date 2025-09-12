@@ -1,0 +1,312 @@
+import type {
+  AutomationPoint,
+  ParameterStats,
+} from '../schema';
+import { toSnakeCase } from '../schema';
+import type { AutomationDatabase } from '../duckdb';
+
+export class AutomationService {
+  constructor(private db: AutomationDatabase) {}
+
+  /**
+   * Set a single automation point for a parameter at a specific time
+   * @param parameterId - The parameter to edit
+   * @param timePosition - Time position in beats/seconds 
+   * @param value - Automation value (0.0 to 1.0)
+   * @returns The created/updated automation point
+   */
+  async setAutomationPoint(parameterId: string, timePosition: number, value: number): Promise<AutomationPoint> {
+    // Validate inputs
+    if (value < 0 || value > 1) {
+      throw new Error('Automation value must be between 0.0 and 1.0');
+    }
+
+    // Check if parameter exists
+    const parameter = await this.db.run(
+      'SELECT id, parameter_name FROM parameters WHERE id = ?',
+      [parameterId]
+    );
+
+    if (parameter.length === 0) {
+      throw new Error(`Parameter ${parameterId} not found`);
+    }
+
+    // Check if a point already exists at this exact time
+    const existingPoint = await this.db.run(
+      'SELECT id FROM automation_points WHERE parameter_id = ? AND time_position = ?',
+      [parameterId, timePosition]
+    );
+
+    const pointData = {
+      parameterId,
+      timePosition,
+      value,
+      updatedAt: new Date()
+    };
+
+    if (existingPoint.length > 0) {
+      // Update existing point
+      const pointId = existingPoint[0].id;
+      await this.db.run(`
+        UPDATE automation_points 
+        SET value = ?, updated_at = ?
+        WHERE id = ?
+      `, [value, pointData.updatedAt, pointId]);
+      
+      console.log(`✅ Updated automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`);
+      
+      return {
+        id: pointId,
+        parameterId,
+        timePosition,
+        value,
+        createdAt: new Date(), // We'd need to fetch the real createdAt
+        updatedAt: pointData.updatedAt
+      };
+    } else {
+      // Create new point
+      const pointId = Math.random().toString(36).substring(2, 15);
+      await this.db.insertRecord('automation_points', 
+        toSnakeCase({
+          id: pointId,
+          ...pointData,
+          createdAt: new Date()
+        })
+      );
+
+      console.log(`✅ Created automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`);
+
+      return {
+        id: pointId,
+        parameterId,
+        timePosition,
+        value,
+        createdAt: pointData.updatedAt,
+        updatedAt: pointData.updatedAt
+      };
+    }
+  }
+
+  /**
+   * Remove an automation point at a specific time
+   * @param parameterId - The parameter to edit
+   * @param timePosition - Time position to remove point from
+   * @returns true if a point was removed
+   */
+  async removeAutomationPoint(parameterId: string, timePosition: number): Promise<boolean> {
+    // First check if the point exists
+    const existingPoints = await this.db.run(
+      'SELECT COUNT(*) as count FROM automation_points WHERE parameter_id = ? AND time_position = ?',
+      [parameterId, timePosition]
+    );
+
+    const pointExisted = existingPoints[0].count > 0;
+    
+    if (pointExisted) {
+      // Delete the point
+      await this.db.run(
+        'DELETE FROM automation_points WHERE parameter_id = ? AND time_position = ?',
+        [parameterId, timePosition]
+      );
+      
+      console.log(`✅ Removed automation point at time ${timePosition} for parameter ${parameterId}`);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Get automation points for a parameter with optional time filtering
+   * @param parameterId - The parameter to query
+   * @param startTime - Optional start time (inclusive)
+   * @param endTime - Optional end time (inclusive)
+   * @param fullDetails - Whether to return full AutomationPoint objects (default) or just basic data
+   * @returns Array of automation points
+   */
+  async getAutomationPoints(
+    parameterId: string,
+    startTime?: number,
+    endTime?: number,
+    fullDetails: boolean = true
+  ): Promise<AutomationPoint[] | Array<{timePosition: number, value: number, curveType: string}>> {
+    const selectFields = fullDetails 
+      ? 'id, parameter_id, time_position, value, curve_type, created_at, updated_at'
+      : 'time_position, value, curve_type';
+      
+    let sql = `
+      SELECT ${selectFields}
+      FROM automation_points
+      WHERE parameter_id = ?
+    `;
+    const params = [parameterId];
+
+    if (startTime !== undefined) {
+      sql += ' AND time_position >= ?';
+      params.push(startTime);
+    }
+    if (endTime !== undefined) {
+      sql += ' AND time_position <= ?';
+      params.push(endTime);
+    }
+
+    sql += ' ORDER BY time_position';
+
+    return await this.db.run(sql, params);
+  }
+
+  /**
+   * Get automation points for a parameter within a time range (alias for backwards compatibility)
+   */
+  async getAutomationPointsInRange(
+    parameterId: string, 
+    startTime: number, 
+    endTime: number
+  ): Promise<AutomationPoint[]> {
+    return await this.getAutomationPoints(parameterId, startTime, endTime, true) as AutomationPoint[];
+  }
+
+  /**
+   * Bulk update multiple automation points for efficient editing
+   * @param parameterId - The parameter to edit
+   * @param points - Array of {timePosition, value} points
+   * @returns Array of created/updated automation points
+   */
+  async bulkSetAutomationPoints(
+    parameterId: string, 
+    points: Array<{timePosition: number, value: number}>
+  ): Promise<AutomationPoint[]> {
+    const results: AutomationPoint[] = [];
+    
+    // Process points in a transaction-like manner
+    for (const point of points) {
+      const result = await this.setAutomationPoint(parameterId, point.timePosition, point.value);
+      results.push(result);
+    }
+
+    console.log(`✅ Bulk updated ${points.length} automation points for parameter ${parameterId}`);
+    return results;
+  }
+
+  /**
+   * Compute parameter statistics on-the-fly
+   */
+  async getParameterStats(parameterId: string): Promise<ParameterStats> {
+    const result = await this.db.run(`
+      SELECT 
+        parameter_id as id,
+        MIN(value) as min_value,
+        MAX(value) as max_value,
+        MIN(time_position) as min_time,
+        MAX(time_position) as max_time,
+        COUNT(*) as point_count
+      FROM automation_points
+      WHERE parameter_id = ?
+      GROUP BY parameter_id
+    `, [parameterId]);
+
+    if (result.length === 0) {
+      return {
+        id: parameterId,
+        minValue: 0,
+        maxValue: 1,
+        minTime: 0,
+        maxTime: 0,
+        pointCount: 0
+      };
+    }
+
+    return result[0] as ParameterStats;
+  }
+
+  /**
+   * Move automation points for a specific parameter within a time range
+   * @param parameterId - The parameter to move automation for
+   * @param startTime - Start of the time range to move
+   * @param endTime - End of the time range to move
+   * @param timeOffset - How much to offset the time positions
+   * @returns Number of automation points moved
+   */
+  async moveParameterAutomation(
+    parameterId: string,
+    startTime: number,
+    endTime: number,
+    timeOffset: number
+  ): Promise<number> {
+    // Get automation points within the clip time range
+    const pointsInRange = await this.getAutomationPointsInRange(parameterId, startTime, endTime);
+    
+    if (pointsInRange.length === 0) {
+      return 0;
+    }
+
+    // Update each point's time position
+    for (const point of pointsInRange) {
+      const newTimePosition = point.timePosition + timeOffset;
+      
+      // Remove old point
+      await this.db.run(
+        'DELETE FROM automation_points WHERE id = ?',
+        [point.id]
+      );
+      
+      // Create new point at offset position
+      const newPointId = Math.random().toString(36).substring(2, 15);
+      await this.db.insertRecord('automation_points', 
+        toSnakeCase({
+          id: newPointId,
+          parameterId,
+          timePosition: newTimePosition,
+          value: point.value,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      );
+    }
+
+    console.log(`    📊 Moved ${pointsInRange.length} automation points for parameter ${parameterId}`);
+    return pointsInRange.length;
+  }
+
+  /**
+   * Copy automation points for a specific parameter within a time range
+   * @param parameterId - The parameter to copy automation for
+   * @param startTime - Start of the time range to copy
+   * @param endTime - End of the time range to copy
+   * @param timeOffset - How much to offset the copied time positions
+   * @returns Number of automation points copied
+   */
+  async copyParameterAutomation(
+    parameterId: string,
+    startTime: number,
+    endTime: number,
+    timeOffset: number
+  ): Promise<number> {
+    // Get automation points within the clip time range
+    const pointsInRange = await this.getAutomationPointsInRange(parameterId, startTime, endTime);
+    
+    if (pointsInRange.length === 0) {
+      return 0;
+    }
+
+    // Create new points at offset positions
+    for (const point of pointsInRange) {
+      const newTimePosition = point.timePosition + timeOffset;
+      const newPointId = Math.random().toString(36).substring(2, 15);
+      
+      await this.db.insertRecord('automation_points', 
+        toSnakeCase({
+          id: newPointId,
+          parameterId,
+          timePosition: newTimePosition,
+          value: point.value,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      );
+    }
+
+    console.log(`    📋 Copied ${pointsInRange.length} automation points for parameter ${parameterId}`);
+    return pointsInRange.length;
+  }
+}

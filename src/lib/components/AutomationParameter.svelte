@@ -1,17 +1,9 @@
 <script lang="ts">
+  import type { Parameter, ParameterStats } from '$lib/database/schema';
   import AutomationCurve from './AutomationCurve.svelte';
 
   interface AutomationParameterProps {
-    parameter: {
-      parameter_id: string;
-      parameter_name: string;
-      parameter_path: string;
-      min_value: number;
-      max_value: number;
-      point_count: number;
-      min_time: number;
-      max_time: number;
-    };
+    parameter: Parameter & ParameterStats;
     isExpanded?: boolean;
     onToggle?: () => void;
   }
@@ -35,11 +27,11 @@
   >
     <div class="flex items-center justify-between">
       <div class="text-base-content/70 text-xs font-medium tracking-wide uppercase">
-        {parameter.parameter_name || `Param ${parameter.parameter_id.split('_').pop()}`}
+        {parameter.parameterName || `Param ${parameter.id.split('_').pop()}`}
       </div>
       <div class="flex items-center gap-2">
         <span class="text-base-content/60 font-mono text-xs">
-          {parameter.point_count} pts
+          {parameter.pointCount} pts
         </span>
         <div class="text-base-content/60">
           {#if isExpanded}
@@ -56,13 +48,13 @@
       <div class="flex justify-between">
         <span>Range:</span>
         <span class="font-mono"
-          >{parameter.min_value?.toFixed(2)} - {parameter.max_value?.toFixed(2)}</span
+          >{parameter.minValue?.toFixed(2)} - {parameter.maxValue?.toFixed(2)}</span
         >
       </div>
       <div class="flex justify-between">
         <span>Time:</span>
         <span class="font-mono"
-          >{parameter.min_time?.toFixed(1)}s - {parameter.max_time?.toFixed(1)}s</span
+          >{parameter.minTime?.toFixed(1)}s - {parameter.maxTime?.toFixed(1)}s</span
         >
       </div>
     </div>
@@ -72,13 +64,12 @@
   {#if isExpanded}
     <div class="px-3 pb-3">
       <AutomationCurve
-        parameterId={parameter.parameter_id}
-        parameterName={parameter.parameter_name ||
-          `Parameter ${parameter.parameter_id.split('_').pop()}`}
-        minValue={parameter.min_value}
-        maxValue={parameter.max_value}
-        minTime={parameter.min_time}
-        maxTime={parameter.max_time}
+        parameterId={parameter.id}
+        parameterName={parameter.parameterName || `Parameter ${parameter.id.split('_').pop()}`}
+        minValue={parameter.minValue}
+        maxValue={parameter.maxValue}
+        minTime={parameter.minTime}
+        maxTime={parameter.maxTime}
         width={500}
         height={200}
       />

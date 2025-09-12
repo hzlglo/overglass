@@ -52,7 +52,7 @@ describe('DuckDB Database Integration', () => {
     await database.loadALSData(parsedALS);
 
     // Verify data was loaded
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
     expect(devices.length).toBeGreaterThan(0);
 
     console.log('Database devices:', devices);
@@ -61,7 +61,7 @@ describe('DuckDB Database Integration', () => {
     expect(devices.length).toBe(1);
 
     // Check device types
-    const deviceNames = devices.map((d) => d.device_name).sort();
+    const deviceNames = devices.map((d) => d.deviceName).sort();
     expect(deviceNames).toContain('Digitakt II');
   });
 
@@ -69,15 +69,15 @@ describe('DuckDB Database Integration', () => {
     const parsedALS = await parser.parseALSFile(testFile);
     await database.loadALSData(parsedALS);
 
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
     const firstDevice = devices[0];
 
-    expect(parseInt(firstDevice.track_count)).toBeGreaterThan(0);
+    expect(parseInt(firstDevice.trackCount)).toBeGreaterThan(0);
     expect(parseInt(firstDevice.parameter_count)).toBeGreaterThan(0);
     expect(parseInt(firstDevice.automation_point_count)).toBeGreaterThan(0);
 
-    console.log(`Device ${firstDevice.device_name}:`);
-    console.log(`  Tracks: ${firstDevice.track_count}`);
+    console.log(`Device ${firstDevice.deviceName}:`);
+    console.log(`  Tracks: ${firstDevice.trackCount}`);
     console.log(`  Parameters: ${firstDevice.parameter_count}`);
     console.log(`  Automation Points: ${firstDevice.automation_point_count}`);
   });
@@ -86,15 +86,15 @@ describe('DuckDB Database Integration', () => {
     const parsedALS = await parser.parseALSFile(testFile);
     await database.loadALSData(parsedALS);
 
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
 
     // Find a parameter to test with
     for (const device of devices) {
       // This is a simplified test - in real usage we'd get track IDs and parameter IDs
       // from proper queries, but for now we're testing the database structure
-      expect(device).toHaveProperty('device_id');
-      expect(device).toHaveProperty('device_name');
-      expect(device).toHaveProperty('track_count');
+      expect(device).toHaveProperty('id');
+      expect(device).toHaveProperty('deviceName');
+      expect(device).toHaveProperty('trackCount');
     }
   });
 
@@ -103,12 +103,12 @@ describe('DuckDB Database Integration', () => {
     await database.loadALSData(parsedALS);
 
     // Test that we can query related data without foreign key errors
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
     expect(devices.length).toBeGreaterThan(0);
 
     // Each device should have consistent counts
     devices.forEach((device) => {
-      expect(parseInt(device.track_count)).toBeGreaterThanOrEqual(0);
+      expect(parseInt(device.trackCount)).toBeGreaterThanOrEqual(0);
       expect(parseInt(device.parameter_count)).toBeGreaterThanOrEqual(0);
       expect(parseInt(device.automation_point_count)).toBeGreaterThanOrEqual(0);
     });
@@ -127,7 +127,7 @@ describe('DuckDB Database Integration', () => {
     // Should load within reasonable time (adjust threshold as needed)
     expect(endTime - startTime).toBeLessThan(5000); // 5 seconds max
 
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
     expect(devices.length).toBeGreaterThan(0);
   });
 });

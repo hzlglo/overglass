@@ -23,7 +23,7 @@ describe('DuckDB Schema Tests', () => {
   });
 
   it('should handle empty device queries', async () => {
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
     expect(devices).toEqual([]);
   });
 
@@ -63,7 +63,7 @@ describe('DuckDB Schema Tests', () => {
 
     await database.loadALSData(testData);
 
-    const devices = await database.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
     console.log('Devices result:', devices);
     expect(devices.length).toBe(1);
     expect(devices[0].device_name).toBe('Test Device');

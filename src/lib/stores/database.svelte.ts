@@ -40,6 +40,7 @@ const createAutomationDbStore = () => {
     creatingDb = true;
     try {
       const adapter = new WasmDuckDBAdapter();
+
       database = new AutomationDatabase(adapter);
       await database.initialize();
     } finally {
@@ -71,45 +72,14 @@ const createAutomationDbStore = () => {
     },
     loadALSData,
     updateDb,
+    get: (): AutomationDatabase => {
+      if (!database) {
+        throw new Error('database not initialized');
+      }
+      console.log('getting with timestamp', lastDbUpdateAt);
+      return database;
+    },
     isRecalculating: () => isRecalculating,
-
-    // Reactive queries that auto-update when database changes
-    getDevices: () =>
-      (async (_lastUpdate: Date) => {
-        if (!database) return [];
-        const result = await database.getDevicesWithTracks();
-        return result;
-      })(lastDbUpdateAt),
-
-    getTracksForDevice: (deviceId: string) =>
-      (async (deviceIdInner: string, _lastUpdate: Date) => {
-        if (!database) return [];
-        const result = await database.getTracksForDevice(deviceIdInner);
-        return result;
-      })(deviceId, lastDbUpdateAt),
-
-    getParametersForTrack: (trackId: string) =>
-      (async (trackIdInner: string, _lastUpdate: Date) => {
-        if (!database) return [];
-        const result = await database.getParametersForTrack(trackIdInner);
-        return result;
-      })(trackId, lastDbUpdateAt),
-
-    getAutomationPoints: (parameterId: string, startTime?: number, endTime?: number) =>
-      (async (
-        parameterIdInner: string,
-        startTimeInner?: number,
-        endTimeInner?: number,
-        _lastUpdate?: Date,
-      ) => {
-        if (!database) return [];
-        const result = await database.getAutomationPoints(
-          parameterIdInner,
-          startTimeInner,
-          endTimeInner,
-        );
-        return result;
-      })(parameterId, startTime, endTime, lastDbUpdateAt),
   };
 };
 
