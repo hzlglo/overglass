@@ -50,6 +50,27 @@
       ? automationDb.get().devices.getParametersForTrack(trackId)
       : Promise.resolve([]);
   }
+
+  // Expand all parameters by default when tracks are expanded
+  $effect(() => {
+    if (tracks && expandedTracks.size > 0) {
+      tracks.then(async trackList => {
+        const allParameterIds = new Set<string>();
+        const db = automationDb.get();
+        if (db) {
+          for (const track of trackList) {
+            if (expandedTracks.has(track.id)) {
+              const parameters = await db.devices.getParametersForTrack(track.id);
+              if (parameters) {
+                parameters.forEach(param => allParameterIds.add(param.id));
+              }
+            }
+          }
+          expandedParameters = allParameterIds;
+        }
+      });
+    }
+  });
 </script>
 
 <div class="card bg-base-100 border-base-300 border shadow-sm">

@@ -3,97 +3,54 @@
   import { ALSParser } from '$lib/parsers/alsParser';
   import { ALSDebugger } from '$lib/utils/alsDebugger';
   import { automationDb } from '$lib/stores/database.svelte';
+  import { appStore } from '$lib/stores/app.svelte';
   import DeviceList from '$lib/components/DeviceList.svelte';
   import FileChooser from '$lib/components/FileChooser.svelte';
+  import Navbar from '$lib/components/Navbar.svelte';
+  import Timeline from '$lib/components/Timeline.svelte';
   import type { ParsedALS } from '$lib/types/automation';
   import Debugger from '$lib/components/Debugger.svelte';
-  import Select from '$lib/components/Select.svelte';
 
-  let selectedFile = $state<File | null>(null);
-  let fileName = $state('');
-  let parsedSet = $state<ParsedALS | null>(null);
-  let loading = $state(false);
-  let error = $state<string | null>(null);
-
-  $inspect('Loading', loading);
-
-  const parser = new ALSParser();
-
-  function handleFileSelect(file: File) {
-    selectedFile = file;
-    fileName = file.name;
-    error = null;
-    parsedSet = null;
-  }
-
-  async function loadAbletonSet() {
-    if (!selectedFile) return;
-
-    loading = true;
-    error = null;
-
-    try {
-      // Initialize database if not already done
-      await automationDb.init();
-
-      // Parse the ALS file
-      parsedSet = await parser.parseALSFile(selectedFile);
-      console.log('Parsed ALS file:', parsedSet);
-
-      // Load data into DuckDB - this will automatically trigger reactive updates
-      await automationDb.loadALSData(parsedSet);
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to parse ALS file';
-      console.error('Error parsing ALS file:', err);
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function debugFile() {
-    if (!selectedFile) return;
-    await ALSDebugger.debugALSFile(selectedFile);
-  }
+  // FileChooser now handles all the file loading logic internally
 </script>
 
-<div class="min-h-screen p-8">
-  <div class="mx-auto max-w-6xl">
-    <!-- Header -->
-    <div class="navbar bg-base-300 rounded-box mb-8">
-      <div class="flex-1">
-        <h1 class="text-xl font-bold">Elektron Automation Editor</h1>
+<div class="bg-base-100 min-h-screen">
+  {#if appStore.currentScreen === 'file-chooser'}
+    <!-- Initial File Chooser Screen -->
+    <div
+      class="from-base-200 to-base-300 flex min-h-screen items-center justify-center bg-gradient-to-br p-4"
+    >
+      <div class="w-full max-w-md">
+        <!-- App branding -->
+        <div class="mb-8 text-center">
+          <h1 class="text-primary mb-2 text-4xl font-bold">Overglass</h1>
+          <p class="text-base-content/60">Elektron Overbridge Automation Editor</p>
+        </div>
+
+        <!-- FileChooser -->
+        <FileChooser />
       </div>
     </div>
+  {:else}
+    <!-- Main Application Screen -->
+    <div class="flex h-screen flex-col">
+      <!-- Top Navbar -->
+      <Navbar
+        projectName={appStore.loadedFile?.name || 'Untitled Project'}
+        bpm={appStore.loadedFile?.bpm || 120}
+      />
 
-    <!-- File Upload Section -->
-    <FileChooser
-      {fileName}
-      {loading}
-      {error}
-      onFileSelect={handleFileSelect}
-      onLoadSet={loadAbletonSet}
-      onDebugFile={debugFile}
-    />
-
-    <!-- Device List -->
-    <div class="card bg-base-200 shadow-xl">
-      <div class="card-body">
-        <h2 class="card-title">Elektron Device Tracks</h2>
-
-        {#if !parsedSet}
-          <div class="py-8 text-center">
-            <div class="text-base-content/60">
-              Select an .als file to view Elektron automation data
-            </div>
-          </div>
+      <!-- Main Content Area -->
+      <div class="flex-1 overflow-y-auto">
+        {#if appStore.showDebugger}
+          <Debugger />
         {:else}
           <DeviceList />
-
-          <!-- Fallback view with parsed data -->
-          <!-- <SetSummary {parsedSet} /> -->
         {/if}
       </div>
+
+      <!-- Bottom Timeline -->
+      <Timeline />
     </div>
-    <Debugger />
-  </div>
+  {/if}
 </div>

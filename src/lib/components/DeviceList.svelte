@@ -10,6 +10,32 @@
   let databaseDevices = $derived(automationDb.get().devices.getDevicesWithTracks());
   let isRecalculating = $derived(automationDb.isRecalculating());
 
+  // Expand all devices and tracks by default when they load
+  $effect(() => {
+    if (databaseDevices) {
+      databaseDevices.then(async devices => {
+        if (devices.length > 0) {
+          // Expand all devices
+          const allDeviceIds = devices.map(d => d.id);
+          expandedDevices = new Set(allDeviceIds);
+
+          // Expand all tracks for each device
+          const allTrackIds = new Set<string>();
+          const db = automationDb.get();
+          if (db) {
+            for (const device of devices) {
+              const tracks = await db.devices.getTracksForDevice(device.id);
+              if (tracks) {
+                tracks.forEach(track => allTrackIds.add(track.id));
+              }
+            }
+            expandedTracks = allTrackIds;
+          }
+        }
+      });
+    }
+  });
+
   function toggleDeviceExpansion(deviceId: string) {
     if (expandedDevices.has(deviceId)) {
       expandedDevices.delete(deviceId);
