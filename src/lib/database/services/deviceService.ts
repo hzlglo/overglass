@@ -34,7 +34,7 @@ export class DeviceService {
   /**
    * Get all devices with track counts and statistics
    */
-  async getDevicesWithTracks(): Promise<any[]> {
+  async getDevicesWithTracks(): Promise<(Device & { trackCount: number; parameterCount: number; automationPointCount: number })[]> {
     return await this.db.run(`
       SELECT 
         d.id,
@@ -55,7 +55,9 @@ export class DeviceService {
   /**
    * Get all tracks for a specific device
    */
-  async getTracksForDevice(deviceId: string): Promise<any[]> {
+  async getTracksForDevice(
+    deviceId: string,
+  ): Promise<(Track & { parameterCount: number; automationPointCount: number })[]> {
     return await this.db.run(
       `
       SELECT 
@@ -109,7 +111,7 @@ export class DeviceService {
   /**
    * Get track automation summary (legacy method)
    */
-  async getTrackAutomation(trackId: string): Promise<any[]> {
+  async getTrackAutomation(trackId: string): Promise<ParameterStats[]> {
     return await this.db.run(
       `
       SELECT 

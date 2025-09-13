@@ -5,11 +5,11 @@
   interface DeviceTrackProps {
     device: {
       id: string;
-      device_name: string;
-      device_type: string;
-      track_count: number;
-      parameter_count: number;
-      automation_point_count: number;
+      deviceName: string;
+      deviceType: string;
+      trackCount: number;
+      parameterCount: number;
+      automationPointCount: number;
     };
     isDeviceExpanded: boolean;
     expandedTracks: Set<string>;
@@ -66,7 +66,7 @@
         <div class="badge badge-primary badge-lg">{device.device_name}</div>
       </div>
       <div class="text-base-content/60 font-mono text-sm">
-        {device.track_count} tracks • {device.parameter_count} parameters • {device.automation_point_count}
+        {device.trackCount} tracks • {device.parameterCount} parameters • {device.automationPointCount}
         points
       </div>
     </div>
@@ -94,14 +94,14 @@
                     {expandedTracks.has(track.id) ? '▼' : '▶'}
                   </div>
                   <div class="font-medium">
-                    Track {track.track_number}
-                    {#if track.is_muted}
+                    Track {track.trackNumber}
+                    {#if track.isMuted}
                       <div class="badge badge-outline badge-sm ml-2">Muted</div>
                     {/if}
                   </div>
                 </div>
                 <div class="text-base-content/60 font-mono text-xs">
-                  {track.parameter_count} params • {track.automation_point_count} points
+                  {track.parameterCount} params • {track.automationPointCount} points
                   {#if track.last_edit_time}
                     • edited {new Date(track.last_edit_time).toLocaleTimeString()}
                   {/if}

@@ -1,12 +1,13 @@
 <script lang="ts">
+  import '../app.css';
   import { ALSParser } from '$lib/parsers/alsParser';
   import { ALSDebugger } from '$lib/utils/alsDebugger';
   import { automationDb } from '$lib/stores/database.svelte';
   import DeviceList from '$lib/components/DeviceList.svelte';
   import FileChooser from '$lib/components/FileChooser.svelte';
-  import SetSummary from '$lib/components/SetSummary.svelte';
   import type { ParsedALS } from '$lib/types/automation';
   import Debugger from '$lib/components/Debugger.svelte';
+  import Select from '$lib/components/Select.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
@@ -59,18 +60,6 @@
     <div class="navbar bg-base-300 rounded-box mb-8">
       <div class="flex-1">
         <h1 class="text-xl font-bold">Elektron Automation Editor</h1>
-      </div>
-      <div class="flex-none">
-        <div class="dropdown dropdown-end">
-          <div tabindex="0" role="button" class="btn btn-ghost">Theme</div>
-          <ul
-            tabindex="0"
-            class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow"
-          >
-            <li><button data-set-theme="light" class="w-full">Light</button></li>
-            <li><button data-set-theme="dark" class="w-full">Dark</button></li>
-          </ul>
-        </div>
       </div>
     </div>
 
