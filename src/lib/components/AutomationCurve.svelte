@@ -2,6 +2,7 @@
   import * as d3 from 'd3';
   import { automationDb } from '../stores/database.svelte';
   import type { AutomationPoint } from '../types/automation';
+  import { sharedZoom } from './sharedZoom.svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -29,10 +30,6 @@
   let svgElement = $state<SVGElement>();
   let automationPoints = $state<AutomationPoint[]>([]);
 
-  // Zoom state - default to (0, maxTime) as requested
-  let zoomDomain = $state<[number, number]>([0, maxTime]);
-  let isZooming = $state(false); // Prevent infinite zoom loops
-
   $inspect('automationPoints', automationPoints);
 
   // Derived values
@@ -40,7 +37,7 @@
   let innerWidth = $derived(width - margin.left - margin.right);
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
-  let xScale = $derived(d3.scaleLinear().domain(zoomDomain).range([0, innerWidth]));
+  let xScale = $derived(d3.scaleLinear().domain(sharedZoom.getZoomDomain()).range([0, innerWidth]));
 
   let yScale = $derived(d3.scaleLinear().domain([minValue, maxValue]).range([innerHeight, 0]));
 
@@ -75,60 +72,60 @@
     }
   });
 
-  // Zoom functions
-  const resetZoom = () => {
-    zoomDomain = [0, maxTime];
-  };
-
-  const zoomIn = () => {
-    const [start, end] = zoomDomain;
-    const range = end - start;
-    const center = start + range / 2;
-    const newRange = range / 2;
-    zoomDomain = [Math.max(0, center - newRange / 2), Math.min(maxTime, center + newRange / 2)];
-  };
-
-  const zoomOut = () => {
-    const [start, end] = zoomDomain;
-    const range = end - start;
-    const center = start + range / 2;
-    const newRange = Math.min(range * 2, maxTime);
-    zoomDomain = [Math.max(0, center - newRange / 2), Math.min(maxTime, center + newRange / 2)];
-  };
-
   // Setup SVG structure with zoom
   let svg = $derived(d3.select(svgElement));
   let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
-  let zoom = $state<d3.ZoomBehavior<SVGElement, unknown>>();
 
   // Setup SVG structure and zoom (combined to prevent conflicts)
   $effect(() => {
-    if (svgElement && !svgGroup) {
-      svgGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+    if (svgElement && !svgGroup && svg) {
+      // Create clipping path definition
+      const defs = svg.append('defs');
+      defs
+        .append('clipPath')
+        .attr('id', `clip-${parameterId}`)
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', 0)
+        .attr('width', innerWidth)
+        .attr('height', innerHeight);
+
+      svgGroup = svg
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`)
+        .attr('clip-path', `url(#clip-${parameterId})`);
 
       // Create zoom behavior
-      zoom = d3
-        .zoom<SVGElement, unknown>()
-        .scaleExtent([1, 50]) // Allow up to 50x zoom
-        .translateExtent([
-          [0, 0],
-          [innerWidth, innerHeight],
-        ])
-        .on('zoom', (event) => {
-          if (isZooming) return; // Prevent infinite loops
-          isZooming = true;
-          const transform = event.transform;
-          const newXScale = transform.rescaleX(
-            d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]),
-          );
-          const newDomain = newXScale.domain();
-          zoomDomain = [Math.max(0, newDomain[0]), Math.min(maxTime, newDomain[1])];
-          setTimeout(() => {
-            isZooming = false;
-          }, 0); // Reset flag after current event loop
-        });
+      if (!sharedZoom.getZoom()) {
+        sharedZoom.setZoom(
+          d3
+            .zoom<SVGElement, unknown>()
+            .scaleExtent([1, 50]) // Allow up to 50x zoom
+            .translateExtent([
+              [0, 0],
+              [innerWidth, innerHeight],
+            ])
+            .on('zoom', (event) => {
+              const isZooming = sharedZoom.getIsZooming();
+              if (isZooming) return; // Prevent infinite loops
+              sharedZoom.setZooming(true);
+              const transform = event.transform;
+              const newXScale = transform.rescaleX(
+                d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]),
+              );
+              const newDomain = newXScale.domain();
+              sharedZoom.setZoomDomain([
+                Math.max(0, newDomain[0]),
+                Math.min(maxTime, newDomain[1]),
+              ]);
+              setTimeout(() => {
+                sharedZoom.setZooming(false);
+              }, 0); // Reset flag after current event loop
+            }),
+        );
+      }
 
-      svg.call(zoom);
+      svg.call(sharedZoom.getZoom());
     }
   });
 

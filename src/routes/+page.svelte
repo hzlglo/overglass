@@ -15,6 +15,8 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
+  $inspect('Loading', loading);
+
   const parser = new ALSParser();
 
   function handleFileSelect(file: File) {
