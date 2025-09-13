@@ -4,6 +4,7 @@ import type { DatabaseAdapter } from './interface';
 import { DeviceService } from './services/deviceService';
 import { AutomationService } from './services/automationService';
 import { ClipService } from './services/clipService';
+import { TracksService } from './services/tracksService';
 
 export class AutomationDatabase {
   private adapter: DatabaseAdapter;
@@ -11,6 +12,7 @@ export class AutomationDatabase {
 
   // Service instances
   public readonly devices: DeviceService;
+  public readonly tracks: TracksService;
   public readonly automation: AutomationService;
   public readonly clips: ClipService;
 
@@ -19,6 +21,7 @@ export class AutomationDatabase {
     
     // Initialize service instances with shared database methods
     this.devices = new DeviceService(this);
+    this.tracks = new TracksService(this);
     this.automation = new AutomationService(this);
     this.clips = new ClipService(this);
   }

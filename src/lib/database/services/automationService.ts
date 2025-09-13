@@ -1,7 +1,4 @@
-import type {
-  AutomationPoint,
-  ParameterStats,
-} from '../schema';
+import type { AutomationPoint, ParameterStats } from '../schema';
 import { toSnakeCase } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
 
@@ -11,21 +8,24 @@ export class AutomationService {
   /**
    * Set a single automation point for a parameter at a specific time
    * @param parameterId - The parameter to edit
-   * @param timePosition - Time position in beats/seconds 
+   * @param timePosition - Time position in beats/seconds
    * @param value - Automation value (0.0 to 1.0)
    * @returns The created/updated automation point
    */
-  async setAutomationPoint(parameterId: string, timePosition: number, value: number): Promise<AutomationPoint> {
+  async setAutomationPoint(
+    parameterId: string,
+    timePosition: number,
+    value: number,
+  ): Promise<AutomationPoint> {
     // Validate inputs
     if (value < 0 || value > 1) {
       throw new Error('Automation value must be between 0.0 and 1.0');
     }
 
     // Check if parameter exists
-    const parameter = await this.db.run(
-      'SELECT id, parameter_name FROM parameters WHERE id = ?',
-      [parameterId]
-    );
+    const parameter = await this.db.run('SELECT id, parameter_name FROM parameters WHERE id = ?', [
+      parameterId,
+    ]);
 
     if (parameter.length === 0) {
       throw new Error(`Parameter ${parameterId} not found`);
@@ -34,47 +34,55 @@ export class AutomationService {
     // Check if a point already exists at this exact time
     const existingPoint = await this.db.run(
       'SELECT id FROM automation_points WHERE parameter_id = ? AND time_position = ?',
-      [parameterId, timePosition]
+      [parameterId, timePosition],
     );
 
     const pointData = {
       parameterId,
       timePosition,
       value,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     if (existingPoint.length > 0) {
       // Update existing point
       const pointId = existingPoint[0].id;
-      await this.db.run(`
+      await this.db.run(
+        `
         UPDATE automation_points 
         SET value = ?, updated_at = ?
         WHERE id = ?
-      `, [value, pointData.updatedAt, pointId]);
-      
-      console.log(`✅ Updated automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`);
-      
+      `,
+        [value, pointData.updatedAt, pointId],
+      );
+
+      console.log(
+        `✅ Updated automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`,
+      );
+
       return {
         id: pointId,
         parameterId,
         timePosition,
         value,
         createdAt: new Date(), // We'd need to fetch the real createdAt
-        updatedAt: pointData.updatedAt
+        updatedAt: pointData.updatedAt,
       };
     } else {
       // Create new point
       const pointId = Math.random().toString(36).substring(2, 15);
-      await this.db.insertRecord('automation_points', 
+      await this.db.insertRecord(
+        'automation_points',
         toSnakeCase({
           id: pointId,
           ...pointData,
-          createdAt: new Date()
-        })
+          createdAt: new Date(),
+        }),
       );
 
-      console.log(`✅ Created automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`);
+      console.log(
+        `✅ Created automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`,
+      );
 
       return {
         id: pointId,
@@ -82,7 +90,7 @@ export class AutomationService {
         timePosition,
         value,
         createdAt: pointData.updatedAt,
-        updatedAt: pointData.updatedAt
+        updatedAt: pointData.updatedAt,
       };
     }
   }
@@ -97,19 +105,21 @@ export class AutomationService {
     // First check if the point exists
     const existingPoints = await this.db.run(
       'SELECT COUNT(*) as count FROM automation_points WHERE parameter_id = ? AND time_position = ?',
-      [parameterId, timePosition]
+      [parameterId, timePosition],
     );
 
     const pointExisted = existingPoints[0].count > 0;
-    
+
     if (pointExisted) {
       // Delete the point
       await this.db.run(
         'DELETE FROM automation_points WHERE parameter_id = ? AND time_position = ?',
-        [parameterId, timePosition]
+        [parameterId, timePosition],
       );
-      
-      console.log(`✅ Removed automation point at time ${timePosition} for parameter ${parameterId}`);
+
+      console.log(
+        `✅ Removed automation point at time ${timePosition} for parameter ${parameterId}`,
+      );
       return true;
     } else {
       return false;
@@ -128,12 +138,14 @@ export class AutomationService {
     parameterId: string,
     startTime?: number,
     endTime?: number,
-    fullDetails: boolean = true
-  ): Promise<AutomationPoint[] | Array<{timePosition: number, value: number, curveType: string}>> {
-    const selectFields = fullDetails 
+    fullDetails: boolean = true,
+  ): Promise<
+    AutomationPoint[] | Array<{ timePosition: number; value: number; curveType: string }>
+  > {
+    const selectFields = fullDetails
       ? 'id, parameter_id, time_position, value, curve_type, created_at, updated_at'
       : 'time_position, value, curve_type';
-      
+
     let sql = `
       SELECT ${selectFields}
       FROM automation_points
@@ -159,11 +171,16 @@ export class AutomationService {
    * Get automation points for a parameter within a time range (alias for backwards compatibility)
    */
   async getAutomationPointsInRange(
-    parameterId: string, 
-    startTime: number, 
-    endTime: number
+    parameterId: string,
+    startTime: number,
+    endTime: number,
   ): Promise<AutomationPoint[]> {
-    return await this.getAutomationPoints(parameterId, startTime, endTime, true) as AutomationPoint[];
+    return (await this.getAutomationPoints(
+      parameterId,
+      startTime,
+      endTime,
+      true,
+    )) as AutomationPoint[];
   }
 
   /**
@@ -173,11 +190,11 @@ export class AutomationService {
    * @returns Array of created/updated automation points
    */
   async bulkSetAutomationPoints(
-    parameterId: string, 
-    points: Array<{timePosition: number, value: number}>
+    parameterId: string,
+    points: Array<{ timePosition: number; value: number }>,
   ): Promise<AutomationPoint[]> {
     const results: AutomationPoint[] = [];
-    
+
     // Process points in a transaction-like manner
     for (const point of points) {
       const result = await this.setAutomationPoint(parameterId, point.timePosition, point.value);
@@ -192,7 +209,8 @@ export class AutomationService {
    * Compute parameter statistics on-the-fly
    */
   async getParameterStats(parameterId: string): Promise<ParameterStats> {
-    const result = await this.db.run(`
+    const result = await this.db.run(
+      `
       SELECT 
         parameter_id as id,
         MIN(value) as min_value,
@@ -203,7 +221,9 @@ export class AutomationService {
       FROM automation_points
       WHERE parameter_id = ?
       GROUP BY parameter_id
-    `, [parameterId]);
+    `,
+      [parameterId],
+    );
 
     if (result.length === 0) {
       return {
@@ -212,7 +232,7 @@ export class AutomationService {
         maxValue: 1,
         minTime: 0,
         maxTime: 0,
-        pointCount: 0
+        pointCount: 0,
       };
     }
 
@@ -231,11 +251,11 @@ export class AutomationService {
     parameterId: string,
     startTime: number,
     endTime: number,
-    timeOffset: number
+    timeOffset: number,
   ): Promise<number> {
     // Get automation points within the clip time range
     const pointsInRange = await this.getAutomationPointsInRange(parameterId, startTime, endTime);
-    
+
     if (pointsInRange.length === 0) {
       return 0;
     }
@@ -243,28 +263,28 @@ export class AutomationService {
     // Update each point's time position
     for (const point of pointsInRange) {
       const newTimePosition = point.timePosition + timeOffset;
-      
+
       // Remove old point
-      await this.db.run(
-        'DELETE FROM automation_points WHERE id = ?',
-        [point.id]
-      );
-      
+      await this.db.run('DELETE FROM automation_points WHERE id = ?', [point.id]);
+
       // Create new point at offset position
       const newPointId = Math.random().toString(36).substring(2, 15);
-      await this.db.insertRecord('automation_points', 
+      await this.db.insertRecord(
+        'automation_points',
         toSnakeCase({
           id: newPointId,
           parameterId,
           timePosition: newTimePosition,
           value: point.value,
           createdAt: new Date(),
-          updatedAt: new Date()
-        })
+          updatedAt: new Date(),
+        }),
       );
     }
 
-    console.log(`    📊 Moved ${pointsInRange.length} automation points for parameter ${parameterId}`);
+    console.log(
+      `    📊 Moved ${pointsInRange.length} automation points for parameter ${parameterId}`,
+    );
     return pointsInRange.length;
   }
 
@@ -280,11 +300,11 @@ export class AutomationService {
     parameterId: string,
     startTime: number,
     endTime: number,
-    timeOffset: number
+    timeOffset: number,
   ): Promise<number> {
     // Get automation points within the clip time range
     const pointsInRange = await this.getAutomationPointsInRange(parameterId, startTime, endTime);
-    
+
     if (pointsInRange.length === 0) {
       return 0;
     }
@@ -293,20 +313,30 @@ export class AutomationService {
     for (const point of pointsInRange) {
       const newTimePosition = point.timePosition + timeOffset;
       const newPointId = Math.random().toString(36).substring(2, 15);
-      
-      await this.db.insertRecord('automation_points', 
+
+      await this.db.insertRecord(
+        'automation_points',
         toSnakeCase({
           id: newPointId,
           parameterId,
           timePosition: newTimePosition,
           value: point.value,
           createdAt: new Date(),
-          updatedAt: new Date()
-        })
+          updatedAt: new Date(),
+        }),
       );
     }
 
-    console.log(`    📋 Copied ${pointsInRange.length} automation points for parameter ${parameterId}`);
+    console.log(
+      `    📋 Copied ${pointsInRange.length} automation points for parameter ${parameterId}`,
+    );
     return pointsInRange.length;
+  }
+
+  async getMaxTime(): Promise<number> {
+    const result = await this.db.run(
+      'SELECT MAX(time_position) as max_time FROM automation_points',
+    );
+    return result[0].maxTime + 5 * 60; // add 5 minutes to the max time
   }
 }

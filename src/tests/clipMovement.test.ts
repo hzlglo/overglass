@@ -33,10 +33,10 @@ describe('Clip Movement API', () => {
     
     // Get test IDs
     const devices = await db.devices.getDevicesWithTracks();
-    const tracks = await db.devices.getTracksForDevice(devices[0].id);
+    const tracks = await db.tracks.getTracksForDevice(devices[0].id);
     testTrackId = tracks[0].id;
-    
-    const parameters = await db.devices.getParametersForTrack(testTrackId);
+
+    const parameters = await db.tracks.getParametersForTrack(testTrackId);
     testParameterId = parameters[0].id;
     
     // Create some test automation points for clip movement
@@ -99,7 +99,7 @@ describe('Clip Movement API', () => {
 
     it('should only move mute parameters when automation lock is disabled', async () => {
       // Add automation to a non-mute parameter for testing
-      const allParameters = await db.devices.getParametersForTrack(testTrackId);
+      const allParameters = await db.tracks.getParametersForTrack(testTrackId);
       const nonMuteParam = allParameters.find(p => !p.parameterName.toLowerCase().includes('mute'));
       
       if (nonMuteParam) {

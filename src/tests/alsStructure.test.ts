@@ -48,7 +48,7 @@ describe('ALS Structure Verification', () => {
     const devices = await db.devices.getDevicesWithTracks();
     const device = devices[0];
     
-    const tracks = await db.devices.getTracksForDevice(device.id);
+    const tracks = await db.tracks.getTracksForDevice(device.id);
     
     console.log('Tracks found:', tracks);
     console.log('Device ID used:', device.id);
@@ -68,7 +68,7 @@ describe('ALS Structure Verification', () => {
   it('should have correct parameter counts per track', async () => {
     const devices = await db.devices.getDevicesWithTracks();
     const device = devices[0];
-    const tracks = await db.devices.getTracksForDevice(device.id);
+    const tracks = await db.tracks.getTracksForDevice(device.id);
     
     // Sort tracks by track number for consistent testing
     const sortedTracks = tracks.sort((a, b) => a.trackNumber - b.trackNumber);
@@ -76,7 +76,7 @@ describe('ALS Structure Verification', () => {
     // T1 should have just the Mute parameter
     const t1 = sortedTracks.find(t => t.trackNumber === 1);
     expect(t1).toBeDefined();
-    const t1Params = await db.devices.getParametersForTrack(t1!.id);
+    const t1Params = await db.tracks.getParametersForTrack(t1!.id);
     console.log('T1 parameters:', t1Params.map(p => p.parameterName));
     expect(t1Params).toHaveLength(1);
     expect(t1Params[0].parameterName).toMatch(/mute/i);
@@ -84,14 +84,14 @@ describe('ALS Structure Verification', () => {
     // T3 should have 2 automated parameters
     const t3 = sortedTracks.find(t => t.trackNumber === 3);
     expect(t3).toBeDefined();
-    const t3Params = await db.devices.getParametersForTrack(t3!.id);
+    const t3Params = await db.tracks.getParametersForTrack(t3!.id);
     console.log('T3 parameters:', t3Params.map(p => p.parameterName));
     expect(t3Params).toHaveLength(2);
     
     // T6 should have 3 automated parameters
     const t6 = sortedTracks.find(t => t.trackNumber === 6);
     expect(t6).toBeDefined();
-    const t6Params = await db.devices.getParametersForTrack(t6!.id);
+    const t6Params = await db.tracks.getParametersForTrack(t6!.id);
     console.log('T6 parameters:', t6Params.map(p => p.parameterName));
     expect(t6Params).toHaveLength(3);
   });
@@ -99,12 +99,12 @@ describe('ALS Structure Verification', () => {
   it('should have automation points for all parameters', async () => {
     const devices = await db.devices.getDevicesWithTracks();
     const device = devices[0];
-    const tracks = await db.devices.getTracksForDevice(device.id);
+    const tracks = await db.tracks.getTracksForDevice(device.id);
     
     let totalAutomationPoints = 0;
     
     for (const track of tracks) {
-      const parameters = await db.devices.getParametersForTrack(track.id);
+      const parameters = await db.tracks.getParametersForTrack(track.id);
       
       for (const param of parameters) {
         const points = await db.automation.getAutomationPoints(param.id);
@@ -133,7 +133,7 @@ describe('ALS Structure Verification', () => {
       console.log('=== DEBUG: Using device ID:', id);
       
       // Check tracks with basic info (avoiding BigInt serialization)
-      const tracks = await db.devices.getTracksForDevice(id);
+      const tracks = await db.tracks.getTracksForDevice(id);
       console.log('=== DEBUG: Track summary ===');
       tracks.forEach(track => {
         console.log(`  Track ${track.trackNumber}: ${track.trackName} (${track.parameterCount} params, ${track.automationPointCount} points)`);

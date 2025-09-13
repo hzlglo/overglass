@@ -1,23 +1,31 @@
 <script lang="ts">
   import * as d3 from 'd3';
-  import { sharedZoom } from './sharedZoom.svelte';
-
-  let height = 60;
-
-  interface TimelineProps {}
-
-  let {}: TimelineProps = $props();
+  import { sharedXScale } from './sharedXScale.svelte';
+  import TrackLane from './TrackLane.svelte';
+  import SizeObserver from './SizeObserver.svelte';
+  import { automationDb } from '$lib/stores/database.svelte';
 
   let svgElement = $state<SVGElement>();
   let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 
   const margin = { top: 10, right: 20, bottom: 30, left: 20 };
-  let innerWidth = $derived(
-    window?.innerWidth ? window.innerWidth - margin.left - margin.right - 40 : 800,
-  );
+  let width = $state(800);
+  let height = $state(60);
+  let innerWidth = $derived(width - margin.left - margin.right);
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
-  let xScale = $derived(d3.scaleLinear().domain(sharedZoom.getZoomDomain()).range([0, innerWidth]));
+  $effect(() => {
+    sharedXScale.setWidth(innerWidth);
+  });
+
+  let xScale = $derived(sharedXScale.getZoomedXScale());
+
+  $effect(async () => {
+    let setMaxTime = sharedXScale.setMaxTime;
+    const maxTime = await automationDb.get().automation.getMaxTime();
+    console.log('setting max time', maxTime);
+    setMaxTime(maxTime);
+  });
 
   // Setup SVG
   $effect(() => {
@@ -26,6 +34,14 @@
       svg.selectAll('*').remove();
       svgGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
     }
+  });
+
+  $effect(() => {
+    let zoom = sharedXScale.getZoom();
+    if (!svgGroup) {
+      return;
+    }
+    svgGroup.call(zoom);
   });
 
   // Draw timeline
@@ -72,19 +88,12 @@
   });
 </script>
 
-<div class="timeline-container bg-base-200 border-base-content/10 border-t">
-  <svg bind:this={svgElement} width={innerWidth + margin.left + margin.right} {height} class="block"
-  ></svg>
-</div>
-
-<style>
-  .timeline-container :global(.domain) {
-    stroke: hsl(var(--bc));
-    stroke-opacity: 0.5;
-  }
-
-  .timeline-container :global(.tick text) {
-    fill: hsl(var(--bc));
-    font-size: 11px;
-  }
-</style>
+<TrackLane>
+  {#snippet body()}
+    <SizeObserver bind:width bind:height>
+      <svg bind:this={svgElement} {width} {height} class="block"></svg>
+    </SizeObserver>
+  {/snippet}
+  {#snippet right()}{/snippet}
+  {#snippet children()}{/snippet}
+</TrackLane>

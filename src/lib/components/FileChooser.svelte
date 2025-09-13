@@ -31,7 +31,7 @@
       if (!response.ok) {
         // Fallback error message with instructions
         throw new Error(
-          'Test file not found. To use hardcoded loading: 1) Copy src/tests/test1.als to static/test1.als, or 2) Use the file browser below to select the test file manually.'
+          'Test file not found. To use hardcoded loading: 1) Copy src/tests/test1.als to static/test1.als, or 2) Use the file browser below to select the test file manually.',
         );
       }
 
@@ -45,6 +45,13 @@
       loading = false;
     }
   }
+
+  $effect(() => {
+    if (!selectedFile && !loading) {
+      console.log('loading hardcoded file');
+      loadHardcodedFile();
+    }
+  });
 
   async function loadSelectedFile() {
     if (!selectedFile) return;

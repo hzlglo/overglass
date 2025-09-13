@@ -2,42 +2,34 @@
   import * as d3 from 'd3';
   import { automationDb } from '../stores/database.svelte';
   import type { AutomationPoint } from '../types/automation';
-  import { sharedZoom } from './sharedZoom.svelte';
+  import { sharedXScale } from './sharedXScale.svelte';
+  import SizeObserver from './SizeObserver.svelte';
+  import { getThemeColor } from '$lib/utils/utils';
 
   interface AutomationCurveProps {
     parameterId: string;
-    parameterName: string;
     minValue: number;
     maxValue: number;
-    minTime: number;
-    maxTime: number;
-    height?: number;
-    width?: number;
   }
 
-  let {
-    parameterId,
-    parameterName,
-    minValue,
-    maxValue,
-    minTime,
-    maxTime,
-    height = 150,
-    width = 400,
-  }: AutomationCurveProps = $props();
+  let { parameterId, minValue, maxValue }: AutomationCurveProps = $props();
+
+  let width = $state(400);
+  let height = $state(150);
 
   // State
   let svgElement = $state<SVGElement>();
   let automationPoints = $state<AutomationPoint[]>([]);
 
-  $inspect('automationPoints', automationPoints);
-
   // Derived values
-  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+  const margin = { top: 0, right: 0, bottom: 0, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
+
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
-  let xScale = $derived(d3.scaleLinear().domain(sharedZoom.getZoomDomain()).range([0, innerWidth]));
+  $inspect('innerheight', innerHeight);
+
+  let xScale = $derived(sharedXScale.getZoomedXScale());
 
   let yScale = $derived(d3.scaleLinear().domain([minValue, maxValue]).range([innerHeight, 0]));
 
@@ -64,69 +56,38 @@
     automationPoints = points;
   });
 
-  // Clear SVG when element changes (only when svgElement changes, not on every render)
-  $effect(() => {
-    if (svgElement) {
-      d3.select(svgElement).selectAll('*').remove();
-      svgGroup = undefined;
-    }
-  });
-
   // Setup SVG structure with zoom
   let svg = $derived(d3.select(svgElement));
   let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 
-  // Setup SVG structure and zoom (combined to prevent conflicts)
   $effect(() => {
-    if (svgElement && !svgGroup && svg) {
-      // Create clipping path definition
-      const defs = svg.append('defs');
-      defs
-        .append('clipPath')
-        .attr('id', `clip-${parameterId}`)
-        .append('rect')
-        .attr('x', 0)
-        .attr('y', 0)
-        .attr('width', innerWidth)
-        .attr('height', innerHeight);
-
-      svgGroup = svg
-        .append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`)
-        .attr('clip-path', `url(#clip-${parameterId})`);
-
-      // Create zoom behavior
-      if (!sharedZoom.getZoom()) {
-        sharedZoom.setZoom(
-          d3
-            .zoom<SVGElement, unknown>()
-            .scaleExtent([1, 50]) // Allow up to 50x zoom
-            .translateExtent([
-              [0, 0],
-              [innerWidth, innerHeight],
-            ])
-            .on('zoom', (event) => {
-              const isZooming = sharedZoom.getIsZooming();
-              if (isZooming) return; // Prevent infinite loops
-              sharedZoom.setZooming(true);
-              const transform = event.transform;
-              const newXScale = transform.rescaleX(
-                d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]),
-              );
-              const newDomain = newXScale.domain();
-              sharedZoom.setZoomDomain([
-                Math.max(0, newDomain[0]),
-                Math.min(maxTime, newDomain[1]),
-              ]);
-              setTimeout(() => {
-                sharedZoom.setZooming(false);
-              }, 0); // Reset flag after current event loop
-            }),
-        );
-      }
-
-      svg.call(sharedZoom.getZoom());
+    if (!svg) {
+      return;
     }
+    svg.selectAll('*').remove();
+    // Create clipping path definition
+    const defs = svg.append('defs');
+    defs
+      .append('clipPath')
+      .attr('id', `clip-${parameterId}`)
+      .append('rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', innerWidth)
+      .attr('height', innerHeight);
+
+    svgGroup = svg
+      .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`)
+      .attr('clip-path', `url(#clip-${parameterId})`);
+  });
+
+  $effect(() => {
+    let zoom = sharedXScale.getZoom();
+    if (!svgGroup) {
+      return;
+    }
+    svg.call(zoom);
   });
 
   // Draw grid lines
@@ -175,7 +136,8 @@
         .append('path')
         .attr('class', 'area')
         .datum(automationPoints)
-        .attr('fill', 'rgba(59, 130, 246, 0.1)')
+        .attr('fill', 'var(--color-primary)')
+        .attr('fill-opacity', 0.2)
         .attr('d', area);
 
       // Draw line
@@ -184,7 +146,8 @@
         .attr('class', 'line')
         .datum(automationPoints)
         .attr('fill', 'none')
-        .attr('stroke', 'rgb(59, 130, 246)')
+        .attr('stroke', 'var(--color-primary)')
+        .attr('stroke-opacity', 0.4)
         .attr('stroke-width', 2)
         .attr('d', line);
     }
@@ -206,78 +169,19 @@
         .attr('cx', (d) => xScale(d.timePosition))
         .attr('cy', (d) => yScale(d.value))
         .attr('r', 3)
-        .attr('fill', 'rgb(59, 130, 246)')
-        .attr('stroke', 'white')
+        .attr('fill', 'var(--color-primary)')
+        .attr('fill-opacity', 0.4)
+        .attr('stroke', 'var(--color-primary)')
         .attr('stroke-width', 1);
-    }
-  });
-
-  // Draw axes
-  $effect(() => {
-    if (svgGroup && innerWidth > 0 && innerHeight > 0) {
-      // Remove existing axes
-      svgGroup.selectAll('.axis').remove();
-
-      // X-axis
-      svgGroup
-        .append('g')
-        .attr('class', 'axis')
-        .attr('transform', `translate(0,${innerHeight})`)
-        .call(
-          d3
-            .axisBottom(xScale)
-            .tickFormat((d) => `${d}s`)
-            .ticks(5),
-        );
-
-      // Y-axis
-      svgGroup
-        .append('g')
-        .attr('class', 'axis')
-        .call(d3.axisLeft(yScale).tickFormat((d) => d3.format('.2f')(d)));
-    }
-  });
-
-  // Draw axis labels
-  $effect(() => {
-    if (svgGroup && innerWidth > 0 && innerHeight > 0) {
-      // Remove existing labels
-      svgGroup.selectAll('.axis-label').remove();
-
-      // Y-axis label
-      svgGroup
-        .append('text')
-        .attr('class', 'axis-label')
-        .attr('transform', 'rotate(-90)')
-        .attr('y', 0 - margin.left)
-        .attr('x', 0 - innerHeight / 2)
-        .attr('dy', '1em')
-        .style('text-anchor', 'middle')
-        .style('font-size', '12px')
-        .style('fill', 'currentColor')
-        .text('Value');
-
-      // X-axis label
-      svgGroup
-        .append('text')
-        .attr('class', 'axis-label')
-        .attr('transform', `translate(${innerWidth / 2}, ${innerHeight + margin.bottom})`)
-        .style('text-anchor', 'middle')
-        .style('font-size', '12px')
-        .style('fill', 'currentColor')
-        .text('Time (s)');
     }
   });
 </script>
 
 <div class="automation-curve-container">
-  <div class="mb-2">
-    <h4 class="text-base-content/80 text-sm font-medium">
-      {parameterName}
-    </h4>
-  </div>
-  <div class="bg-base-100 border-base-300 rounded-lg border p-3">
-    <svg bind:this={svgElement} {width} {height} class="overflow-visible"></svg>
+  <div class="bg-base-100 border-base-300 h-[150px] rounded-lg border">
+    <SizeObserver bind:width bind:height>
+      <svg bind:this={svgElement} {width} {height} class="overflow-visible"></svg>
+    </SizeObserver>
   </div>
 </div>
 

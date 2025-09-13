@@ -32,8 +32,8 @@ describe('Automation Edit API', () => {
     
     // Get a test parameter ID
     const devices = await db.devices.getDevicesWithTracks();
-    const tracks = await db.devices.getTracksForDevice(devices[0].id);
-    const parameters = await db.devices.getParametersForTrack(tracks[0].id);
+    const tracks = await db.tracks.getTracksForDevice(devices[0].id);
+    const parameters = await db.tracks.getParametersForTrack(tracks[0].id);
     testParameterId = parameters[0].id;
     
     console.log(`Using test parameter: ${testParameterId} (${parameters[0].parameterName})`);

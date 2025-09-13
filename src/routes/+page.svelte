@@ -4,7 +4,7 @@
   import { ALSDebugger } from '$lib/utils/alsDebugger';
   import { automationDb } from '$lib/stores/database.svelte';
   import { appStore } from '$lib/stores/app.svelte';
-  import DeviceList from '$lib/components/DeviceList.svelte';
+  import TrackList from '$lib/components/TrackList.svelte';
   import FileChooser from '$lib/components/FileChooser.svelte';
   import Navbar from '$lib/components/Navbar.svelte';
   import Timeline from '$lib/components/Timeline.svelte';
@@ -45,7 +45,7 @@
         {#if appStore.showDebugger}
           <Debugger />
         {:else}
-          <DeviceList />
+          <TrackList />
         {/if}
       </div>
 

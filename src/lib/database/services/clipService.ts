@@ -165,7 +165,7 @@ export class ClipService {
     console.log(`🎬 Moving clip from ${clipStartTime}-${clipEndTime} to ${newStartTime}-${newEndTime} (offset: ${timeOffset})`);
 
     // Get all parameters for this track
-    const parameters = await this.db.devices.getParametersForTrack(trackId);
+    const parameters = await this.db.tracks.getParametersForTrack(trackId);
     const movedParameters: string[] = [];
 
     if (!lockAutomation) {
@@ -223,7 +223,7 @@ export class ClipService {
     console.log(`📋 Copying clip from ${clipStartTime}-${clipEndTime} to ${newStartTime}-${newEndTime}`);
 
     // Get all parameters for this track
-    const parameters = await this.db.devices.getParametersForTrack(trackId);
+    const parameters = await this.db.tracks.getParametersForTrack(trackId);
     const copiedParameters: string[] = [];
 
     if (copyAutomation) {
