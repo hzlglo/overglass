@@ -12,7 +12,6 @@
   $effect(() => {
     if (!container) return;
     const observer = new ResizeObserver((entries) => {
-      console.log(entries);
       if (isEmpty(entries)) return;
       width = entries[0].contentRect.width;
       height = entries[0].contentRect.height;
@@ -22,6 +21,6 @@
   });
 </script>
 
-<div bind:this={container} class="flex h-full flex-1">
+<div bind:this={container} class="flex h-full min-w-0 flex-1">
   {@render children()}
 </div>

@@ -68,7 +68,6 @@
 
       // Parse the ALS file
       const parsedSet = await parser.parseALSFile(file);
-      console.log('Parsed ALS file:', parsedSet);
 
       // Load data into DuckDB
       await automationDb.loadALSData(parsedSet);

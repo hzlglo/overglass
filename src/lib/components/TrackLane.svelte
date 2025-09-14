@@ -23,9 +23,9 @@
   let isExpanded = $derived(isExpandedProp === undefined ? true : isExpandedProp);
 </script>
 
-<div class="border-base-300 border">
-  <div class="flex flex-row">
-    <div class="flex-1">
+<div class="border-base-300 min-w-0 border">
+  <div class="flex min-w-0 flex-row">
+    <div class="min-w-0 flex-1">
       {#if isExpanded}
         {@render body()}
       {/if}

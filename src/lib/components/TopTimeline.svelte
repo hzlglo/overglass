@@ -14,6 +14,7 @@
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
   let xScaleBars = $derived(sharedXScale.getZoomedXScaleBars());
+  $inspect('xScaleBars', xScaleBars.domain(), xScaleBars.range());
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
 
   // Setup SVG

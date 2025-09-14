@@ -74,6 +74,12 @@ const getSharedXScale = () => {
   let zoomedXScaleBars = $state(xScaleBars);
 
   let xAxisBars = $state(d3.axisTop(xScaleBars).tickFormat((d) => `${d}`));
+  let recalculateXAxisBars = () => {
+    xAxisBars = d3
+      .axisTop(zoomedXScaleBars)
+      .tickFormat((d) => `${d}`)
+      .tickValues(getTicksForBarSpan(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1]));
+  };
 
   let lastZoomEvent = $state(null);
 
@@ -87,7 +93,6 @@ const getSharedXScale = () => {
       ])
       .filter((event) => {
         // prevent zooming with the scroll wheel
-        console.log('event', event);
         return !(!event.ctrlKey && event.type === 'wheel');
       })
       .on('zoom', (event) => {
@@ -95,12 +100,7 @@ const getSharedXScale = () => {
         const currentZoomTransform = event.transform;
         zoomedXScale = currentZoomTransform.rescaleX(xScale);
         zoomedXScaleBars = currentZoomTransform.rescaleX(xScaleBars);
-        xAxisBars = d3
-          .axisTop(zoomedXScaleBars)
-          .tickFormat((d) => `${d}`)
-          .tickValues(
-            getTicksForBarSpan(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1]),
-          );
+        recalculateXAxisBars();
       }),
   );
 
@@ -112,13 +112,14 @@ const getSharedXScale = () => {
     getXAxisBars: () => xAxisBars,
     setMaxTime: (maxTimeInner: number) => {
       maxTime = maxTimeInner;
-      console.log('setMaxTime', maxTime);
       zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
     },
     setWidth: (widthInner: number) => {
       innerWidth = widthInner;
-      console.log('setWidth', innerWidth);
       zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
+      zoomedXScaleBars = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
+      // todo figure out how to recalculate the x axis bars without infinite loop
+      // recalculateXAxisBars();
     },
     setBpm: (bpmInner: number) => {
       bpm = bpmInner;

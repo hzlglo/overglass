@@ -15,6 +15,7 @@
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
   $effect(() => {
+    console.log('innerWidth', innerWidth);
     sharedXScale.setWidth(innerWidth);
   });
 
