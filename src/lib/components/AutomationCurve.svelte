@@ -4,7 +4,6 @@
   import type { AutomationPoint } from '../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
   import SizeObserver from './SizeObserver.svelte';
-  import { getThemeColor } from '$lib/utils/utils';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -22,7 +21,7 @@
   let automationPoints = $state<AutomationPoint[]>([]);
 
   // Derived values
-  const margin = { top: 0, right: 0, bottom: 0, left: 0 };
+  const margin = { top: 10, right: 0, bottom: 10, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
 
   let innerHeight = $derived(height - margin.top - margin.bottom);
@@ -88,6 +87,12 @@
       return;
     }
     svg.call(zoom);
+    let lastZoomEvent = sharedXScale.getLastZoomEvent();
+    if (!lastZoomEvent) {
+      return;
+    }
+    // https://stackoverflow.com/a/61073772
+    svg.node().__zoom = lastZoomEvent.transform;
   });
 
   // Draw grid lines

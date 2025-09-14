@@ -8,33 +8,24 @@ const getSharedXScale = () => {
   let xScale = $derived(d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]));
   let zoomedXScale = $state(xScale);
 
+  let lastZoomEvent = $state(null);
+
   let zoom = $derived(
     d3
       .zoom<SVGElement, unknown>()
       .scaleExtent([1, 50]) // Allow up to 50x zoom
-      // .translateExtent([
-      //   [0, 0],
-      //   [innerWidth, innerHeight],
-      // ])
       .on('zoom', (event) => {
-        // if (isZooming) return; // Prevent infinite loops
-        // isZooming = true;
-        console.log('zoom', event.transform);
-        let currentZoomTransform = event.transform;
-        console.log('currentZoomTransform', currentZoomTransform);
+        console.log('this', this);
+        lastZoomEvent = event;
+        const currentZoomTransform = event.transform;
         zoomedXScale = currentZoomTransform.rescaleX(xScale);
-        console.log('zoomedXScale', zoomedXScale.domain());
-        // const newDomain = newXScale.domain();
-        // sharedZoom.setZoomDomain([Math.max(0, newDomain[0]), Math.min(maxTime, newDomain[1])]);
-        // setTimeout(() => {
-        //   sharedZoom.setZooming(false);
-        // }, 0); // Reset flag after current event loop
       }),
   );
 
   return {
     getZoom: () => zoom,
     getZoomedXScale: () => zoomedXScale,
+    getLastZoomEvent: () => lastZoomEvent,
     setMaxTime: (maxTimeInner: number) => {
       maxTime = maxTimeInner;
       console.log('setMaxTime', maxTime);
