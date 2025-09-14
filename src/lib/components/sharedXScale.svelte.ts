@@ -54,7 +54,7 @@ export function secondsToBars(
 const getSharedXScale = () => {
   // the max time across all automation points, i.e. the length of the song
   let maxTime = $state(60);
-  let innerWidth = $state(800);
+  let width = $state(800);
 
   let bpm = $state(120);
   let timeSigNumerator = $state(4);
@@ -62,7 +62,10 @@ const getSharedXScale = () => {
 
   let totalBars = $derived(secondsToBars(maxTime, bpm, timeSigNumerator, timeSigDenominator));
 
-  let xScale = $derived(d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]).clamp(true));
+  let xScale = $derived(
+    d3.scaleLinear().domain([0, maxTime]).range([0, width]),
+    // .clamp(true)
+  );
   let xScaleBars = $derived(
     d3
       .scaleLinear()
@@ -89,7 +92,7 @@ const getSharedXScale = () => {
       .scaleExtent([1, 200]) // Allow up to 50x zoom
       .translateExtent([
         [0, 0],
-        [innerWidth, Infinity],
+        [width, Infinity],
       ])
       .filter((event) => {
         // prevent zooming with the scroll wheel
@@ -112,12 +115,12 @@ const getSharedXScale = () => {
     getXAxisBars: () => xAxisBars,
     setMaxTime: (maxTimeInner: number) => {
       maxTime = maxTimeInner;
-      zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
+      zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, width]);
     },
     setWidth: (widthInner: number) => {
-      innerWidth = widthInner;
-      zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
-      zoomedXScaleBars = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
+      width = widthInner;
+      zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, width]);
+      zoomedXScaleBars = d3.scaleLinear().domain([0, maxTime]).range([0, width]);
       // todo figure out how to recalculate the x axis bars without infinite loop
       // recalculateXAxisBars();
     },

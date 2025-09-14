@@ -12,11 +12,6 @@
   import SizeObserver from './SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
 
-  $effect(() => {
-    console.log('innerWidth', innerWidth);
-    sharedXScale.setWidth(innerWidth);
-  });
-
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
     const maxTime = await automationDb.get().automation.getMaxTime();
@@ -28,6 +23,9 @@
   $effect(() => {
     if (!gridContainer) return;
     gridDisplayState.setGridContainer(gridContainer);
+  });
+  $effect(() => {
+    sharedXScale.setWidth(width);
   });
 
   $effect(() => {
@@ -43,11 +41,11 @@
     };
   });
 
-  let gridHeight = $derived(gridDisplayState.getGridHeight());
-
   const margin = { top: 0, right: 0, bottom: 0, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
 
+  let gridHeight = $derived(gridDisplayState.getGridHeight());
+  let gridWidth = $derived(width);
   let innerHeight = $derived(gridHeight - margin.top - margin.bottom);
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
@@ -86,10 +84,10 @@
 
   $effect(() => {
     let zoom = sharedXScale.getZoom();
-    if (!svgGroup) {
+    if (!svg) {
       return;
     }
-    svgGroup.call(zoom);
+    svg.call(zoom);
   });
 
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
@@ -126,17 +124,17 @@
 </script>
 
 <SizeObserver bind:width bind:height>
-  <div class="flex min-h-0 flex-col">
-    <GridTimelineTop height={TOP_TIMELINE_HEIGHT} {width} />
+  <div class="flex min-h-0 flex-col" style={`width: ${gridWidth}px`}>
+    <GridTimelineTop height={TOP_TIMELINE_HEIGHT} width={gridWidth} />
     <div class="no-scrollbar flex flex-1 flex-col overflow-y-auto" bind:this={gridContainer}>
-      <svg class="shrink-0" height={gridHeight} {width} bind:this={svgElement}>
+      <svg class="shrink-0" height={gridHeight} width={gridWidth} bind:this={svgElement}>
         <g bind:this={svgGroupElement}>
           {#each trackOrder as trackId (trackId)}
             {#each parameterOrder[trackId] as parameterId (parameterId)}
               <AutomationCurveWrapper
                 {parameterId}
                 height={gridDisplayState.getLaneHeight(parameterId)}
-                width={innerWidth}
+                width={gridWidth}
                 yPosition={laneYPositions[parameterId]}
               />
             {/each}
@@ -144,7 +142,7 @@
         </g>
       </svg>
     </div>
-    <GridTimelineBottom height={BOTTOM_TIMELINE_HEIGHT} {width} />
+    <GridTimelineBottom height={BOTTOM_TIMELINE_HEIGHT} width={gridWidth} />
   </div>
 </SizeObserver>
 

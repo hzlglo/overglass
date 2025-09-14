@@ -72,6 +72,7 @@ const createAutomationDbStore = () => {
     },
     loadALSData,
     updateDb,
+    isInitialized: () => database !== null,
     get: (): AutomationDatabase => {
       if (!database) {
         throw new Error('database not initialized');

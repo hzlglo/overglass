@@ -63,6 +63,10 @@
   // Draw area and line
   $effect(() => {
     if (svgGroup && automationPoints.length > 0) {
+      const updatedAutomationPoints = automationPoints.map((point) => ({
+        ...point,
+        timePosition: point.timePosition < 0 ? 0 : point.timePosition,
+      }));
       // Remove existing paths
       svgGroup.selectAll('.area, .line').remove();
 
@@ -70,7 +74,7 @@
       svgGroup
         .append('path')
         .attr('class', 'area')
-        .datum(automationPoints)
+        .datum(updatedAutomationPoints)
         .attr('fill', 'var(--color-primary)')
         .attr('fill-opacity', 0.2)
         .attr('d', area);
@@ -79,7 +83,7 @@
       svgGroup
         .append('path')
         .attr('class', 'line')
-        .datum(automationPoints)
+        .datum(updatedAutomationPoints)
         .attr('fill', 'none')
         .attr('stroke', 'var(--color-primary)')
         .attr('stroke-opacity', 0.4)
