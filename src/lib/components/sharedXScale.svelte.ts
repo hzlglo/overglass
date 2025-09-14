@@ -89,7 +89,7 @@ const getSharedXScale = () => {
       .scaleExtent([1, 200]) // Allow up to 50x zoom
       .translateExtent([
         [0, 0],
-        [Infinity, Infinity],
+        [innerWidth, Infinity],
       ])
       .filter((event) => {
         // prevent zooming with the scroll wheel

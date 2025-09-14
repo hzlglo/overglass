@@ -1,22 +1,25 @@
 <script lang="ts">
   import * as d3 from 'd3';
   import { automationDb } from '../stores/database.svelte';
-  import type { AutomationPoint } from '../types/automation';
+  import type { AutomationPoint, Parameter, ParameterStats } from '../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
+  import { onDestroy } from 'svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
-    minValue: number;
-    maxValue: number;
+    parameter: Parameter & ParameterStats;
     height: number;
     width: number;
+    yPosition: number;
   }
 
-  let { parameterId, minValue, maxValue, height, width }: AutomationCurveProps = $props();
+  let { parameterId, parameter, height, width, yPosition }: AutomationCurveProps = $props();
 
   // State
-  let svgElement = $state<SVGElement>();
+  let gElement = $state<SVGElement>();
   let automationPoints = $state<AutomationPoint[]>([]);
+
+  $inspect('parameter', gElement, parameter, automationPoints);
 
   // Derived values
   const margin = { top: 10, right: 0, bottom: 10, left: 0 };
@@ -28,7 +31,9 @@
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
-  let yScale = $derived(d3.scaleLinear().domain([minValue, maxValue]).range([innerHeight, 0]));
+  let yScale = $derived(
+    d3.scaleLinear().domain([parameter.minValue, parameter.maxValue]).range([innerHeight, 0]),
+  );
 
   let line = $derived(
     d3
@@ -53,76 +58,7 @@
     automationPoints = points;
   });
 
-  // Setup SVG structure with zoom
-  let svg = $derived(d3.select(svgElement));
-  let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
-
-  $effect(() => {
-    if (!svg) {
-      return;
-    }
-    svg.selectAll('*').remove();
-    // Create clipping path definition
-    const defs = svg.append('defs');
-    defs
-      .append('clipPath')
-      .attr('id', `clip-${parameterId}`)
-      .append('rect')
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('width', innerWidth)
-      .attr('height', innerHeight);
-
-    svgGroup = svg
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`)
-      .attr('clip-path', `url(#clip-${parameterId})`);
-  });
-
-  $effect(() => {
-    let zoom = sharedXScale.getZoom();
-    if (!svgGroup) {
-      return;
-    }
-    svg.call(zoom);
-    let lastZoomEvent = sharedXScale.getLastZoomEvent();
-    if (!lastZoomEvent) {
-      return;
-    }
-    // https://stackoverflow.com/a/61073772
-    svg.node().__zoom = lastZoomEvent.transform;
-  });
-
-  let xAxisBars = $derived(sharedXScale.getXAxisBars());
-
-  // Draw grid lines
-  $effect(() => {
-    if (svgGroup && innerWidth > 0 && innerHeight > 0) {
-      // Remove existing grid
-      svgGroup.selectAll('.grid').remove();
-
-      // X-axis grid
-      svgGroup
-        .append('g')
-        .attr('class', 'grid')
-        .call(xAxisBars.tickSize(-innerHeight).tickFormat(() => ''))
-        .style('stroke-dasharray', '3,3')
-        .style('opacity', 0.3);
-
-      // Y-axis grid
-      svgGroup
-        .append('g')
-        .attr('class', 'grid')
-        .call(
-          d3
-            .axisLeft(yScale)
-            .tickSize(-innerWidth)
-            .tickFormat(() => ''),
-        )
-        .style('stroke-dasharray', '3,3')
-        .style('opacity', 0.3);
-    }
-  });
+  let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   // Draw area and line
   $effect(() => {
@@ -176,9 +112,11 @@
   });
 </script>
 
-<div class="automation-curve-container bg-base-100 border-base-300 border">
-  <svg bind:this={svgElement} {width} {height} class="overflow-visible"></svg>
-</div>
+<g
+  id={`${parameterId}-${parameter.parameterName}`}
+  bind:this={gElement}
+  transform={`translate(0,${yPosition})`}
+></g>
 
 <style>
   .automation-curve-container :global(.grid line) {

@@ -6,22 +6,17 @@
     parameterId: string;
     height: number;
     width: number;
+    yPosition: number;
   }
 
-  let { parameterId, height, width }: AutomationCurveProps = $props();
+  let { parameterId, height, width, yPosition }: AutomationCurveProps = $props();
   let parameterPromise = $derived(automationDb.get().tracks.getParameterById(parameterId));
 </script>
 
 {#await parameterPromise then parameter}
   {#if parameter}
-    <AutomationCurve
-      {parameterId}
-      minValue={parameter.minValue}
-      maxValue={parameter.maxValue}
-      {height}
-      {width}
-    />
+    <AutomationCurve {parameterId} {parameter} {height} {width} {yPosition} />
   {:else}
-    <div class="text-error">Parameter not found</div>
+    <g><text> {parameterId} Parameter not found</text></g>
   {/if}
 {/await}

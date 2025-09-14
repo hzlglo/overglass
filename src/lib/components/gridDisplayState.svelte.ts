@@ -1,5 +1,5 @@
 import type { AutomationDatabase } from '$lib/database/duckdb';
-import { fromPairs } from 'lodash';
+import { fromPairs, get, sum } from 'lodash';
 import { SvelteSet } from 'svelte/reactivity';
 
 export let TOP_TIMELINE_HEIGHT = 60;
@@ -14,11 +14,24 @@ const getGridDisplayState = () => {
   let expandedTracks = $state<SvelteSet<string>>(new SvelteSet());
   let expandedParameters = $state<SvelteSet<string>>(new SvelteSet());
   let trackOrder = $state<string[]>([]);
-  let parameterOrder = $state<{ [deviceId: string]: string[] }>({});
+  let parameterOrder = $state<{ [trackId: string]: string[] }>({});
   // store both track and parameter heights
   let laneHeights = $state<{ [laneId: string]: number }>({});
-
-  let scrollY = $state(0);
+  let laneYPositions = $derived.by(() => {
+    let yPositions: { [trackOrParamId: string]: number } = {};
+    let y = 0;
+    for (const trackId of trackOrder) {
+      yPositions[trackId] = y;
+      y += laneHeights[trackId];
+      if (expandedTracks.has(trackId)) {
+        for (const parameterId of get(parameterOrder, trackId, [])) {
+          yPositions[parameterId] = y;
+          y += laneHeights[parameterId];
+        }
+      }
+    }
+    return yPositions;
+  });
 
   async function initFromDb(db: AutomationDatabase) {
     const tracks = await db.tracks.getAllTracks();
@@ -36,10 +49,14 @@ const getGridDisplayState = () => {
           parameters.forEach((param) => {
             allParameterIds.add(param.id);
 
-            laneHeights[param.id] = DEFAULT_PARAMETER_HEIGHT;
+            laneHeights = { ...$state.snapshot(laneHeights), [param.id]: DEFAULT_PARAMETER_HEIGHT };
           });
         }
-        parameterOrder[track.id] = parameters.map((p) => p.id);
+        console.log('parameters', track, parameters);
+        parameterOrder = {
+          ...$state.snapshot(parameterOrder),
+          [track.id]: parameters.map((p) => p.id),
+        };
       }
       expandedParameters = new SvelteSet(allParameterIds);
     }
@@ -89,7 +106,7 @@ const getGridDisplayState = () => {
     toggleTrackExpansion,
     toggleParameterExpansion,
     getTrackOrder: () => trackOrder,
-    getParameterOrder: (trackId: string) => parameterOrder[trackId],
+    getParameterOrder: () => parameterOrder,
     setTrackOrder: (order: string[]) => {
       trackOrder = order;
     },
@@ -97,6 +114,8 @@ const getGridDisplayState = () => {
       parameterOrder[trackId] = order;
     },
     getLaneHeight: (trackOrParamId: string) => laneHeights[trackOrParamId],
+    getGridHeight: () => sum(Object.values(laneHeights)),
+    getLaneYPositions: () => laneYPositions,
     setLaneHeight: (trackOrParamId: string, height: number) => {
       laneHeights[trackOrParamId] = height;
     },

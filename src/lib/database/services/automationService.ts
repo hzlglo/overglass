@@ -135,7 +135,7 @@ export class AutomationService {
    * @returns Array of automation points
    */
   async getAutomationPoints(
-    parameterId: string,
+    parameterId?: string,
     startTime?: number,
     endTime?: number,
     fullDetails: boolean = true,
@@ -149,9 +149,9 @@ export class AutomationService {
     let sql = `
       SELECT ${selectFields}
       FROM automation_points
-      WHERE parameter_id = ?
+      WHERE ${parameterId ? 'parameter_id = ?' : '1'}
     `;
-    const params = [parameterId];
+    const params = parameterId ? [parameterId] : [];
 
     if (startTime !== undefined) {
       sql += ' AND time_position >= ?';

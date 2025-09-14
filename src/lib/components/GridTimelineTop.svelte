@@ -11,7 +11,6 @@
   let innerWidth = $derived(width - margin.left - margin.right);
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
-  let xScaleBars = $derived(sharedXScale.getZoomedXScaleBars());
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
 
   // Setup SVG
@@ -52,16 +51,6 @@
         .selectAll('line')
         .style('stroke-dasharray', '2,2')
         .style('opacity', 0.3);
-
-      // Current playhead (placeholder)
-      svgGroup
-        .append('line')
-        .attr('x1', xScaleBars(0))
-        .attr('x2', xScaleBars(0))
-        .attr('y1', 0)
-        .attr('y2', innerHeight)
-        .attr('stroke-width', 2)
-        .attr('opacity', 0.8);
     }
   });
 </script>

@@ -19,7 +19,7 @@
   let isTrackExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
 
   let devicePromise = $derived(automationDb.get().devices.getTrackDevice(trackId));
-  let parameterIds = $derived(gridDisplayState.getParameterOrder(trackId));
+  let parameterIds = $derived(gridDisplayState.getParameterOrder()[trackId]);
 </script>
 
 {#await Promise.all([trackPromise, devicePromise]) then [track, device]}
