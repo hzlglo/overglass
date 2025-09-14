@@ -1,43 +1,39 @@
 <script lang="ts">
-  import { automationDb } from '../stores/database.svelte';
-  import Track from './Track.svelte';
-  import { trackExpansionState } from './trackExpansionState.svelte';
+  import TrackControl from './TrackControl.svelte';
+  import {
+    BOTTOM_TIMELINE_HEIGHT,
+    gridDisplayState,
+    TOP_TIMELINE_HEIGHT,
+  } from './gridDisplayState.svelte';
 
-  // Reactive database queries
-  let tracksPromise = $derived(automationDb.get().tracks.getAllTracks());
-  let isRecalculating = $derived(automationDb.isRecalculating());
+  let trackIds = $derived(gridDisplayState.getTrackOrder());
+  $inspect('trackIds', trackIds);
 
+  let trackListContainer = $state<HTMLDivElement>();
   $effect(() => {
-    trackExpansionState.initFromDb(automationDb.get());
+    if (!trackListContainer) return;
+    gridDisplayState.setTrackListContainer(trackListContainer);
+  });
+  $effect(() => {
+    let gridContainer = gridDisplayState.getGridContainer();
+    if (!trackListContainer || !gridContainer) return;
+    const syncScroll = () => {
+      if (!trackListContainer || !gridContainer) return;
+      gridDisplayState.syncScroll(trackListContainer, gridContainer);
+    };
+    trackListContainer.addEventListener('scroll', syncScroll);
+    return () => {
+      trackListContainer?.removeEventListener('scroll', syncScroll);
+    };
   });
 </script>
 
-{#await tracksPromise}
-  <div class="flex items-center gap-3 p-4">
-    <div class="loading loading-spinner loading-sm"></div>
-    Loading devices...
+<div class="flex min-h-0 flex-col">
+  <div style="height: {TOP_TIMELINE_HEIGHT}px"></div>
+  <div class="flex-1 overflow-y-auto" bind:this={trackListContainer}>
+    {#each trackIds as trackId}
+      <TrackControl {trackId} />
+    {/each}
   </div>
-{:then tracks}
-  {#if tracks.length > 0}
-    <!-- Database-powered hierarchical view -->
-    <div class="mb-6">
-      <div class="mb-3 flex items-center gap-3">
-        {#if isRecalculating}
-          <div class="loading loading-spinner loading-sm"></div>
-        {/if}
-      </div>
-
-      <div class="space-y-4">
-        {#each tracks as track}
-          <Track {track} />
-        {/each}
-      </div>
-    </div>
-  {:else}
-    <div class="text-base-content/60 py-8 text-center">No devices found</div>
-  {/if}
-{:catch error}
-  <div class="text-error p-4">
-    Error loading devices: {error.message}
-  </div>
-{/await}
+  <div style="height: {BOTTOM_TIMELINE_HEIGHT}px"></div>
+</div>

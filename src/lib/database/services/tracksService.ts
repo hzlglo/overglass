@@ -89,12 +89,22 @@ export class TracksService {
     return parameters;
   }
 
+  async getParameterById(parameterId: string): Promise<Parameter | null> {
+    const parameters = await this.db.run(
+      `SELECT p.id, p.track_id, p.parameter_name, p.parameter_path, p.created_at FROM parameters p WHERE id = ?`,
+      [parameterId],
+    );
+    return parameters.length > 0 ? parameters[0] : null;
+  }
+
   /**
    * Get a single track by ID with statistics
    */
   async getTrackById(
     trackId: string,
-  ): Promise<(Track & { parameterCount: number; automationPointCount: number; deviceName: string }) | null> {
+  ): Promise<
+    (Track & { parameterCount: number; automationPointCount: number; deviceName: string }) | null
+  > {
     const tracks = await this.db.run(
       `
       SELECT

@@ -67,4 +67,10 @@ export class DeviceService {
 
     return devices[0];
   }
+  async getTrackDevice(trackId: string): Promise<Device> {
+    console.log('getTrackDevice', trackId);
+    const track = await this.db.run(`SELECT device_id FROM tracks WHERE id = ?`, [trackId]);
+    console.log('track', track);
+    return this.getDeviceById(track[0].deviceId);
+  }
 }

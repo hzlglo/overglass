@@ -76,7 +76,6 @@ const createAutomationDbStore = () => {
       if (!database) {
         throw new Error('database not initialized');
       }
-      console.log('getting with timestamp', lastDbUpdateAt);
       return database;
     },
     isRecalculating: () => isRecalculating,

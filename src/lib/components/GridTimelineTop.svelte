@@ -1,20 +1,17 @@
 <script lang="ts">
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
-  import TrackLane from './TrackLane.svelte';
-  import SizeObserver from './SizeObserver.svelte';
+
+  let { width, height }: { width: number; height: number } = $props();
 
   let svgElement = $state<SVGElement>();
   let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 
   const margin = { top: 10, right: 0, bottom: 30, left: 0 };
-  let width = $state(800);
-  let height = $state(60);
   let innerWidth = $derived(width - margin.left - margin.right);
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
   let xScaleBars = $derived(sharedXScale.getZoomedXScaleBars());
-  $inspect('xScaleBars', xScaleBars.domain(), xScaleBars.range());
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
 
   // Setup SVG
@@ -69,12 +66,4 @@
   });
 </script>
 
-<TrackLane>
-  {#snippet body()}
-    <SizeObserver bind:width bind:height>
-      <svg bind:this={svgElement} {width} {height} class="block"></svg>
-    </SizeObserver>
-  {/snippet}
-  {#snippet right()}{/snippet}
-  {#snippet children()}{/snippet}
-</TrackLane>
+<svg bind:this={svgElement} {width} {height} class="block"></svg>

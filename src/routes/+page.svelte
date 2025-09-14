@@ -1,16 +1,10 @@
 <script lang="ts">
-  import '../app.css';
-  import { ALSParser } from '$lib/parsers/alsParser';
-  import { ALSDebugger } from '$lib/utils/alsDebugger';
-  import { automationDb } from '$lib/stores/database.svelte';
-  import { appStore } from '$lib/stores/app.svelte';
-  import TrackList from '$lib/components/TrackList.svelte';
-  import FileChooser from '$lib/components/FileChooser.svelte';
-  import Navbar from '$lib/components/Navbar.svelte';
-  import BottomTimeline from '$lib/components/BottomTimeline.svelte';
-  import type { ParsedALS } from '$lib/types/automation';
   import Debugger from '$lib/components/Debugger.svelte';
-  import TopTimeline from '$lib/components/TopTimeline.svelte';
+  import FileChooser from '$lib/components/FileChooser.svelte';
+  import GridAndTrackList from '$lib/components/GridAndTrackList.svelte';
+  import Navbar from '$lib/components/Navbar.svelte';
+  import { appStore } from '$lib/stores/app.svelte';
+  import '../app.css';
 
   // FileChooser now handles all the file loading logic internally
 </script>
@@ -43,17 +37,11 @@
 
       <!-- Main Content Area -->
       <div class="flex min-h-0 w-screen flex-1 flex-col px-3">
-        <TopTimeline />
-        <div class="min-h-0 overflow-y-auto">
-          {#if appStore.showDebugger}
-            <Debugger />
-          {:else}
-            <TrackList />
-          {/if}
-        </div>
-
-        <!-- Bottom Timeline -->
-        <BottomTimeline />
+        {#if appStore.showDebugger}
+          <Debugger />
+        {:else}
+          <GridAndTrackList />
+        {/if}
       </div>
     </div>
   {/if}

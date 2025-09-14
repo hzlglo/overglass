@@ -1,30 +1,27 @@
 <script lang="ts">
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
-  import TrackLane from './TrackLane.svelte';
-  import SizeObserver from './SizeObserver.svelte';
-  import { automationDb } from '$lib/stores/database.svelte';
+
+  let { width, height }: { width: number; height: number } = $props();
 
   let svgElement = $state<SVGElement>();
   let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 
   const margin = { top: 10, right: 0, bottom: 30, left: 0 };
-  let width = $state(800);
-  let height = $state(60);
   let innerWidth = $derived(width - margin.left - margin.right);
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
-  $effect(() => {
-    console.log('innerWidth', innerWidth);
-    sharedXScale.setWidth(innerWidth);
-  });
+  $inspect('innerWidth', innerWidth);
+  $inspect('innerHeight', innerHeight);
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
-  $effect(async () => {
-    let setMaxTime = sharedXScale.setMaxTime;
-    const maxTime = await automationDb.get().automation.getMaxTime();
-    setMaxTime(maxTime);
+  $effect(() => {
+    let zoom = sharedXScale.getZoom();
+    if (!svgGroup) {
+      return;
+    }
+    svgGroup.call(zoom);
   });
 
   // Setup SVG
@@ -36,16 +33,9 @@
     }
   });
 
-  $effect(() => {
-    let zoom = sharedXScale.getZoom();
-    if (!svgGroup) {
-      return;
-    }
-    svgGroup.call(zoom);
-  });
-
   // Draw timeline
   $effect(() => {
+    console.log('Inner height', innerHeight);
     if (svgGroup && innerWidth > 0 && innerHeight > 0) {
       svgGroup.selectAll('*').remove();
 
@@ -85,12 +75,4 @@
   });
 </script>
 
-<TrackLane>
-  {#snippet body()}
-    <SizeObserver bind:width bind:height>
-      <svg bind:this={svgElement} {width} {height} class="block"></svg>
-    </SizeObserver>
-  {/snippet}
-  {#snippet right()}{/snippet}
-  {#snippet children()}{/snippet}
-</TrackLane>
+<svg bind:this={svgElement} {width} {height} class="block"></svg>
