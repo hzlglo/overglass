@@ -7,9 +7,10 @@
   import TrackList from '$lib/components/TrackList.svelte';
   import FileChooser from '$lib/components/FileChooser.svelte';
   import Navbar from '$lib/components/Navbar.svelte';
-  import Timeline from '$lib/components/Timeline.svelte';
+  import BottomTimeline from '$lib/components/BottomTimeline.svelte';
   import type { ParsedALS } from '$lib/types/automation';
   import Debugger from '$lib/components/Debugger.svelte';
+  import TopTimeline from '$lib/components/TopTimeline.svelte';
 
   // FileChooser now handles all the file loading logic internally
 </script>
@@ -41,6 +42,8 @@
       />
 
       <!-- Main Content Area -->
+
+      <TopTimeline />
       <div class="flex-1 overflow-y-auto">
         {#if appStore.showDebugger}
           <Debugger />
@@ -50,7 +53,7 @@
       </div>
 
       <!-- Bottom Timeline -->
-      <Timeline />
+      <BottomTimeline />
     </div>
   {/if}
 </div>

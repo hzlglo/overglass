@@ -29,6 +29,7 @@
   $inspect('innerheight', innerHeight);
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
+  let xScaleBars = $derived(sharedXScale.getZoomedXScaleBars());
 
   let yScale = $derived(d3.scaleLinear().domain([minValue, maxValue]).range([innerHeight, 0]));
 
@@ -95,6 +96,8 @@
     svg.node().__zoom = lastZoomEvent.transform;
   });
 
+  let xAxisBars = $derived(sharedXScale.getXAxisBars());
+
   // Draw grid lines
   $effect(() => {
     if (svgGroup && innerWidth > 0 && innerHeight > 0) {
@@ -105,13 +108,7 @@
       svgGroup
         .append('g')
         .attr('class', 'grid')
-        .attr('transform', `translate(0,${innerHeight})`)
-        .call(
-          d3
-            .axisBottom(xScale)
-            .tickSize(-innerHeight)
-            .tickFormat(() => ''),
-        )
+        .call(xAxisBars.tickSize(-innerHeight).tickFormat(() => ''))
         .style('stroke-dasharray', '3,3')
         .style('opacity', 0.3);
 
