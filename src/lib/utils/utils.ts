@@ -1,3 +1,5 @@
+import type { LaneDisplay } from '$lib/components/gridDisplayState.svelte';
+
 export type themeColor =
   | 'primary'
   | 'primary-content'
@@ -23,39 +25,4 @@ export function getThemeColor(name: themeColor) {
     .getPropertyValue(`--color-${name}`)
     .trim();
   return value;
-}
-
-export function binarySearchCeiling(arr: number[], value: number) {
-  let lo = 0,
-    hi = arr.length - 1;
-  let result = null;
-
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (arr[mid] >= value) {
-      result = arr[mid];
-      hi = mid - 1; // look for smaller ceiling
-    } else {
-      lo = mid + 1;
-    }
-  }
-  console.log('binarysearchceiling snapping', value, 'to', result);
-  return result;
-}
-export function binarySearchFloor(arr: number[], value: number) {
-  let lo = 0,
-    hi = arr.length - 1;
-  let result = null;
-
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (arr[mid] <= value) {
-      result = arr[mid];
-      lo = mid + 1; // look for larger floor
-    } else {
-      hi = mid - 1;
-    }
-  }
-  console.log('binarysearchfloor snapping', value, 'to', result);
-  return result;
 }

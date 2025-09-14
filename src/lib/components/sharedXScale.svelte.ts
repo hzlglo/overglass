@@ -85,6 +85,7 @@ const getSharedXScale = () => {
   };
 
   let lastZoomEvent = $state(null);
+  let currentZoomTransform = $state(null);
 
   let zoom = $derived(
     d3
@@ -100,14 +101,22 @@ const getSharedXScale = () => {
       })
       .on('zoom', (event) => {
         lastZoomEvent = event;
-        const currentZoomTransform = event.transform;
+        currentZoomTransform = event.transform;
         zoomedXScale = currentZoomTransform.rescaleX(xScale);
         zoomedXScaleBars = currentZoomTransform.rescaleX(xScaleBars);
         recalculateXAxisBars();
       }),
   );
+  let getDataDeltaForScreenDelta = $derived((screenDelta: number) => {
+    if (!currentZoomTransform) return xScale.invert(screenDelta);
+    return (
+      ((screenDelta / currentZoomTransform.k) * (xScale.domain()[1] - xScale.domain()[0])) /
+      (xScale.range()[1] - xScale.range()[0])
+    );
+  });
 
   return {
+    getDataDeltaForScreenDelta: getDataDeltaForScreenDelta,
     getZoom: () => zoom,
     getZoomedXScale: () => zoomedXScale,
     getLastZoomEvent: () => lastZoomEvent,

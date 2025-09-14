@@ -3,6 +3,7 @@
   import { automationDb } from '../stores/database.svelte';
   import type { AutomationPoint, Parameter, ParameterStats } from '../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
+  import { SvelteSet } from 'svelte/reactivity';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -28,11 +29,16 @@
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
-  let yScale = $derived(
-    d3.scaleLinear().domain([parameter.minValue, parameter.maxValue]).range([innerHeight, 0]),
+  let yScale = $derived(d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]));
+  // scale used for dragging points
+  let yDiffScale = $derived(
+    d3
+      .scaleLinear()
+      .domain([0, 1])
+      .range([0, 0 - innerHeight]),
   );
 
-  let line = $derived(
+  let lineFn = $derived(
     d3
       .line<AutomationPoint>()
       .x((d) => xScale(d.timePosition))
@@ -40,7 +46,7 @@
       .curve(d3.curveLinear),
   );
 
-  let area = $derived(
+  let areaFn = $derived(
     d3
       .area<AutomationPoint>()
       .x((d) => xScale(d.timePosition))
@@ -57,59 +63,107 @@
 
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
-  // Draw area and line
+  let { area, line } = $derived.by(() => {
+    if (!svgGroup) {
+      return { area: undefined, line: undefined };
+    }
+    svgGroup.selectAll('.area, .line').remove();
+    // Draw area
+    const area = svgGroup
+      .append('path')
+      .attr('class', 'area')
+      .attr('fill', 'var(--color-primary)')
+      .attr('fill-opacity', 0.2);
+
+    // Draw line
+    const line = svgGroup
+      .append('path')
+      .attr('class', 'line')
+      .attr('fill', 'none')
+      .attr('stroke', 'var(--color-primary)')
+      .attr('stroke-opacity', 0.4)
+      .attr('stroke-width', 2);
+    return { area: area, line: line };
+  });
+
   $effect(() => {
-    if (svgGroup && automationPoints.length > 0) {
+    if (area && line) {
+      // Ensure points are within the range of the xScale
       const updatedAutomationPoints = automationPoints.map((point) => ({
         ...point,
         timePosition: point.timePosition < 0 ? 0 : point.timePosition,
       }));
-      // Remove existing paths
-      svgGroup.selectAll('.area, .line').remove();
-
-      // Draw area
-      svgGroup
-        .append('path')
-        .attr('class', 'area')
-        .datum(updatedAutomationPoints)
-        .attr('fill', 'var(--color-primary)')
-        .attr('fill-opacity', 0.2)
-        .attr('d', area);
-
-      // Draw line
-      svgGroup
-        .append('path')
-        .attr('class', 'line')
-        .datum(updatedAutomationPoints)
-        .attr('fill', 'none')
-        .attr('stroke', 'var(--color-primary)')
-        .attr('stroke-opacity', 0.4)
-        .attr('stroke-width', 2)
-        .attr('d', line);
+      area.datum(updatedAutomationPoints).attr('d', areaFn);
+      line.datum(updatedAutomationPoints).attr('d', lineFn);
     }
   });
 
   // Draw points
-  $effect(() => {
-    if (svgGroup && automationPoints.length > 0) {
-      // Remove existing points
-      svgGroup.selectAll('.point').remove();
+  let points = $derived.by(() => {
+    console.log('rerendering points');
 
-      // Add new points
-      svgGroup
-        .selectAll('.point')
-        .data(automationPoints)
-        .enter()
-        .append('circle')
-        .attr('class', 'point')
-        .attr('cx', (d) => xScale(d.timePosition))
-        .attr('cy', (d) => yScale(d.value))
-        .attr('r', 3)
-        .attr('fill', 'var(--color-primary)')
-        .attr('fill-opacity', 0.4)
-        .attr('stroke', 'var(--color-primary)')
-        .attr('stroke-width', 1);
-    }
+    // Add new points
+    let circles = svgGroup
+      ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
+      .data(automationPoints, (p) => p.id)
+      .join(
+        (enter) =>
+          enter
+            .append('circle')
+            .attr('class', 'point')
+            .attr('r', 3)
+            .attr('fill', 'var(--color-primary)')
+            .attr('fill-opacity', 0.4)
+            .attr('stroke', 'var(--color-primary)')
+            .attr('stroke-width', 1),
+        (update) => update,
+        (exit) => exit.remove(),
+      );
+
+    circles?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
+
+    return circles;
+  });
+  let selectedPoints = $state<SvelteSet<AutomationPoint>>(new SvelteSet());
+
+  $effect(() => {
+    const drag = d3
+      .drag()
+      .on(
+        'start',
+        (
+          event: d3.D3DragEvent<SVGCircleElement, AutomationPoint, SVGElement>,
+          d: AutomationPoint,
+        ) => {
+          if (!selectedPoints.has(d)) {
+            selectedPoints.clear();
+            selectedPoints.add(d);
+            // brushMoved({ selection: null }); // update visual highlight
+          }
+        },
+      )
+      .on('drag', (event, d) => {
+        const dx = event.dx;
+        const dy = event.dy;
+        console.log(
+          'dragging!',
+          event,
+          dx,
+          sharedXScale.getDataDeltaForScreenDelta(dx),
+          dy,
+          yDiffScale.invert(dy),
+        );
+        selectedPoints.forEach((p) => {
+          p.timePosition = p.timePosition + sharedXScale.getDataDeltaForScreenDelta(dx);
+          p.value = p.value + yDiffScale.invert(dy);
+        });
+        points?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
+      })
+      .on('end', (event, d) => {
+        selectedPoints.clear();
+        console.log('drag ended! selectedPoints', selectedPoints);
+      });
+    points?.call(drag, []);
   });
 </script>
 

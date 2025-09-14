@@ -12,8 +12,6 @@
   import SizeObserver from './SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
-  import { binarySearchCeiling, binarySearchFloor } from '$lib/utils/utils';
-  import { last } from 'lodash';
 
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
@@ -53,8 +51,7 @@
 
   let trackOrder = $derived(gridDisplayState.getTrackOrder());
   let parameterOrder = $derived(gridDisplayState.getParameterOrder());
-  let laneYPositions = $derived(gridDisplayState.getLaneYPositions());
-  let laneBoundaries = $derived(gridDisplayState.getLaneBoundaries());
+  let lanes = $derived(gridDisplayState.getLanes());
 
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
@@ -96,24 +93,22 @@
     svg.call(zoom).on('wheel', pan);
   });
 
-  let brushG = $derived.by(() => {
-    if (!svg) {
-      return;
-    }
-    svg.selectAll('.brush').remove();
-    return svg.append('g').attr('class', 'brush');
-  });
+  let brushGElement = $state<SVGGElement>();
+  let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);
   let brushHandler = (event) => {
     if (!event.selection) {
       sharedDragSelect.setBrushSelection(null);
+      sharedDragSelect.setSelectedLanes([]);
       return;
     }
     let [[x0, y0], [x1, y1]] = event.selection;
     let { sourceEvent } = event;
     if (sourceEvent && brushG) {
       // Snap y0 and y1 to allowed values
-      y0 = binarySearchFloor(laneBoundaries, y0);
-      y1 = binarySearchCeiling(laneBoundaries, y1);
+      const firstLaneIndex = lanes.findIndex((l) => l.top <= y0);
+      const lastLaneIndex = lanes.findIndex((l) => l.bottom >= y1);
+      y0 = lanes[firstLaneIndex].top;
+      y1 = lanes[lastLaneIndex].bottom;
 
       // Ensure y0 < y1
       if (y0 > y1) [y0, y1] = [y1, y0];
@@ -123,6 +118,7 @@
         [x0, y0],
         [x1, y1],
       ]);
+      sharedDragSelect.setSelectedLanes(lanes.slice(firstLaneIndex, lastLaneIndex + 1));
     }
 
     sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });
@@ -133,7 +129,12 @@
       .extent([
         [0, 0],
         [innerWidth, innerHeight],
-      ]) // SVG bounds
+      ])
+      .filter((event) => {
+        // Only allow brushing for left-clicks **without dragging a point**
+        console.log('event', event);
+        return !event.target.classList.contains('draggable') && event.button === 0;
+      })
       .on('start brush end', brushHandler),
   );
   $effect(() => {
@@ -161,12 +162,12 @@
 
       // Y-axis grid
       svgGroup.selectAll('.y-grid').remove();
-      if (laneBoundaries.length > 0) {
+      if (lanes.length > 0) {
         svgGroup
           .append('g')
           .attr('class', 'y-grid')
           .selectAll('line')
-          .data(laneBoundaries)
+          .data(lanes.map((l) => l.bottom))
           .enter()
           .append('line')
           .attr('class', 'y-grid')
@@ -186,16 +187,17 @@
     <GridTimelineTop height={TOP_TIMELINE_HEIGHT} width={gridWidth} />
     <div class="no-scrollbar flex flex-1 flex-col overflow-y-auto" bind:this={gridContainer}>
       <svg class="shrink-0" height={gridHeight} width={gridWidth} bind:this={svgElement}>
+        <g bind:this={brushGElement} class="brush-group"></g>
         <g bind:this={svgGroupElement}>
-          {#each trackOrder as trackId (trackId)}
-            {#each parameterOrder[trackId] as parameterId (parameterId)}
+          {#each lanes as lane (lane.id)}
+            {#if lane.type === 'parameter'}
               <AutomationCurveWrapper
-                {parameterId}
-                height={gridDisplayState.getLaneHeight(parameterId)}
+                parameterId={lane.id}
+                height={gridDisplayState.getLaneHeight(lane.id)}
                 width={gridWidth}
-                yPosition={laneYPositions[parameterId]}
+                yPosition={lane.top}
               />
-            {/each}
+            {/if}
           {/each}
         </g>
       </svg>

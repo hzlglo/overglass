@@ -9,6 +9,8 @@ let DEFAULT_PARAMETER_HEIGHT = 150;
 let DEFAULT_TRACK_HEIGHT = 50;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
+export type LaneDisplay = { top: number; bottom: number; type: 'track' | 'parameter'; id: string };
+
 const getGridDisplayState = () => {
   // Reactive state for expansion
   let expandedTracks = $state<SvelteSet<string>>(new SvelteSet());
@@ -17,23 +19,30 @@ const getGridDisplayState = () => {
   let parameterOrder = $state<{ [trackId: string]: string[] }>({});
   // store both track and parameter heights
   let laneHeights = $state<{ [laneId: string]: number }>({});
-  let { laneYPositions, laneBoundaries } = $derived.by(() => {
-    let yPositions: { [trackOrParamId: string]: number } = {};
-    let laneBoundaries: number[] = [0];
+  let lanes: LaneDisplay[] = $derived.by(() => {
+    let lanes: LaneDisplay[] = [];
     let y = 0;
     for (const trackId of trackOrder) {
-      yPositions[trackId] = y;
+      lanes.push({
+        top: y,
+        bottom: y + laneHeights[trackId],
+        type: 'track',
+        id: trackId,
+      });
       y += laneHeights[trackId];
-      laneBoundaries.push(y);
       if (expandedTracks.has(trackId)) {
         for (const parameterId of get(parameterOrder, trackId, [])) {
-          yPositions[parameterId] = y;
+          lanes.push({
+            top: y,
+            bottom: y + laneHeights[parameterId],
+            type: 'parameter',
+            id: parameterId,
+          });
           y += laneHeights[parameterId];
-          laneBoundaries.push(y);
         }
       }
     }
-    return { laneYPositions: yPositions, laneBoundaries };
+    return lanes;
   });
 
   async function initFromDb(db: AutomationDatabase) {
@@ -118,8 +127,7 @@ const getGridDisplayState = () => {
     },
     getLaneHeight: (trackOrParamId: string) => laneHeights[trackOrParamId],
     getGridHeight: () => sum(Object.values(laneHeights)),
-    getLaneYPositions: () => laneYPositions,
-    getLaneBoundaries: () => laneBoundaries,
+    getLanes: () => lanes,
     setLaneHeight: (trackOrParamId: string, height: number) => {
       laneHeights[trackOrParamId] = height;
     },
