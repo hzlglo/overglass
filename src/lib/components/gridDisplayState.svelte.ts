@@ -5,7 +5,8 @@ import { SvelteSet } from 'svelte/reactivity';
 export let TOP_TIMELINE_HEIGHT = 60;
 export let BOTTOM_TIMELINE_HEIGHT = 60;
 
-let DEFAULT_TRACK_HEIGHT = 150;
+let DEFAULT_PARAMETER_HEIGHT = 150;
+let DEFAULT_TRACK_HEIGHT = 50;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
 const getGridDisplayState = () => {
@@ -35,7 +36,7 @@ const getGridDisplayState = () => {
           parameters.forEach((param) => {
             allParameterIds.add(param.id);
 
-            laneHeights[param.id] = DEFAULT_TRACK_HEIGHT;
+            laneHeights[param.id] = DEFAULT_PARAMETER_HEIGHT;
           });
         }
         parameterOrder[track.id] = parameters.map((p) => p.id);
@@ -67,7 +68,7 @@ const getGridDisplayState = () => {
       laneHeights[parameterId] = DEFAULT_COLLAPSED_HEIGHT;
     } else {
       expandedParameters.add(parameterId);
-      laneHeights[parameterId] = DEFAULT_TRACK_HEIGHT;
+      laneHeights[parameterId] = DEFAULT_PARAMETER_HEIGHT;
     }
   }
 

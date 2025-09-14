@@ -89,9 +89,25 @@ export class TracksService {
     return parameters;
   }
 
-  async getParameterById(parameterId: string): Promise<Parameter | null> {
+  async getParameterById(parameterId: string): Promise<(Parameter & ParameterStats) | null> {
     const parameters = await this.db.run(
-      `SELECT p.id, p.track_id, p.parameter_name, p.parameter_path, p.created_at FROM parameters p WHERE id = ?`,
+      `
+      SELECT
+        p.id,
+        p.track_id,
+        p.parameter_name,
+        p.parameter_path,
+        p.created_at,
+        COALESCE(MIN(ap.value), 0) as min_value,
+        COALESCE(MAX(ap.value), 1) as max_value,
+        COALESCE(MIN(ap.time_position), 0) as min_time,
+        COALESCE(MAX(ap.time_position), 0) as max_time,
+        COUNT(ap.id) as point_count
+      FROM parameters p
+      LEFT JOIN automation_points ap ON p.id = ap.parameter_id
+      WHERE p.id = ?
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.created_at
+      `,
       [parameterId],
     );
     return parameters.length > 0 ? parameters[0] : null;

@@ -3,18 +3,16 @@
   import { automationDb } from '../stores/database.svelte';
   import type { AutomationPoint } from '../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
-  import SizeObserver from './SizeObserver.svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
     minValue: number;
     maxValue: number;
+    height: number;
+    width: number;
   }
 
-  let { parameterId, minValue, maxValue }: AutomationCurveProps = $props();
-
-  let width = $state(400);
-  let height = $state(150);
+  let { parameterId, minValue, maxValue, height, width }: AutomationCurveProps = $props();
 
   // State
   let svgElement = $state<SVGElement>();
@@ -29,7 +27,6 @@
   $inspect('innerheight', innerHeight);
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
-  let xScaleBars = $derived(sharedXScale.getZoomedXScaleBars());
 
   let yScale = $derived(d3.scaleLinear().domain([minValue, maxValue]).range([innerHeight, 0]));
 
@@ -179,12 +176,8 @@
   });
 </script>
 
-<div class="automation-curve-container">
-  <div class="bg-base-100 border-base-300 h-[150px] border">
-    <SizeObserver bind:width bind:height>
-      <svg bind:this={svgElement} {width} {height} class="overflow-visible"></svg>
-    </SizeObserver>
-  </div>
+<div class="automation-curve-container bg-base-100 border-base-300 border">
+  <svg bind:this={svgElement} {width} {height} class="overflow-visible"></svg>
 </div>
 
 <style>

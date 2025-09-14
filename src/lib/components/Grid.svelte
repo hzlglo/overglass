@@ -9,6 +9,7 @@
     TOP_TIMELINE_HEIGHT,
   } from './gridDisplayState.svelte';
   import SizeObserver from './SizeObserver.svelte';
+  import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
 
   $effect(() => {
     console.log('innerWidth', innerWidth);
@@ -53,11 +54,11 @@
           </g>
         </svg>
         {#each gridDisplayState.getParameterOrder(trackId) as parameterId}
-          <svg class="shrink-0" height={gridDisplayState.getLaneHeight(parameterId)}>
-            <g>
-              <text x="10" y="20" fill="currentColor">parameter placeholder</text>
-            </g>
-          </svg>
+          <AutomationCurveWrapper
+            {parameterId}
+            height={gridDisplayState.getLaneHeight(parameterId)}
+            {width}
+          />
         {/each}
       {/each}
     </div>
