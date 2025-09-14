@@ -14,8 +14,6 @@
     automationDb.get().tracks.getTrackById(trackId),
   );
 
-  $inspect('trackId', trackId);
-
   let isTrackExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
 
   let devicePromise = $derived(automationDb.get().devices.getTrackDevice(trackId));

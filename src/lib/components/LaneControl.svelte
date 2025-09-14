@@ -24,8 +24,8 @@
   let height = $derived(gridDisplayState.getLaneHeight(laneId));
 </script>
 
-<div class="border-base-300 min-w-0 border">
-  <div class="w-[300px]" style="height: {height}px">
+<div class="min-w-0">
+  <div class="border-base-100 box-border w-[300px] border" style="height: {height}px">
     <div class="flex flex-row">
       {#if onToggleExpanded}
         <button class="btn btn-xs" onclick={onToggleExpanded}>

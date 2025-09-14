@@ -3,7 +3,6 @@
   import { automationDb } from '../stores/database.svelte';
   import type { AutomationPoint, Parameter, ParameterStats } from '../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
-  import { onDestroy } from 'svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -19,15 +18,13 @@
   let gElement = $state<SVGElement>();
   let automationPoints = $state<AutomationPoint[]>([]);
 
-  $inspect('parameter', gElement, parameter, automationPoints);
+  $inspect('here', gElement?.getBoundingClientRect());
 
   // Derived values
-  const margin = { top: 10, right: 0, bottom: 10, left: 0 };
+  const margin = { top: 1, right: 0, bottom: 1, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
 
   let innerHeight = $derived(height - margin.top - margin.bottom);
-
-  $inspect('innerheight', innerHeight);
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
@@ -119,7 +116,7 @@
 <g
   id={`${parameterId}-${parameter.parameterName}`}
   bind:this={gElement}
-  transform={`translate(0,${yPosition})`}
+  transform={`translate(0,${yPosition + margin.top})`}
 ></g>
 
 <style>

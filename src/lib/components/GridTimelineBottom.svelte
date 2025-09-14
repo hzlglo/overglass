@@ -11,9 +11,6 @@
   let innerWidth = $derived(width - margin.left - margin.right);
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
-  $inspect('innerWidth', innerWidth);
-  $inspect('innerHeight', innerHeight);
-
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
   $effect(() => {

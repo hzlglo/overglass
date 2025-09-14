@@ -7,7 +7,6 @@
   } from './gridDisplayState.svelte';
 
   let trackIds = $derived(gridDisplayState.getTrackOrder());
-  $inspect('trackIds', trackIds);
 
   let trackListContainer = $state<HTMLDivElement>();
   $effect(() => {

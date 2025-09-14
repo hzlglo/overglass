@@ -17,20 +17,23 @@ const getGridDisplayState = () => {
   let parameterOrder = $state<{ [trackId: string]: string[] }>({});
   // store both track and parameter heights
   let laneHeights = $state<{ [laneId: string]: number }>({});
-  let laneYPositions = $derived.by(() => {
+  let { laneYPositions, laneBoundaries } = $derived.by(() => {
     let yPositions: { [trackOrParamId: string]: number } = {};
+    let laneBoundaries: number[] = [0];
     let y = 0;
     for (const trackId of trackOrder) {
       yPositions[trackId] = y;
       y += laneHeights[trackId];
+      laneBoundaries.push(y);
       if (expandedTracks.has(trackId)) {
         for (const parameterId of get(parameterOrder, trackId, [])) {
           yPositions[parameterId] = y;
           y += laneHeights[parameterId];
+          laneBoundaries.push(y);
         }
       }
     }
-    return yPositions;
+    return { laneYPositions: yPositions, laneBoundaries };
   });
 
   async function initFromDb(db: AutomationDatabase) {
@@ -116,6 +119,7 @@ const getGridDisplayState = () => {
     getLaneHeight: (trackOrParamId: string) => laneHeights[trackOrParamId],
     getGridHeight: () => sum(Object.values(laneHeights)),
     getLaneYPositions: () => laneYPositions,
+    getLaneBoundaries: () => laneBoundaries,
     setLaneHeight: (trackOrParamId: string, height: number) => {
       laneHeights[trackOrParamId] = height;
     },

@@ -11,6 +11,9 @@
   import { sharedXScale } from './sharedXScale.svelte';
   import SizeObserver from './SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
+  import { sharedDragSelect } from './sharedDragSelect.svelte';
+  import { binarySearchCeiling, binarySearchFloor } from '$lib/utils/utils';
+  import { last } from 'lodash';
 
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
@@ -48,11 +51,10 @@
   let gridWidth = $derived(width);
   let innerHeight = $derived(gridHeight - margin.top - margin.bottom);
 
-  let xScale = $derived(sharedXScale.getZoomedXScale());
   let trackOrder = $derived(gridDisplayState.getTrackOrder());
   let parameterOrder = $derived(gridDisplayState.getParameterOrder());
   let laneYPositions = $derived(gridDisplayState.getLaneYPositions());
-  $inspect('laneYPositions', laneYPositions);
+  let laneBoundaries = $derived(gridDisplayState.getLaneBoundaries());
 
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
@@ -94,37 +96,89 @@
     svg.call(zoom).on('wheel', pan);
   });
 
+  let brushG = $derived.by(() => {
+    if (!svg) {
+      return;
+    }
+    svg.selectAll('.brush').remove();
+    return svg.append('g').attr('class', 'brush');
+  });
+  let brushHandler = (event) => {
+    if (!event.selection) {
+      sharedDragSelect.setBrushSelection(null);
+      return;
+    }
+    let [[x0, y0], [x1, y1]] = event.selection;
+    let { sourceEvent } = event;
+    if (sourceEvent && brushG) {
+      // Snap y0 and y1 to allowed values
+      y0 = binarySearchFloor(laneBoundaries, y0);
+      y1 = binarySearchCeiling(laneBoundaries, y1);
+
+      // Ensure y0 < y1
+      if (y0 > y1) [y0, y1] = [y1, y0];
+
+      // Update the brush rectangle visually
+      brushG.call(brush.move, [
+        [x0, y0],
+        [x1, y1],
+      ]);
+    }
+
+    sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });
+  };
+  const brush = $derived(
+    d3
+      .brush()
+      .extent([
+        [0, 0],
+        [innerWidth, innerHeight],
+      ]) // SVG bounds
+      .on('start brush end', brushHandler),
+  );
+  $effect(() => {
+    if (!brushG) {
+      return;
+    }
+    brushG.call(brush);
+  });
+
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
 
   // Draw grid lines
   $effect(() => {
     if (svgGroup && innerWidth > 0 && innerHeight > 0) {
       // Remove existing grid
-      svgGroup.selectAll('.grid').remove();
+      svgGroup.selectAll('.x-grid').remove();
 
       // X-axis grid
       svgGroup
         .append('g')
-        .attr('class', 'grid')
+        .attr('class', 'x-grid')
         .call(xAxisBars.tickSize(-innerHeight).tickFormat(() => ''))
         .style('stroke-dasharray', '3,3')
         .style('opacity', 0.3);
 
       // Y-axis grid
-      // svgGroup
-      //   .append('g')
-      //   .attr('class', 'grid')
-      //   .call(
-      //     d3
-      //       .axisLeft(yScale)
-      //       .tickSize(-innerWidth)
-      //       .tickFormat(() => ''),
-      //   )
-      //   .style('stroke-dasharray', '3,3')
-      //   .style('opacity', 0.3);
+      svgGroup.selectAll('.y-grid').remove();
+      if (laneBoundaries.length > 0) {
+        svgGroup
+          .append('g')
+          .attr('class', 'y-grid')
+          .selectAll('line')
+          .data(laneBoundaries)
+          .enter()
+          .append('line')
+          .attr('class', 'y-grid')
+          .attr('x1', 0)
+          .attr('x2', innerWidth)
+          .attr('y1', (d) => d)
+          .attr('y2', (d) => d)
+          .attr('stroke', 'currentColor')
+          .style('opacity', 0.5);
+      }
     }
   });
-  $inspect('parameterOrder', parameterOrder);
 </script>
 
 <SizeObserver bind:width bind:height>
