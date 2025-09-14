@@ -1,3 +1,4 @@
+import { sharedXScale } from '$lib/components/sharedXScale.svelte';
 import type { ParsedALS } from '../types/automation';
 
 type AppScreen = 'file-chooser' | 'main';
@@ -12,14 +13,20 @@ const createAppStore = () => {
   let state = $state<AppState>({
     currentScreen: 'file-chooser',
     loadedFile: null,
-    showDebugger: false
+    showDebugger: false,
   });
 
   return {
     // Getters
-    get currentScreen() { return state.currentScreen; },
-    get loadedFile() { return state.loadedFile; },
-    get showDebugger() { return state.showDebugger; },
+    get currentScreen() {
+      return state.currentScreen;
+    },
+    get loadedFile() {
+      return state.loadedFile;
+    },
+    get showDebugger() {
+      return state.showDebugger;
+    },
 
     // Actions
     setScreen(screen: AppScreen) {
@@ -39,7 +46,7 @@ const createAppStore = () => {
       state.currentScreen = 'file-chooser';
       state.loadedFile = null;
       state.showDebugger = false;
-    }
+    },
   };
 };
 

@@ -19,13 +19,11 @@
   onToggleExpanded={() => trackExpansionState.toggleParameterExpansion(parameter.id)}
 >
   {#snippet body()}
-    <div class="px-3 pb-3">
-      <AutomationCurve
-        parameterId={parameter.id}
-        minValue={parameter.minValue}
-        maxValue={parameter.maxValue}
-      />
-    </div>
+    <AutomationCurve
+      parameterId={parameter.id}
+      minValue={parameter.minValue}
+      maxValue={parameter.maxValue}
+    />
   {/snippet}
   {#snippet right()}{/snippet}
   {#snippet children()}{/snippet}

@@ -8,7 +8,7 @@
   let svgElement = $state<SVGElement>();
   let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 
-  const margin = { top: 10, right: 20, bottom: 30, left: 20 };
+  const margin = { top: 10, right: 0, bottom: 30, left: 0 };
   let width = $state(800);
   let height = $state(60);
   let innerWidth = $derived(width - margin.left - margin.right);
@@ -23,7 +23,6 @@
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
     const maxTime = await automationDb.get().automation.getMaxTime();
-    console.log('setting max time', maxTime);
     setMaxTime(maxTime);
   });
 
@@ -54,9 +53,8 @@
         .append('rect')
         .attr('width', innerWidth)
         .attr('height', innerHeight)
-        .attr('fill', 'hsl(var(--b2))')
-        .attr('stroke', 'hsl(var(--bc))')
-        .attr('stroke-opacity', 0.1);
+        .attr('stroke-opacity', 0.1)
+        .attr('fill', 'var(--color-base-100)');
 
       // Time axis
       svgGroup
@@ -69,7 +67,6 @@
             .tickSize(-innerHeight)
             .ticks(5),
         )
-        .style('color', 'hsl(var(--bc))')
         .selectAll('line')
         .style('stroke-dasharray', '2,2')
         .style('opacity', 0.3);
@@ -81,7 +78,6 @@
         .attr('x2', xScale(0))
         .attr('y1', 0)
         .attr('y2', innerHeight)
-        .attr('stroke', 'hsl(var(--p))')
         .attr('stroke-width', 2)
         .attr('opacity', 0.8);
     }

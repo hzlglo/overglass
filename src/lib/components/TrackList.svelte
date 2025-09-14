@@ -18,7 +18,6 @@
     Loading devices...
   </div>
 {:then tracks}
-  {$inspect('here tracks', tracks)}
   {#if tracks.length > 0}
     <!-- Database-powered hierarchical view -->
     <div class="mb-6">

@@ -15,7 +15,7 @@
   // FileChooser now handles all the file loading logic internally
 </script>
 
-<div class="bg-base-100 min-h-screen">
+<div class="bg-base-100 h-screen w-screen">
   {#if appStore.currentScreen === 'file-chooser'}
     <!-- Initial File Chooser Screen -->
     <div
@@ -34,7 +34,7 @@
     </div>
   {:else}
     <!-- Main Application Screen -->
-    <div class="flex h-screen flex-col">
+    <div class="flex h-screen w-screen flex-col">
       <!-- Top Navbar -->
       <Navbar
         projectName={appStore.loadedFile?.name || 'Untitled Project'}
@@ -42,18 +42,19 @@
       />
 
       <!-- Main Content Area -->
+      <div class="flex min-h-0 w-screen flex-1 flex-col px-3">
+        <TopTimeline />
+        <div class="min-h-0 overflow-y-auto">
+          {#if appStore.showDebugger}
+            <Debugger />
+          {:else}
+            <TrackList />
+          {/if}
+        </div>
 
-      <TopTimeline />
-      <div class="flex-1 overflow-y-auto">
-        {#if appStore.showDebugger}
-          <Debugger />
-        {:else}
-          <TrackList />
-        {/if}
+        <!-- Bottom Timeline -->
+        <BottomTimeline />
       </div>
-
-      <!-- Bottom Timeline -->
-      <BottomTimeline />
     </div>
   {/if}
 </div>

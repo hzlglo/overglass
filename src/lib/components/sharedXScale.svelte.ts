@@ -9,7 +9,7 @@ export function getTicksForBarSpan(minBar: number, maxBar: number) {
   // Generate ticks at base-2 intervals (e.g., 0.5, 1, 2, 4, 8, 16, ...)
   // Try to get ~8-12 ticks within the span
   // subtract 1 from both since the bars are 1-indexed
-  const distanceBetweenTicks = previousPowerOfTwo(maxBar - minBar) / 16;
+  const distanceBetweenTicks = previousPowerOfTwo(maxBar - minBar) / 8;
   let firstTick = minBar;
   if (minBar % distanceBetweenTicks !== 0) {
     firstTick = minBar - (minBar % distanceBetweenTicks) + distanceBetweenTicks;
@@ -62,7 +62,7 @@ const getSharedXScale = () => {
 
   let totalBars = $derived(secondsToBars(maxTime, bpm, timeSigNumerator, timeSigDenominator));
 
-  let xScale = $derived(d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]));
+  let xScale = $derived(d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]).clamp(true));
   let xScaleBars = $derived(
     d3
       .scaleLinear()
@@ -80,13 +80,14 @@ const getSharedXScale = () => {
   let zoom = $derived(
     d3
       .zoom<SVGElement, unknown>()
-      .scaleExtent([1, 50]) // Allow up to 50x zoom
+      .scaleExtent([1, 200]) // Allow up to 50x zoom
       .translateExtent([
         [0, 0],
         [Infinity, Infinity],
       ])
       .filter((event) => {
         // prevent zooming with the scroll wheel
+        console.log('event', event);
         return !(!event.ctrlKey && event.type === 'wheel');
       })
       .on('zoom', (event) => {
@@ -94,7 +95,6 @@ const getSharedXScale = () => {
         const currentZoomTransform = event.transform;
         zoomedXScale = currentZoomTransform.rescaleX(xScale);
         zoomedXScaleBars = currentZoomTransform.rescaleX(xScaleBars);
-        console.log('zoomedXScaleBars', zoomedXScaleBars.domain());
         xAxisBars = d3
           .axisTop(zoomedXScaleBars)
           .tickFormat((d) => `${d}`)
@@ -119,6 +119,13 @@ const getSharedXScale = () => {
       innerWidth = widthInner;
       console.log('setWidth', innerWidth);
       zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, innerWidth]);
+    },
+    setBpm: (bpmInner: number) => {
+      bpm = bpmInner;
+    },
+    setTimeSignature: (timeSigNumeratorInner: number, timeSigDenominatorInner: number) => {
+      timeSigNumerator = timeSigNumeratorInner;
+      timeSigDenominator = timeSigDenominatorInner;
     },
   };
 };
