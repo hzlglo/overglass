@@ -87,7 +87,11 @@
     if (!svg) {
       return;
     }
-    svg.call(zoom);
+
+    const pan = (event: WheelEvent) => {
+      zoom.translateBy(svg.transition().duration(50), event.wheelDeltaX, 0);
+    };
+    svg.call(zoom).on('wheel', pan);
   });
 
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
