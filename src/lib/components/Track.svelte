@@ -23,9 +23,7 @@
     isExpanded={isTrackExpanded}
     onToggleExpanded={() => trackExpansionState.toggleTrackExpansion(track.id)}
   >
-    {#snippet body()}
-      todo add body component
-    {/snippet}
+    {#snippet body()}{/snippet}
     {#snippet right()}{/snippet}
     {#snippet children()}
       {#each parameters as parameter}

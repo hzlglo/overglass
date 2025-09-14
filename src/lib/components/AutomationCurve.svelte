@@ -180,7 +180,7 @@
 </script>
 
 <div class="automation-curve-container">
-  <div class="bg-base-100 border-base-300 h-[150px] rounded-lg border">
+  <div class="bg-base-100 border-base-300 h-[150px] border">
     <SizeObserver bind:width bind:height>
       <svg bind:this={svgElement} {width} {height} class="overflow-visible"></svg>
     </SizeObserver>

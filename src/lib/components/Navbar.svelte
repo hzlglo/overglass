@@ -7,6 +7,11 @@
   }
 
   let { projectName = 'Untitled Project', bpm = 120 }: NavbarProps = $props();
+
+  let timeSignature = $state({ numerator: 4, denominator: 4 });
+  let timeSignatureToString = (timeSignature: { numerator: number; denominator: number }) => {
+    return `${timeSignature.numerator}/${timeSignature.denominator}`;
+  };
 </script>
 
 <div class="navbar border-base-100 border-b">
@@ -25,6 +30,9 @@
         </h1>
         <span class="text-base-content/60 text-sm">
           {bpm} BPM
+        </span>
+        <span class="text-base-content/60 text-sm">
+          {timeSignatureToString(timeSignature)}
         </span>
       </div>
     </div>

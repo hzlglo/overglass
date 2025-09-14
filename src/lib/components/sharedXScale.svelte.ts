@@ -123,6 +123,9 @@ const getSharedXScale = () => {
     setBpm: (bpmInner: number) => {
       bpm = bpmInner;
     },
+    getTimeSignature: () => {
+      return { numerator: timeSigNumerator, denominator: timeSigDenominator };
+    },
     setTimeSignature: (timeSigNumeratorInner: number, timeSigDenominatorInner: number) => {
       timeSigNumerator = timeSigNumeratorInner;
       timeSigDenominator = timeSigDenominatorInner;
