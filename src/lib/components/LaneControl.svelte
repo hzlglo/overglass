@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
+  import classNames from 'classnames';
 
   interface TrackLaneProps {
     title?: string;
@@ -28,11 +29,11 @@
   <div class="border-base-100 box-border w-[300px] border" style="height: {height}px">
     <div class="flex flex-row">
       {#if onToggleExpanded}
-        <button class="btn btn-xs" onclick={onToggleExpanded}>
+        <button class="btn btn-xs btn-ghost" onclick={onToggleExpanded}>
           {isExpanded ? '▼' : '▶'}
         </button>
       {/if}
-      <div class="">
+      <div class={!isExpanded ? 'text-base-content/60' : 'text-base-content'}>
         {title}
       </div>
     </div>

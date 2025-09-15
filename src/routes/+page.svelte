@@ -18,7 +18,7 @@
       <div class="w-full max-w-md">
         <!-- App branding -->
         <div class="mb-8 text-center">
-          <h1 class="text-primary mb-2 text-4xl font-bold">Overglass</h1>
+          <h1 class="text-primary-content mb-2 text-4xl font-bold">Overglass</h1>
           <p class="text-base-content/60">Elektron Overbridge Automation Editor</p>
         </div>
 

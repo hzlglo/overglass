@@ -12,6 +12,9 @@
   import SizeObserver from './SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
+  import type { AutomationPoint } from '$lib/database/schema';
+  import { flatten, groupBy } from 'lodash';
+  import { SvelteSet } from 'svelte/reactivity';
 
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
@@ -81,6 +84,13 @@
   //     .attr('clip-path', `url(#clip-grid)`);
   // });
 
+  // Load automation points
+  let automationPointsByParameterId = $state<Record<string, AutomationPoint[]>>({});
+  $effect(async () => {
+    const points = await automationDb.get().automation.getAutomationPoints({});
+    automationPointsByParameterId = groupBy(points, (point) => point.parameterId);
+  });
+
   $effect(() => {
     let zoom = sharedXScale.getZoom();
     if (!svg) {
@@ -99,6 +109,7 @@
     if (!event.selection) {
       sharedDragSelect.setBrushSelection(null);
       sharedDragSelect.setSelectedLanes([]);
+      sharedDragSelect.getSelectedPoints().clear();
       return;
     }
     let [[x0, y0], [x1, y1]] = event.selection;
@@ -118,7 +129,21 @@
         [x0, y0],
         [x1, y1],
       ]);
-      sharedDragSelect.setSelectedLanes(lanes.slice(firstLaneIndex, lastLaneIndex + 1));
+      let selectedLanes = lanes.slice(firstLaneIndex, lastLaneIndex + 1);
+      sharedDragSelect.setSelectedLanes(selectedLanes);
+
+      const xScale = sharedXScale.getZoomedXScale();
+      let [startTime, endTime] = [xScale.invert(x0), xScale.invert(x1)];
+      let selectedPoints = flatten(
+        selectedLanes
+          .filter((l) => l.type === 'parameter')
+          .map((l) =>
+            automationPointsByParameterId[l.id].filter(
+              (p) => p.timePosition >= startTime && p.timePosition <= endTime,
+            ),
+          ),
+      );
+      sharedDragSelect.setSelectedPoints(new SvelteSet(selectedPoints));
     }
 
     sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });
@@ -196,6 +221,7 @@
                 height={gridDisplayState.getLaneHeight(lane.id)}
                 width={gridWidth}
                 yPosition={lane.top}
+                automationPoints={automationPointsByParameterId[lane.id]}
               />
             {/if}
           {/each}

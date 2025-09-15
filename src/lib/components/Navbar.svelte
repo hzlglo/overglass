@@ -40,7 +40,7 @@
 
   <!-- Center - App title -->
   <div class="navbar-center">
-    <span class="text-primary text-xl font-bold">Overglass</span>
+    <span class="text-primary-content text-xl font-bold">Overglass</span>
   </div>
 
   <!-- Right side - Controls -->

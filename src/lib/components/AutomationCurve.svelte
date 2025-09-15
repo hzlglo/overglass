@@ -1,9 +1,11 @@
 <script lang="ts">
   import * as d3 from 'd3';
-  import { automationDb } from '../stores/database.svelte';
   import type { AutomationPoint, Parameter, ParameterStats } from '../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
-  import { SvelteSet } from 'svelte/reactivity';
+  import { sharedDragSelect } from './sharedDragSelect.svelte';
+  import { clamp } from '$lib/utils/utils';
+  import { sortBy } from 'lodash';
+  import { automationDb } from '$lib/stores/database.svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -11,13 +13,14 @@
     height: number;
     width: number;
     yPosition: number;
+    automationPoints: AutomationPoint[];
   }
 
-  let { parameterId, parameter, height, width, yPosition }: AutomationCurveProps = $props();
+  let { parameterId, parameter, height, width, yPosition, automationPoints }: AutomationCurveProps =
+    $props();
 
   // State
   let gElement = $state<SVGElement>();
-  let automationPoints = $state<AutomationPoint[]>([]);
 
   $inspect('here', gElement?.getBoundingClientRect());
 
@@ -55,12 +58,6 @@
       .curve(d3.curveLinear),
   );
 
-  // Load automation points
-  $effect(async () => {
-    const points = await automationDb.get().automation.getAutomationPoints(parameterId);
-    automationPoints = points;
-  });
-
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let { area, line } = $derived.by(() => {
@@ -72,27 +69,32 @@
     const area = svgGroup
       .append('path')
       .attr('class', 'area')
-      .attr('fill', 'var(--color-primary)')
-      .attr('fill-opacity', 0.2);
+      .attr('fill', 'var(--color-primary-content)')
+      .attr('fill-opacity', 0.2)
+      .style('pointer-events', 'none');
 
     // Draw line
     const line = svgGroup
       .append('path')
       .attr('class', 'line')
       .attr('fill', 'none')
-      .attr('stroke', 'var(--color-primary)')
+      .attr('stroke', 'var(--color-primary-content)')
       .attr('stroke-opacity', 0.4)
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .style('pointer-events', 'none');
     return { area: area, line: line };
   });
 
   $effect(() => {
     if (area && line) {
       // Ensure points are within the range of the xScale
-      const updatedAutomationPoints = automationPoints.map((point) => ({
-        ...point,
-        timePosition: point.timePosition < 0 ? 0 : point.timePosition,
-      }));
+      const updatedAutomationPoints = sortBy(
+        automationPoints.map((point) => ({
+          ...point,
+          timePosition: point.timePosition < 0 ? 0 : point.timePosition,
+        })),
+        (p) => p.timePosition,
+      );
       area.datum(updatedAutomationPoints).attr('d', areaFn);
       line.datum(updatedAutomationPoints).attr('d', lineFn);
     }
@@ -112,9 +114,9 @@
             .append('circle')
             .attr('class', 'point')
             .attr('r', 3)
-            .attr('fill', 'var(--color-primary)')
+            .attr('fill', 'var(--color-primary-content)')
             .attr('fill-opacity', 0.4)
-            .attr('stroke', 'var(--color-primary)')
+            .attr('stroke', 'var(--color-primary-content)')
             .attr('stroke-width', 1),
         (update) => update,
         (exit) => exit.remove(),
@@ -124,7 +126,7 @@
 
     return circles;
   });
-  let selectedPoints = $state<SvelteSet<AutomationPoint>>(new SvelteSet());
+  let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
 
   $effect(() => {
     const drag = d3
@@ -136,9 +138,9 @@
           d: AutomationPoint,
         ) => {
           if (!selectedPoints.has(d)) {
+            sharedDragSelect.setBrushSelection(null);
             selectedPoints.clear();
             selectedPoints.add(d);
-            // brushMoved({ selection: null }); // update visual highlight
           }
         },
       )
@@ -147,7 +149,6 @@
         const dy = event.dy;
         console.log(
           'dragging!',
-          event,
           dx,
           sharedXScale.getDataDeltaForScreenDelta(dx),
           dy,
@@ -155,12 +156,13 @@
         );
         selectedPoints.forEach((p) => {
           p.timePosition = p.timePosition + sharedXScale.getDataDeltaForScreenDelta(dx);
-          p.value = p.value + yDiffScale.invert(dy);
+          // TODO do we ever need to support values outside of 0-1?
+          p.value = clamp(p.value + yDiffScale.invert(dy), 0, 1);
         });
         points?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
       })
-      .on('end', (event, d) => {
-        selectedPoints.clear();
+      .on('end', async (event, d) => {
+        await automationDb.get().automation.bulkSetAutomationPoints(Array.from(selectedPoints));
         console.log('drag ended! selectedPoints', selectedPoints);
       });
     points?.call(drag, []);

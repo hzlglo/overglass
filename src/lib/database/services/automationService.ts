@@ -134,24 +134,27 @@ export class AutomationService {
    * @param fullDetails - Whether to return full AutomationPoint objects (default) or just basic data
    * @returns Array of automation points
    */
-  async getAutomationPoints(
-    parameterId?: string,
-    startTime?: number,
-    endTime?: number,
-    fullDetails: boolean = true,
-  ): Promise<
-    AutomationPoint[] | Array<{ timePosition: number; value: number; curveType: string }>
-  > {
-    const selectFields = fullDetails
-      ? 'id, parameter_id, time_position, value, curve_type, created_at, updated_at'
-      : 'time_position, value, curve_type';
-
+  async getAutomationPoints({
+    parameterId,
+    parameterIds,
+    startTime,
+    endTime,
+  }: {
+    parameterId?: string;
+    parameterIds?: string[];
+    startTime?: number;
+    endTime?: number;
+  }): Promise<AutomationPoint[]> {
     let sql = `
-      SELECT ${selectFields}
+      SELECT id, parameter_id, time_position, value, curve_type, created_at, updated_at
       FROM automation_points
       WHERE ${parameterId ? 'parameter_id = ?' : '1'}
     `;
-    const params = parameterId ? [parameterId] : [];
+    const params: any[] = parameterId ? [parameterId] : [];
+    if (parameterIds) {
+      sql += ' AND parameter_id IN (?)';
+      params.push(parameterIds.join(','));
+    }
 
     if (startTime !== undefined) {
       sql += ' AND time_position >= ?';
@@ -164,6 +167,9 @@ export class AutomationService {
 
     sql += ' ORDER BY time_position';
 
+    console.log('sql', sql);
+    console.log('params', params);
+
     return await this.db.run(sql, params);
   }
 
@@ -175,12 +181,11 @@ export class AutomationService {
     startTime: number,
     endTime: number,
   ): Promise<AutomationPoint[]> {
-    return (await this.getAutomationPoints(
+    return (await this.getAutomationPoints({
       parameterId,
       startTime,
       endTime,
-      true,
-    )) as AutomationPoint[];
+    })) as AutomationPoint[];
   }
 
   /**
@@ -189,19 +194,20 @@ export class AutomationService {
    * @param points - Array of {timePosition, value} points
    * @returns Array of created/updated automation points
    */
-  async bulkSetAutomationPoints(
-    parameterId: string,
-    points: Array<{ timePosition: number; value: number }>,
-  ): Promise<AutomationPoint[]> {
+  async bulkSetAutomationPoints(points: Array<AutomationPoint>): Promise<AutomationPoint[]> {
     const results: AutomationPoint[] = [];
 
     // Process points in a transaction-like manner
     for (const point of points) {
-      const result = await this.setAutomationPoint(parameterId, point.timePosition, point.value);
+      const result = await this.setAutomationPoint(
+        point.parameterId,
+        point.timePosition,
+        point.value,
+      );
       results.push(result);
     }
 
-    console.log(`✅ Bulk updated ${points.length} automation points for parameter ${parameterId}`);
+    console.log(`✅ Bulk updated ${points.length} automation points`);
     return results;
   }
 
