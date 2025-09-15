@@ -69,7 +69,7 @@
     const area = svgGroup
       .append('path')
       .attr('class', 'area')
-      .attr('fill', 'var(--color-primary-content)')
+      .attr('fill', 'var(--color-secondary)')
       .attr('fill-opacity', 0.2)
       .style('pointer-events', 'none');
 
@@ -78,7 +78,7 @@
       .append('path')
       .attr('class', 'line')
       .attr('fill', 'none')
-      .attr('stroke', 'var(--color-primary-content)')
+      .attr('stroke', 'var(--color-secondary)')
       .attr('stroke-opacity', 0.4)
       .attr('stroke-width', 2)
       .style('pointer-events', 'none');
@@ -112,9 +112,9 @@
             .append('circle')
             .attr('class', 'point')
             .attr('r', 3)
-            .attr('fill', 'var(--color-primary-content)')
+            .attr('fill', 'var(--color-secondary)')
             .attr('fill-opacity', 0.4)
-            .attr('stroke', 'var(--color-primary-content)')
+            .attr('stroke', 'var(--color-secondary)')
             .attr('stroke-width', 1),
         (update) => update,
         (exit) => exit.remove(),
@@ -164,20 +164,3 @@
   bind:this={gElement}
   transform={`translate(0,${yPosition + margin.top})`}
 ></g>
-
-<style>
-  .automation-curve-container :global(.grid line) {
-    stroke: currentColor;
-    stroke-opacity: 0.2;
-  }
-
-  .automation-curve-container :global(.domain) {
-    stroke: currentColor;
-    stroke-opacity: 0.5;
-  }
-
-  .automation-curve-container :global(.tick text) {
-    fill: currentColor;
-    font-size: 11px;
-  }
-</style>
