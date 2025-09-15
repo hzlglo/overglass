@@ -157,7 +157,6 @@
       ])
       .filter((event) => {
         // Only allow brushing for left-clicks **without dragging a point**
-        console.log('event', event);
         return !event.target.classList.contains('draggable') && event.button === 0;
       })
       .on('start brush end', brushHandler),

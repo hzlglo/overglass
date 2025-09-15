@@ -32,7 +32,6 @@
 
   // Draw timeline
   $effect(() => {
-    console.log('Inner height', innerHeight);
     if (svgGroup && innerWidth > 0 && innerHeight > 0) {
       svgGroup.selectAll('*').remove();
 

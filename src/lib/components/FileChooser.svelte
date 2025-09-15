@@ -48,7 +48,6 @@
 
   $effect(() => {
     if (!selectedFile && !loading) {
-      console.log('loading hardcoded file');
       loadHardcodedFile();
     }
   });

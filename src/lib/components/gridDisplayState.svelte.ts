@@ -64,7 +64,6 @@ const getGridDisplayState = () => {
             laneHeights = { ...$state.snapshot(laneHeights), [param.id]: DEFAULT_PARAMETER_HEIGHT };
           });
         }
-        console.log('parameters', track, parameters);
         parameterOrder = {
           ...$state.snapshot(parameterOrder),
           [track.id]: parameters.map((p) => p.id),
@@ -72,13 +71,6 @@ const getGridDisplayState = () => {
       }
       expandedParameters = new SvelteSet(allParameterIds);
     }
-    console.log('init grid display state', {
-      expandedTracks,
-      expandedParameters,
-      trackOrder,
-      parameterOrder,
-      laneHeights,
-    });
   }
 
   function toggleTrackExpansion(trackId: string) {

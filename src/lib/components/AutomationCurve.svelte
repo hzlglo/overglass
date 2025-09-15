@@ -102,8 +102,6 @@
 
   // Draw points
   let points = $derived.by(() => {
-    console.log('rerendering points');
-
     // Add new points
     let circles = svgGroup
       ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
@@ -147,13 +145,6 @@
       .on('drag', (event, d) => {
         const dx = event.dx;
         const dy = event.dy;
-        console.log(
-          'dragging!',
-          dx,
-          sharedXScale.getDataDeltaForScreenDelta(dx),
-          dy,
-          yDiffScale.invert(dy),
-        );
         selectedPoints.forEach((p) => {
           p.timePosition = p.timePosition + sharedXScale.getDataDeltaForScreenDelta(dx);
           // TODO do we ever need to support values outside of 0-1?
@@ -163,7 +154,6 @@
       })
       .on('end', async (event, d) => {
         await automationDb.get().automation.bulkSetAutomationPoints(Array.from(selectedPoints));
-        console.log('drag ended! selectedPoints', selectedPoints);
       });
     points?.call(drag, []);
   });
