@@ -5,6 +5,11 @@ import {
   gzipXmlHelpers,
   createMinimalALSDocument
 } from '../utils/gzipXmlHelpers';
+import {
+  extractAutomationEnvelopes,
+  updateAutomationEvents,
+  getOrCreateAutomationEnvelope
+} from './alsXmlHelpers';
 
 export class ALSWriter {
   constructor(private db: AutomationDatabase) {}
@@ -89,11 +94,67 @@ export class ALSWriter {
 
   /**
    * Update automation envelopes in the XML document with current database values
-   * TODO: Implement this method when needed for round-trip testing
    */
   private async updateAutomationInXML(xmlDoc: Document, dbData: Map<string, any>) {
-    console.log('TODO: Implement XML automation update logic');
-    // This will be implemented when we need actual round-trip functionality
+    console.log('🔄 Updating XML automation envelopes with database values...');
+
+    // Extract all existing automation envelopes from XML
+    const existingEnvelopes = extractAutomationEnvelopes(xmlDoc);
+    console.log(`Found ${existingEnvelopes.length} existing automation envelopes in XML`);
+
+    // Create a mapping of parameter paths to existing envelopes
+    const envelopeMap = new Map<string, Element>();
+    for (const envelope of existingEnvelopes) {
+      envelopeMap.set(envelope.id, envelope.element);
+    }
+
+    // Create a mapping of parameter paths to database parameters
+    const parameterPathMap = new Map<string, any>();
+    for (const [deviceId, deviceInfo] of dbData) {
+      for (const [trackId, trackInfo] of deviceInfo.tracks) {
+        for (const [parameterId, parameterInfo] of trackInfo.parameters) {
+          const parameterPath = parameterInfo.parameter.parameterPath;
+          if (parameterPath) {
+            parameterPathMap.set(parameterPath, parameterInfo);
+          }
+        }
+      }
+    }
+
+    let updatedCount = 0;
+    let createdCount = 0;
+
+    // Update or create automation envelopes for each database parameter
+    for (const [parameterPath, parameterInfo] of parameterPathMap) {
+      const { parameter, automationPoints } = parameterInfo;
+
+      // Skip parameters with no automation points
+      if (!automationPoints || automationPoints.length === 0) {
+        continue;
+      }
+
+      // Convert automation points to the format expected by XML
+      const events = automationPoints.map((point: any) => ({
+        time: point.timePosition,
+        value: point.value,
+        curveType: point.curveType || 'linear'
+      }));
+
+      // Find or create the envelope
+      let envelopeElement = envelopeMap.get(parameterPath);
+      if (envelopeElement) {
+        // Update existing envelope
+        updateAutomationEvents(envelopeElement, events);
+        updatedCount++;
+      } else {
+        // Create new envelope
+        envelopeElement = getOrCreateAutomationEnvelope(xmlDoc, parameter.id, parameterPath);
+        updateAutomationEvents(envelopeElement, events);
+        createdCount++;
+      }
+    }
+
+    console.log(`✅ XML automation update complete: ${updatedCount} updated, ${createdCount} created`);
   }
 
 
@@ -121,31 +182,7 @@ export class ALSWriter {
    * Create minimal ALS XML structure
    */
   private createMinimalALSStructure(bpm: number): Document {
-    const xmlDoc = DOMImplementation.createDocument(null, 'AbletonLiveSet');
-    const root = xmlDoc.documentElement;
-
-    // Add basic structure
-    const creator = xmlDoc.createElement('Creator');
-    creator.setAttribute('Value', 'Overglass Automation Editor');
-    root.appendChild(creator);
-
-    const majorVersion = xmlDoc.createElement('MajorVersion');
-    majorVersion.setAttribute('Value', '5');
-    root.appendChild(majorVersion);
-
-    const minorVersion = xmlDoc.createElement('MinorVersion');
-    minorVersion.setAttribute('Value', '0');
-    root.appendChild(minorVersion);
-
-    const tempo = xmlDoc.createElement('MasterTempo');
-    tempo.setAttribute('Value', String(bpm));
-    root.appendChild(tempo);
-
-    // Add tracks container
-    const tracks = xmlDoc.createElement('Tracks');
-    root.appendChild(tracks);
-
-    return xmlDoc;
+    return createMinimalALSDocument(bpm);
   }
 
   /**
@@ -160,24 +197,39 @@ export class ALSWriter {
         const trackElement = xmlDoc.createElement('MidiTrack');
         trackElement.setAttribute('Id', trackInfo.track.id);
 
-        // Add track name
+        // Add track name structure
         const nameElement = xmlDoc.createElement('Name');
-        nameElement.setAttribute('Value', trackInfo.track.trackName);
+        const effectiveName = xmlDoc.createElement('EffectiveName');
+        effectiveName.setAttribute('Value', trackInfo.track.trackName);
+        nameElement.appendChild(effectiveName);
         trackElement.appendChild(nameElement);
 
-        // Add automation envelopes for this track
+        // Add device chain for automation envelopes
         const deviceChain = xmlDoc.createElement('DeviceChain');
+        const innerDeviceChain = xmlDoc.createElement('DeviceChain');
+        deviceChain.appendChild(innerDeviceChain);
         trackElement.appendChild(deviceChain);
 
+        // Add automation envelopes for this track's parameters
         for (const [parameterId, parameterInfo] of trackInfo.parameters) {
-          const envelope = xmlDoc.createElement('AutomationEnvelope');
+          const { parameter, automationPoints } = parameterInfo;
 
-          const idElement = xmlDoc.createElement('Id');
-          idElement.setAttribute('Value', parameterInfo.parameter.parameterPath);
-          envelope.appendChild(idElement);
+          if (automationPoints && automationPoints.length > 0) {
+            const envelope = getOrCreateAutomationEnvelope(
+              xmlDoc,
+              parameter.id,
+              parameter.parameterPath
+            );
 
-          await this.updateEnvelopeEvents(envelope, parameterInfo.automationPoints);
-          deviceChain.appendChild(envelope);
+            const events = automationPoints.map((point: any) => ({
+              time: point.timePosition,
+              value: point.value,
+              curveType: point.curveType || 'linear'
+            }));
+
+            updateAutomationEvents(envelope, events);
+            innerDeviceChain.appendChild(envelope);
+          }
         }
 
         tracksElement.appendChild(trackElement);

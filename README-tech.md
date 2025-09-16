@@ -4,7 +4,7 @@ Specific Requirements
 
 Core Functionality
 
-- ALS File Parsing: Parse Ableton Live project files to extract device automation data
+- ALS File Parsing: Parse Ableton Live project files (gzipped xml) to extract device automation data
 - Database Storage: Store parsed data (devices, tracks, parameters, automation points) in DuckDB for efficient querying
 - Automation Visualization: Display automation curves as interactive charts using D3.js
 - Time-Based Editing: Support for editing automation points with proper musical timing (bars/beats/seconds)
