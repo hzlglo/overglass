@@ -96,6 +96,15 @@ const createCustomizationStore = () => {
       const trackName = await getTrackName(trackId);
       return fileCustom.trackCustomizations[trackName] || null;
     },
+    async getAllTrackCustomizations(): Promise<{ [trackId: string]: TrackCustomization } | null> {
+      if (!currentFile) {
+        throw new Error('No file is currently loaded. Call setCurrentFile() first.');
+      }
+      const fileCustom = state.fileCustomizations[currentFile];
+      if (!fileCustom) return null;
+      const trackIdToName = automationDb.get().tracks.getTrackIdToName();
+      return fileCustom.trackCustomizations[trackName] || null;
+    },
 
     async getTrackDisplayName(trackId: string, defaultName: string): Promise<string> {
       const trackName = await getTrackName(trackId);
