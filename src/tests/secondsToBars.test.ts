@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { secondsToBars } from '../lib/components/sharedXScale.svelte';
+import { secondsToBars } from '../lib/components/grid/sharedXScale.svelte';
 
 describe('secondsToBars', () => {
   describe('4/4 120 BPM', () => {
@@ -87,7 +87,12 @@ describe('secondsToBars', () => {
     it('should convert to bar 2 after complete bar duration', () => {
       // 4 beats at 180 BPM = 4/3 seconds = 1.333... seconds
       const barDurationSeconds = 4 / (180 / 60);
-      const result = secondsToBars(barDurationSeconds + 0.01, bpm, timeSigNumerator, timeSigDenominator);
+      const result = secondsToBars(
+        barDurationSeconds + 0.01,
+        bpm,
+        timeSigNumerator,
+        timeSigDenominator,
+      );
       expect(result.bar).toBe(2);
     });
 
@@ -119,7 +124,12 @@ describe('secondsToBars', () => {
     it('should convert to bar 2 after 3 beats', () => {
       // 3 beats at 160 BPM = 3/(160/60) = 1.125 seconds
       const barDurationSeconds = 3 / (160 / 60);
-      const result = secondsToBars(barDurationSeconds + 0.01, bpm, timeSigNumerator, timeSigDenominator);
+      const result = secondsToBars(
+        barDurationSeconds + 0.01,
+        bpm,
+        timeSigNumerator,
+        timeSigDenominator,
+      );
       expect(result.bar).toBe(2);
     });
 

@@ -1,8 +1,6 @@
 import type { AutomationPoint } from '$lib/database/schema';
-import { automationDb } from '$lib/stores/database.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { LaneDisplay } from './gridDisplayState.svelte';
-import { sharedXScale } from './sharedXScale.svelte';
 
 const getSharedDragSelect = () => {
   let brushSelection: null | { x0: number; y0: number; x1: number; y1: number } = $state(null);
@@ -14,6 +12,10 @@ const getSharedDragSelect = () => {
       brushSelectionInner: null | { x0: number; y0: number; x1: number; y1: number },
     ) => {
       brushSelection = brushSelectionInner;
+      if (!brushSelectionInner) {
+        selectedPoints.clear();
+        return;
+      }
     },
     getSelectedLanes: () => selectedLanes,
     setSelectedLanes: (selectedLanesInner: null | LaneDisplay[]) => {

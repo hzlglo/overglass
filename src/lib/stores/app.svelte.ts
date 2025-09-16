@@ -1,4 +1,4 @@
-import { sharedXScale } from '$lib/components/sharedXScale.svelte';
+import { sharedXScale } from '$lib/components/grid/sharedXScale.svelte';
 import type { ParsedALS } from '../types/automation';
 
 type AppScreen = 'file-chooser' | 'main';

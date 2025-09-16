@@ -9,7 +9,7 @@
   import GridTimelineBottom from './GridTimelineBottom.svelte';
   import GridTimelineTop from './GridTimelineTop.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
-  import SizeObserver from './SizeObserver.svelte';
+  import SizeObserver from '../core/SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import type { AutomationPoint } from '$lib/database/schema';

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ALSParser } from '../parsers/alsParser';
-  import { automationDb } from '../stores/database.svelte';
-  import { appStore } from '../stores/app.svelte';
+  import { ALSParser } from '../../parsers/alsParser';
+  import { automationDb } from '../../stores/database.svelte';
+  import { appStore } from '../../stores/app.svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
@@ -70,6 +71,8 @@
 
       // Load data into DuckDB
       await automationDb.loadALSData(parsedSet);
+
+      appConfigStore.setCurrentFile(file.name);
 
       // Update app state to go to main screen
       appStore.setLoadedFile(parsedSet);

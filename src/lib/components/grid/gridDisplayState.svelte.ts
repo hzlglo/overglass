@@ -6,7 +6,7 @@ export let TOP_TIMELINE_HEIGHT = 60;
 export let BOTTOM_TIMELINE_HEIGHT = 60;
 
 let DEFAULT_PARAMETER_HEIGHT = 150;
-let DEFAULT_TRACK_HEIGHT = 50;
+let DEFAULT_TRACK_HEIGHT = 250;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
 export type LaneDisplay = { top: number; bottom: number; type: 'track' | 'parameter'; id: string };

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import TrackList from './TrackList.svelte';
+  import TrackList from '../tracklist/TrackList.svelte';
   import Grid from './Grid.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
-  import { automationDb } from '../stores/database.svelte';
+  import { automationDb } from '../../stores/database.svelte';
 
   let isInitialized = $derived(automationDb.isInitialized());
 

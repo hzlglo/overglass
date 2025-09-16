@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { appConfigStore } from '$lib/stores/customization.svelte';
   import { automationDb } from '$lib/stores/database.svelte';
   import { debounce } from 'lodash';
 
@@ -20,6 +21,11 @@
 </script>
 
 <h3>Debug</h3>
+<div class="flex flex-row gap-2">
+  <button class="btn btn-sm btn-ghost" onclick={() => appConfigStore.clearAllCustomizations()}
+    >Clear app state</button
+  >
+</div>
 <textarea bind:value></textarea>
 {#await res}
   running query...

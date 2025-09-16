@@ -1,8 +1,8 @@
 <script lang="ts">
-  import Debugger from '$lib/components/Debugger.svelte';
-  import FileChooser from '$lib/components/FileChooser.svelte';
-  import GridAndTrackList from '$lib/components/GridAndTrackList.svelte';
-  import Navbar from '$lib/components/Navbar.svelte';
+  import Debugger from '$lib/components/app/Debugger.svelte';
+  import FileChooser from '$lib/components/app/FileChooser.svelte';
+  import GridAndTrackList from '$lib/components/grid/GridAndTrackList.svelte';
+  import Navbar from '$lib/components/app/Navbar.svelte';
   import { appStore } from '$lib/stores/app.svelte';
   import '../app.css';
 
@@ -18,8 +18,8 @@
       <div class="w-full max-w-md">
         <!-- App branding -->
         <div class="mb-8 text-center">
-          <h1 class="text-primary-content mb-2 text-4xl font-bold">Overglass</h1>
-          <p class="text-base-content/60">Elektron Overbridge Automation Editor</p>
+          <h1 class="text-primary mb-2 text-4xl font-bold">Overglass</h1>
+          <p class="text-base-content/60">Simpler Ableton Overbridge Automation Editor</p>
         </div>
 
         <!-- FileChooser -->

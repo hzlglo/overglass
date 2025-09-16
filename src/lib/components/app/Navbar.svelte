@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { appStore } from '../stores/app.svelte';
+  import { appStore } from '../../stores/app.svelte';
 
   interface NavbarProps {
     projectName?: string;

@@ -4,7 +4,7 @@
     BOTTOM_TIMELINE_HEIGHT,
     gridDisplayState,
     TOP_TIMELINE_HEIGHT,
-  } from './gridDisplayState.svelte';
+  } from '../grid/gridDisplayState.svelte';
 
   let trackIds = $derived(gridDisplayState.getTrackOrder());
 

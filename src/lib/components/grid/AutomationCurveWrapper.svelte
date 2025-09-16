@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AutomationPoint } from '$lib/database/schema';
-  import { automationDb } from '../stores/database.svelte';
+  import { automationDb } from '../../stores/database.svelte';
   import AutomationCurve from './AutomationCurve.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
 

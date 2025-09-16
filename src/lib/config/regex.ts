@@ -2,13 +2,13 @@
 export interface RegexConfig {
   // Pattern to extract track number from parameter names like "T11 Filter Cutoff" -> 11
   trackNumberPattern: RegExp;
-  
+
   // Pattern to identify mute parameters like "T1 Muted", "T5 Muted"
   muteParameterPattern: RegExp;
-  
+
   // Pattern to clean parameter names (remove track prefix)
   parameterNameCleanPattern?: RegExp;
-  
+
   // Pattern to identify device names in track names
   deviceNamePattern?: RegExp;
 }
@@ -17,15 +17,15 @@ export interface RegexConfig {
 export const DEFAULT_ELEKTRON_REGEX: RegexConfig = {
   // Extract track number from patterns like "T1 Filter Cutoff", "T11 Reverb Send"
   trackNumberPattern: /^T(\d+)\s+/,
-  
-  // Identify mute parameters like "T1 Muted", "T5 Muted" 
+
+  // Identify mute parameters like "T1 Muted", "T5 Muted"
   muteParameterPattern: /^T(\d+)\s+Muted$/i,
-  
+
   // Clean parameter names by removing track prefix "T1 Filter Cutoff" -> "Filter Cutoff"
   parameterNameCleanPattern: /^T\d+\s+/,
-  
+
   // Identify Elektron devices in track names
-  deviceNamePattern: /(digitakt|digitone|analog|octatrack|model)/i
+  deviceNamePattern: /(digitakt|digitone|analog|octatrack|model)/i,
 };
 
 // Utility functions for applying regex patterns
@@ -49,7 +49,7 @@ export class RegexMatcher {
       const trackNum = parseInt(match[1], 10);
       return {
         isMute: true,
-        trackNumber: isNaN(trackNum) ? null : trackNum
+        trackNumber: isNaN(trackNum) ? null : trackNum,
       };
     }
     return { isMute: false, trackNumber: null };
@@ -77,8 +77,8 @@ export class RegexMatcher {
   // Get all track numbers referenced in a list of parameter names
   getAllTrackNumbers(parameterNames: string[]): number[] {
     const trackNumbers = new Set<number>();
-    
-    parameterNames.forEach(name => {
+
+    parameterNames.forEach((name) => {
       const trackNum = this.extractTrackNumber(name);
       if (trackNum !== null) {
         trackNumbers.add(trackNum);
@@ -91,8 +91,8 @@ export class RegexMatcher {
   // Group parameters by track number
   groupParametersByTrack(parameterNames: string[]): Map<number, string[]> {
     const trackGroups = new Map<number, string[]>();
-    
-    parameterNames.forEach(name => {
+
+    parameterNames.forEach((name) => {
       const trackNum = this.extractTrackNumber(name);
       if (trackNum !== null) {
         if (!trackGroups.has(trackNum)) {
@@ -107,10 +107,13 @@ export class RegexMatcher {
 }
 
 // Create default matcher instance
-export const defaultElektronMatcher = new RegexMatcher(DEFAULT_ELEKTRON_REGEX);
+export const ElektronNameMatcher = new RegexMatcher(DEFAULT_ELEKTRON_REGEX);
 
 // Configuration factory for different device types
-export function createRegexConfig(deviceType: 'elektron' | 'custom', customConfig?: Partial<RegexConfig>): RegexConfig {
+export function createRegexConfig(
+  deviceType: 'elektron' | 'custom',
+  customConfig?: Partial<RegexConfig>,
+): RegexConfig {
   switch (deviceType) {
     case 'elektron':
       return { ...DEFAULT_ELEKTRON_REGEX, ...customConfig };
@@ -122,7 +125,7 @@ export function createRegexConfig(deviceType: 'elektron' | 'custom', customConfi
         trackNumberPattern: customConfig.trackNumberPattern || /(\d+)/,
         muteParameterPattern: customConfig.muteParameterPattern || /mute/i,
         parameterNameCleanPattern: customConfig.parameterNameCleanPattern,
-        deviceNamePattern: customConfig.deviceNamePattern
+        deviceNamePattern: customConfig.deviceNamePattern,
       };
     default:
       return DEFAULT_ELEKTRON_REGEX;

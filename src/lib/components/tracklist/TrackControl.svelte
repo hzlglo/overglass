@@ -1,9 +1,12 @@
 <script lang="ts">
   import type { Track } from '$lib/database/schema';
-  import { automationDb } from '../stores/database.svelte';
+  import { automationDb } from '../../stores/database.svelte';
   import TrackParamControl from './TrackParamControl.svelte';
-  import { gridDisplayState } from './gridDisplayState.svelte';
+  import { gridDisplayState } from '../grid/gridDisplayState.svelte';
   import LaneControl from './LaneControl.svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
+  import ColorChooser from '../colors/ColorChooser.svelte';
+  import { getThemeColor } from '$lib/utils/utils';
 
   interface TrackProps {
     trackId: string;
@@ -18,16 +21,25 @@
 
   let devicePromise = $derived(automationDb.get().devices.getTrackDevice(trackId));
   let parameterIds = $derived(gridDisplayState.getParameterOrder()[trackId]);
+  let trackConfigPromise = $derived(appConfigStore.getTrackCustomization(trackId));
 </script>
 
-{#await Promise.all([trackPromise, devicePromise]) then [track, device]}
+{#await Promise.all( [trackPromise, devicePromise, trackConfigPromise], ) then [track, device, trackConfig]}
   {#if track}
     <LaneControl
-      title={track.trackName}
+      title={trackConfig?.userEnteredName || track.trackName}
+      onRename={(newTitle) => appConfigStore.setTrackName(track.id, newTitle)}
+      class="font-bold"
       isExpanded={isTrackExpanded}
       onToggleExpanded={() => gridDisplayState.toggleTrackExpansion(trackId)}
       laneId={trackId}
     >
+      {#snippet actions()}
+        <ColorChooser
+          value={trackConfig?.color || getThemeColor('primary')}
+          onValueChange={(color) => appConfigStore.setTrackColor(trackId, color)}
+        />
+      {/snippet}
       {#each parameterIds as parameterId}
         <TrackParamControl {parameterId} />
       {/each}
