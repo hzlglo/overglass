@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { fromPairs } from 'lodash';
 import { automationDb } from './database.svelte';
 
 // Types for customization data
@@ -102,8 +103,10 @@ const createCustomizationStore = () => {
       }
       const fileCustom = state.fileCustomizations[currentFile];
       if (!fileCustom) return null;
-      const trackIdToName = automationDb.get().tracks.getTrackIdToName();
-      return fileCustom.trackCustomizations[trackName] || null;
+      const tracks = await automationDb.get().tracks.getAllTracks();
+      return fromPairs(
+        tracks.map((track) => [track.id, fileCustom.trackCustomizations[track.trackName] || null]),
+      );
     },
 
     async getTrackDisplayName(trackId: string, defaultName: string): Promise<string> {

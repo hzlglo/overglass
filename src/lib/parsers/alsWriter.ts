@@ -3,8 +3,6 @@ import type { AutomationDatabase } from '../database/duckdb';
 import type { Device, Track, Parameter, AutomationPoint } from '../database/schema';
 import {
   gzipXmlHelpers,
-  extractAutomationEnvelopes,
-  updateAutomationEvents,
   createMinimalALSDocument
 } from '../utils/gzipXmlHelpers';
 
@@ -91,50 +89,11 @@ export class ALSWriter {
 
   /**
    * Update automation envelopes in the XML document with current database values
+   * TODO: Implement this method when needed for round-trip testing
    */
   private async updateAutomationInXML(xmlDoc: Document, dbData: Map<string, any>) {
-    // Extract all automation envelopes from XML
-    const envelopes = extractAutomationEnvelopes(xmlDoc);
-    console.log(`Found ${envelopes.length} automation envelopes in XML`);
-
-    // Create a mapping of parameter paths to database parameters
-    const parameterPathMap = new Map<string, any>();
-
-    for (const [deviceId, deviceInfo] of dbData) {
-      for (const [trackId, trackInfo] of deviceInfo.tracks) {
-        for (const [parameterId, parameterInfo] of trackInfo.parameters) {
-          const parameterPath = parameterInfo.parameter.parameterPath;
-          if (parameterPath) {
-            parameterPathMap.set(parameterPath, parameterInfo);
-          }
-        }
-      }
-    }
-
-    let updatedCount = 0;
-
-    // Update each automation envelope with current database values
-    for (const envelope of envelopes) {
-      // Find matching parameter in database
-      const parameterInfo = parameterPathMap.get(envelope.id);
-      if (!parameterInfo) {
-        console.log(`No database data found for automation ID: ${envelope.id}`);
-        continue;
-      }
-
-      // Convert automation points to the format expected by helper
-      const events = parameterInfo.automationPoints.map((point: AutomationPoint) => ({
-        time: point.timePosition,
-        value: point.value,
-        curveType: point.curveType || 'linear'
-      }));
-
-      // Update the automation points in XML using helper
-      updateAutomationEvents(envelope.element, events);
-      updatedCount++;
-    }
-
-    console.log(`Updated ${updatedCount} automation envelopes with database values`);
+    console.log('TODO: Implement XML automation update logic');
+    // This will be implemented when we need actual round-trip functionality
   }
 
 
@@ -152,15 +111,8 @@ export class ALSWriter {
     // Add devices and tracks to XML
     await this.addDevicesAndTracksToXML(xmlDoc, dbData);
 
-    // Create ALS file
-    const zip = new JSZip();
-    const serializer = new XMLSerializer();
-    const xmlString = serializer.serializeToString(xmlDoc);
-
-    zip.file('Ableton Live Set.xml', xmlString);
-
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const file = new File([zipBlob], fileName, { type: 'application/octet-stream' });
+    // Create ALS file using the gzipXmlHelpers
+    const file = await gzipXmlHelpers.writeALSFile(xmlDoc, fileName);
 
     return file;
   }

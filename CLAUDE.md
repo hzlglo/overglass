@@ -1,6 +1,6 @@
 - Use yarn for package management
 - To understand and debug .als file structure, use the ./src/lib/parsers/exploreStructure.ts helper that you made
-- Avoid code duplication. Ensure that the codebase is well-structured and modular. Organize code into separate files wherever appropriate.
+- Avoid code duplication. Ensure that the codebase is well-structured and modular, with separation of concerns between classes/components. Organize code into separate files wherever appropriate.
 - Code is read more often than it is written, make sure your code is always optimised for readability
 - Put each d3.js logical block into its own $state / $derived / $effect call
 - Use context7 for more context on daisyui
