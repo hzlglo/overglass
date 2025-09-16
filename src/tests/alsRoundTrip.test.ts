@@ -118,34 +118,15 @@ describe('ALS Round-Trip Integration Test', () => {
   it('Step 3: Export modified data back to ALS file', async () => {
     console.log('💾 Step 3: Exporting modified data to ALS file...');
 
-    // Write the modified data back to ALS format
+    // Write the modified data back to ALS format using ALSWriter
     const editedFile = await writer.writeALSFile(originalParsedALS, 'test1_roundtrip.als');
 
     expect(editedFile).toBeDefined();
     expect(editedFile.name).toBe('test1_roundtrip.als');
     expect(editedFile.size).toBeGreaterThan(0);
 
-    // For Node.js testing environment, we'll create a test file using gzipXmlHelpers directly
-    // This simulates what would happen in a real browser environment
-    console.log('   Creating test file for round-trip verification...');
-
-    // Create a test ALS file using the original XML with some modifications
-    const testDoc = gzipXmlHelpers.cloneXMLDocument(originalParsedALS.rawXML);
-
-    // Add a test element to verify round-trip
-    const testElement = testDoc.createElement('TestRoundTrip');
-    testElement.setAttribute('Value', 'RoundTripTestMarker');
-    testDoc.documentElement.appendChild(testElement);
-
-    // Write using gzipXmlHelpers
-    const testFile = await gzipXmlHelpers.writeALSFile(testDoc, 'test1_roundtrip.als');
-
-    // For Node.js, manually save to disk using known working approach
-    const serializedXml = gzipXmlHelpers.serializeXMLDocument(testDoc);
-    const pakoAdapter = new (await import('../lib/utils/compression/pakoAdapter')).PakoCompressionAdapter();
-    const compressed = await pakoAdapter.compress(serializedXml);
-
-    writeFileSync('./static/test1_roundtrip.als', Buffer.from(compressed));
+    // The ALSWriter now handles writing to disk directly for Node.js testing
+    console.log('   Modified ALS file will be saved by ALSWriter to ./static/test1_roundtrip.als');
 
     console.log(`✅ Modified ALS file exported: ${editedFile.name} (${editedFile.size} bytes)`);
     console.log(`   File saved to: ./static/test1_roundtrip.als`);

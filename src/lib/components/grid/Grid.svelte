@@ -15,6 +15,7 @@
   import type { AutomationPoint } from '$lib/database/schema';
   import { flatten, groupBy } from 'lodash';
   import { SvelteSet } from 'svelte/reactivity';
+  import { appConfigStore, type TrackCustomization } from '$lib/stores/customization.svelte';
 
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
@@ -43,6 +44,11 @@
     return () => {
       gridContainer?.removeEventListener('scroll', syncScroll);
     };
+  });
+
+  let trackCustomizations = $state<Record<string, TrackCustomization>>();
+  $effect(async () => {
+    trackCustomizations = await appConfigStore.getAllTrackCustomizations();
   });
 
   const margin = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -221,6 +227,7 @@
                 width={gridWidth}
                 yPosition={lane.top}
                 automationPoints={automationPointsByParameterId[lane.id]}
+                {trackCustomizations}
               />
             {/if}
           {/each}

@@ -20,15 +20,24 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
   const automationEnvelopes = xmlDoc.querySelectorAll('AutomationEnvelope');
 
   for (const envelope of automationEnvelopes) {
+    // Try multiple ways to get the ID since ALS structure varies
+    let automationId: string | null = null;
+
+    // Method 1: Look for Id element with Value attribute
     const idElement = envelope.querySelector('Id');
-    if (!idElement) continue;
+    if (idElement) {
+      automationId = idElement.getAttribute('Value') || idElement.textContent;
+    }
 
-    const automationId = idElement.getAttribute('Value');
-    if (!automationId) continue;
+    // Method 2: If no Id element, use the envelope index as ID
+    if (!automationId) {
+      automationId = `envelope_${envelopes.length}`;
+      console.log(`No ID found for envelope, using generated ID: ${automationId}`);
+    }
 
-    // Extract existing events
+    // Extract existing events - ALS uses 'Automation > FloatEvent', not 'Events > FloatEvent'
     const events: Array<{ time: number; value: number; curveType?: string }> = [];
-    const eventElements = envelope.querySelectorAll('Events > FloatEvent');
+    const eventElements = envelope.querySelectorAll('Automation FloatEvent');
 
     for (const eventElement of eventElements) {
       const time = parseFloat(eventElement.getAttribute('Time') || '0');
@@ -55,10 +64,10 @@ export function updateAutomationEvents(
   envelopeElement: Element,
   newEvents: Array<{ time: number; value: number; curveType?: string }>
 ): void {
-  // Find or create Events element
-  let eventsElement = envelopeElement.querySelector('Events');
+  // Find or create Automation element (ALS uses 'Automation', not 'Events')
+  let eventsElement = envelopeElement.querySelector('Automation');
   if (!eventsElement) {
-    eventsElement = envelopeElement.ownerDocument!.createElement('Events');
+    eventsElement = envelopeElement.ownerDocument!.createElement('Automation');
     envelopeElement.appendChild(eventsElement);
   }
 

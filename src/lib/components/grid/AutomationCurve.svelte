@@ -14,10 +14,18 @@
     width: number;
     yPosition: number;
     automationPoints: AutomationPoint[];
+    color: string | undefined;
   }
 
-  let { parameterId, parameter, height, width, yPosition, automationPoints }: AutomationCurveProps =
-    $props();
+  let {
+    parameterId,
+    parameter,
+    height,
+    width,
+    yPosition,
+    automationPoints,
+    color,
+  }: AutomationCurveProps = $props();
 
   // State
   let gElement = $state<SVGElement>();
@@ -163,4 +171,5 @@
   id={`${parameterId}-${parameter.parameterName}`}
   bind:this={gElement}
   transform={`translate(0,${yPosition + margin.top})`}
+  {color}
 ></g>

@@ -27,6 +27,7 @@ This project bridges Ableton Live’s `.als` project format with a specialized i
   - List of devices
   - List of tracks
   - Per-track automation data
+- LLMs should feel free to use & edit `npx tsx ./src/lib/parsers/exploreStructure.ts` to debug and understand the structure of .als files
 
 ### Database
 
