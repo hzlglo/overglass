@@ -164,6 +164,7 @@
       })
       .on('end', async (event, d) => {
         await automationDb.get().automation.bulkSetAutomationPoints(Array.from(selectedPoints));
+        await automationDb.refreshData();
       });
     points?.call(drag, []);
   });

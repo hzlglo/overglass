@@ -7,7 +7,7 @@
     class?: string;
   }
 
-  let { class: className = 'btn btn-primary btn-sm' }: ExportButtonProps = $props();
+  let { class: className = 'btn btn-outline btn-sm' }: ExportButtonProps = $props();
 
   let isExporting = $state(false);
 
@@ -51,10 +51,6 @@
   }
 </script>
 
-<button
-  class={className}
-  onclick={handleExport}
-  disabled={isExporting || !appStore.loadedFile}
->
+<button class={className} onclick={handleExport} disabled={isExporting || !appStore.loadedFile}>
   {isExporting ? 'Exporting...' : 'Export ALS'}
 </button>

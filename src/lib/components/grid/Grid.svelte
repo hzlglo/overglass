@@ -97,6 +97,8 @@
     automationPointsByParameterId = groupBy(points, (point) => point.parameterId);
   });
 
+  $inspect('automationPointsByParameterId', automationPointsByParameterId);
+
   $effect(() => {
     let zoom = sharedXScale.getZoom();
     if (!svg) {

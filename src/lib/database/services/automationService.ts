@@ -1,18 +1,18 @@
 import type { AutomationPoint, ParameterStats } from '../schema';
-import { toSnakeCase } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
 
 export class AutomationService {
   constructor(private db: AutomationDatabase) {}
 
+
   /**
-   * Set a single automation point for a parameter at a specific time
-   * @param parameterId - The parameter to edit
+   * Create a new automation point for a parameter
+   * @param parameterId - The parameter to create point for
    * @param timePosition - Time position in beats/seconds
    * @param value - Automation value (0.0 to 1.0)
-   * @returns The created/updated automation point
+   * @returns The created automation point
    */
-  async setAutomationPoint(
+  async createAutomationPoint(
     parameterId: string,
     timePosition: number,
     value: number,
@@ -31,68 +31,88 @@ export class AutomationService {
       throw new Error(`Parameter ${parameterId} not found`);
     }
 
-    // Check if a point already exists at this exact time
-    const existingPoint = await this.db.run(
-      'SELECT id FROM automation_points WHERE parameter_id = ? AND time_position = ?',
-      [parameterId, timePosition],
-    );
+    const pointId = Math.random().toString(36).substring(2, 15);
+    const now = new Date();
 
     const pointData = {
+      id: pointId,
       parameterId,
       timePosition,
       value,
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
 
-    if (existingPoint.length > 0) {
-      // Update existing point
-      const pointId = existingPoint[0].id;
-      await this.db.run(
-        `
-        UPDATE automation_points 
-        SET value = ?, updated_at = ?
-        WHERE id = ?
-      `,
-        [value, pointData.updatedAt, pointId],
-      );
+    await this.db.insertRecord('automation_points', pointData);
 
-      console.log(
-        `✅ Updated automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`,
-      );
+    console.log(
+      `✅ Created automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`,
+    );
 
-      return {
-        id: pointId,
-        parameterId,
-        timePosition,
-        value,
-        createdAt: new Date(), // We'd need to fetch the real createdAt
-        updatedAt: pointData.updatedAt,
-      };
-    } else {
-      // Create new point
-      const pointId = Math.random().toString(36).substring(2, 15);
-      await this.db.insertRecord(
-        'automation_points',
-        toSnakeCase({
-          id: pointId,
-          ...pointData,
-          createdAt: new Date(),
-        }),
-      );
+    return pointData;
+  }
 
-      console.log(
-        `✅ Created automation point at time ${timePosition} for parameter ${parameter[0].parameterName}`,
-      );
-
-      return {
-        id: pointId,
-        parameterId,
-        timePosition,
-        value,
-        createdAt: pointData.updatedAt,
-        updatedAt: pointData.updatedAt,
-      };
+  /**
+   * Update an existing automation point
+   * @param id - The id of the automation point to update
+   * @param parameterId - The parameter to update point for
+   * @param timePosition - Time position in beats/seconds
+   * @param value - Automation value (0.0 to 1.0)
+   * @returns The updated automation point
+   */
+  async updateAutomationPoint(
+    id: string,
+    parameterId: string,
+    timePosition: number,
+    value: number,
+  ): Promise<AutomationPoint> {
+    // Validate inputs
+    if (value < 0 || value > 1) {
+      throw new Error('Automation value must be between 0.0 and 1.0');
     }
+
+    // Check if parameter exists
+    const parameter = await this.db.run('SELECT id, parameter_name FROM parameters WHERE id = ?', [
+      parameterId,
+    ]);
+
+    if (parameter.length === 0) {
+      throw new Error(`Parameter ${parameterId} not found`);
+    }
+
+    // Check if automation point exists
+    const existingPoint = await this.db.run(
+      'SELECT id, created_at FROM automation_points WHERE id = ?',
+      [id],
+    );
+
+    if (existingPoint.length === 0) {
+      throw new Error(`Automation point with id ${id} not found`);
+    }
+
+    const updatedAt = new Date();
+
+    await this.db.run(
+      `
+      UPDATE automation_points
+      SET parameter_id = ?, time_position = ?, value = ?, updated_at = ?
+      WHERE id = ?
+    `,
+      [parameterId, timePosition, value, updatedAt, id],
+    );
+
+    console.log(
+      `✅ Updated automation point ${id} to time ${timePosition} for parameter ${parameter[0].parameterName}`,
+    );
+
+    return {
+      id,
+      parameterId,
+      timePosition,
+      value,
+      createdAt: existingPoint[0].createdAt,
+      updatedAt,
+    };
   }
 
   /**
@@ -189,25 +209,39 @@ export class AutomationService {
   }
 
   /**
-   * Bulk update multiple automation points for efficient editing
-   * @param parameterId - The parameter to edit
-   * @param points - Array of {timePosition, value} points
+   * Bulk create or update multiple automation points for efficient editing
+   * @param points - Array of automation points (with or without ids)
    * @returns Array of created/updated automation points
    */
-  async bulkSetAutomationPoints(points: Array<AutomationPoint>): Promise<AutomationPoint[]> {
+  async bulkSetAutomationPoints(points: Array<Partial<AutomationPoint> & { parameterId: string; timePosition: number; value: number }>): Promise<AutomationPoint[]> {
+    console.log(`🔍 Bulk setting ${points.length} automation points`, points);
     const results: AutomationPoint[] = [];
 
     // Process points in a transaction-like manner
     for (const point of points) {
-      const result = await this.setAutomationPoint(
-        point.parameterId,
-        point.timePosition,
-        point.value,
-      );
+      let result: AutomationPoint;
+
+      if (point.id) {
+        // Update existing point
+        result = await this.updateAutomationPoint(
+          point.id,
+          point.parameterId,
+          point.timePosition,
+          point.value,
+        );
+      } else {
+        // Create new point
+        result = await this.createAutomationPoint(
+          point.parameterId,
+          point.timePosition,
+          point.value,
+        );
+      }
+
       results.push(result);
     }
 
-    console.log(`✅ Bulk updated ${points.length} automation points`);
+    console.log(`✅ Bulk processed ${points.length} automation points`);
     return results;
   }
 
@@ -277,7 +311,7 @@ export class AutomationService {
       const newPointId = Math.random().toString(36).substring(2, 15);
       await this.db.insertRecord(
         'automation_points',
-        toSnakeCase({
+        ({
           id: newPointId,
           parameterId,
           timePosition: newTimePosition,
@@ -322,7 +356,7 @@ export class AutomationService {
 
       await this.db.insertRecord(
         'automation_points',
-        toSnakeCase({
+        ({
           id: newPointId,
           parameterId,
           timePosition: newTimePosition,

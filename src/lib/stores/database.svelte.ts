@@ -70,6 +70,7 @@ const createAutomationDbStore = () => {
         database = null;
       }
     },
+    refreshData,
     loadALSData,
     updateDb,
     isInitialized: () => database !== null,
@@ -77,7 +78,7 @@ const createAutomationDbStore = () => {
       if (!database) {
         throw new Error('database not initialized');
       }
-      return database;
+      return ((_x: any) => database)(lastDbUpdateAt);
     },
     isRecalculating: () => isRecalculating,
   };
