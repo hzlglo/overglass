@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appStore } from '../../stores/app.svelte';
+  import ExportButton from './ExportButton.svelte';
 
   interface NavbarProps {
     projectName?: string;
@@ -46,6 +47,8 @@
   <!-- Right side - Controls -->
   <div class="navbar-end">
     <div class="flex items-center gap-2">
+      <ExportButton />
+
       <button
         class="btn btn-outline btn-sm"
         class:btn-active={appStore.showDebugger}

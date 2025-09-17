@@ -5,10 +5,12 @@ export class NativeDuckDBAdapter implements DatabaseAdapter {
   private db: duckdb.Database;
   private connection: duckdb.Connection;
   private isInitialized = false;
+  private filePath?: string;
 
-  constructor() {
-    // Create in-memory database
-    this.db = new duckdb.Database(':memory:');
+  constructor(filePath?: string) {
+    // Create in-memory database by default, or file-based if path provided
+    this.filePath = filePath;
+    this.db = new duckdb.Database(filePath || ':memory:');
     this.connection = this.db.connect();
   }
 
@@ -29,5 +31,12 @@ export class NativeDuckDBAdapter implements DatabaseAdapter {
   async close(): Promise<void> {
     this.connection.close();
     this.db.close();
+  }
+
+  /**
+   * Get the file path if this is a file-based database
+   */
+  getFilePath(): string | undefined {
+    return this.filePath;
   }
 }

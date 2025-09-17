@@ -49,7 +49,7 @@
 
   $effect(() => {
     if (!selectedFile && !loading) {
-      loadHardcodedFile();
+      // loadHardcodedFile();
     }
   });
 

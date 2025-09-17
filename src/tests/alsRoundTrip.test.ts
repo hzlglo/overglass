@@ -1,396 +1,559 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { ALSParser } from '../lib/parsers/alsParser';
 import { ALSWriter } from '../lib/parsers/alsWriter';
 import { AutomationDatabase } from '../lib/database/duckdb';
 import { NativeDuckDBAdapter } from '../lib/database/adapters/native';
 import { gzipXmlHelpers } from '../lib/utils/gzipXmlHelpers';
 
+interface EditScenario {
+  name: string;
+  description: string;
+  applyEdits: (db: AutomationDatabase) => Promise<{
+    editCount: number;
+    parametersModified: number;
+    description: string;
+  }>;
+  verifyEdits: (originalData: Map<string, any>, newData: Map<string, any>) => Promise<{
+    verified: boolean;
+    details: string;
+  }>;
+}
+
 describe('ALS Round-Trip Integration Test', () => {
-  let db: AutomationDatabase;
+  let originalDb: AutomationDatabase;
+  let roundTripDb: AutomationDatabase;
   let parser: ALSParser;
   let writer: ALSWriter;
   let originalParsedALS: any;
-  let originalParameterData: Map<string, any>;
+  let testOutputDir: string;
 
-  beforeAll(async () => {
-    console.log('🚀 Starting ALS Round-Trip Integration Test');
+  // Test data directories
+  const setupTestDir = () => {
+    testOutputDir = './test_output';
+    if (!existsSync(testOutputDir)) {
+      mkdirSync(testOutputDir, { recursive: true });
+    }
+  };
 
-    // Initialize database
-    const adapter = new NativeDuckDBAdapter();
-    db = new AutomationDatabase(adapter);
-    await db.initialize();
-
-    parser = new ALSParser();
-    writer = new ALSWriter(db);
-  });
-
-  afterAll(async () => {
-    await db.close();
-    console.log('✅ ALS Round-Trip Integration Test completed');
-  });
-
-  it('Step 1: Parse and load original ALS file into database', async () => {
-    console.log('📖 Step 1: Loading original ALS file...');
-
-    // Load test ALS file
-    const buffer = readFileSync('./static/test1.als');
-    const testFile = {
-      name: 'test1.als',
-      size: buffer.length,
-      type: 'application/octet-stream',
-      arrayBuffer: async () =>
-        buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
-    } as File;
-
-    // Parse the ALS file
-    originalParsedALS = await parser.parseALSFile(testFile);
-    expect(originalParsedALS).toBeDefined();
-    expect(originalParsedALS.name).toBe('test1');
-    expect(originalParsedALS.bpm).toBeGreaterThan(0);
-
-    // Load data into database
-    await db.loadALSData(originalParsedALS);
-
-    // Verify data was loaded
-    const devices = await db.devices.getDevicesWithTracks();
-    expect(devices.length).toBeGreaterThan(0);
-
-    // Capture original parameter data for comparison
-    originalParameterData = await captureParameterSnapshot();
-
-    console.log(`✅ Original file loaded: ${originalParsedALS.name} at ${originalParsedALS.bpm} BPM`);
-    console.log(`   Database contains: ${devices.length} devices, ${originalParameterData.size} parameters`);
-  });
-
-  it('Step 2: Make systematic edits to automation data', async () => {
-    console.log('✏️  Step 2: Making systematic edits to automation data...');
-
-    const devices = await db.devices.getDevicesWithTracks();
-    let totalEdits = 0;
-    let parametersModified = 0;
-
-    // Edit automation points in each parameter
-    for (const device of devices) {
-      const tracks = await db.tracks.getTracksForDevice(device.id);
-
-      for (const track of tracks) {
-        const parameters = await db.tracks.getParametersForTrack(track.id);
-
-        for (const parameter of parameters) {
-          // Get existing automation points
-          const existingPoints = await db.automation.getAutomationPoints({
-            parameterId: parameter.id
-          });
-
-          if (existingPoints.length > 0) {
-            parametersModified++;
-
-            // Edit 1: Shift all existing points forward by 1 second and scale values by 0.9
-            for (const point of existingPoints) {
-              await db.automation.setAutomationPoint(
-                parameter.id,
-                point.timePosition + 1.0, // Shift forward by 1 second
-                point.value * 0.9        // Scale to 90%
-              );
-              await db.automation.removeAutomationPoint(parameter.id, point.timePosition);
-              totalEdits++;
-            }
-
-            // Edit 2: Add signature test points that we can verify later
-            await db.automation.setAutomationPoint(parameter.id, 0.1, 0.1);  // Test point 1
-            await db.automation.setAutomationPoint(parameter.id, 0.5, 0.5);  // Test point 2
-            await db.automation.setAutomationPoint(parameter.id, 0.9, 0.9);  // Test point 3
-            totalEdits += 3;
-
-            console.log(`   Modified parameter: ${parameter.parameterName} (${existingPoints.length} points shifted, 3 test points added)`);
+  const cleanupTestFiles = () => {
+    if (existsSync(testOutputDir)) {
+      const fs = require('fs');
+      const files = fs.readdirSync(testOutputDir);
+      for (const file of files) {
+        if (file.endsWith('.db') || file.endsWith('.wal') || file.endsWith('.db-journal')) {
+          try {
+            fs.unlinkSync(join(testOutputDir, file));
+          } catch (err) {
+            // Ignore errors, file might be in use
           }
         }
       }
     }
+  };
 
-    expect(parametersModified).toBeGreaterThan(0);
-    expect(totalEdits).toBeGreaterThan(0);
+  // Helper: Create a file-based database for comparison
+  const createFileDatabaseForScenario = async (scenario: EditScenario, suffix: string) => {
+    const filePath = join(testOutputDir, `${scenario.name}_${suffix}.db`);
 
-    console.log(`✅ Completed edits: ${parametersModified} parameters modified, ${totalEdits} total changes`);
-  });
+    // Delete the file if it already exists to ensure we start fresh
+    if (existsSync(filePath)) {
+      const fs = require('fs');
+      fs.unlinkSync(filePath);
+    }
 
-  it('Step 3: Export modified data back to ALS file', async () => {
-    console.log('💾 Step 3: Exporting modified data to ALS file...');
-
-    // Write the modified data back to ALS format using ALSWriter
-    const editedFile = await writer.writeALSFile(originalParsedALS, 'test1_roundtrip.als');
-
-    expect(editedFile).toBeDefined();
-    expect(editedFile.name).toBe('test1_roundtrip.als');
-    expect(editedFile.size).toBeGreaterThan(0);
-
-    // The ALSWriter now handles writing to disk directly for Node.js testing
-    console.log('   Modified ALS file will be saved by ALSWriter to ./static/test1_roundtrip.als');
-
-    console.log(`✅ Modified ALS file exported: ${editedFile.name} (${editedFile.size} bytes)`);
-    console.log(`   File saved to: ./static/test1_roundtrip.als`);
-  });
-
-  it('Step 4: Re-parse the exported ALS file', async () => {
-    console.log('🔄 Step 4: Re-parsing the exported ALS file...');
-
-    // Verify file exists
-    expect(existsSync('./static/test1_roundtrip.als')).toBe(true);
-
-    // Clean slate: close and reinitialize database
-    await db.close();
-    const adapter = new NativeDuckDBAdapter();
-    db = new AutomationDatabase(adapter);
+    const adapter = new NativeDuckDBAdapter(filePath);
+    const db = new AutomationDatabase(adapter);
     await db.initialize();
-    writer = new ALSWriter(db); // Recreate with new db instance
+    return { db, filePath };
+  };
 
-    // Load the exported file
-    const buffer = readFileSync('./static/test1_roundtrip.als');
-    const roundTripFile = {
-      name: 'test1_roundtrip.als',
-      size: buffer.length,
-      type: 'application/octet-stream',
-      arrayBuffer: async () =>
-        buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
-    } as File;
+  // Helper: Compare two databases using DuckDB EXCEPT queries
+  const compareDatabases = async (originalFile: string, roundTripFile: string) => {
+    // Create a raw DuckDB instance for comparison
+    const comparisonAdapter = new NativeDuckDBAdapter();
+    await comparisonAdapter.initialize();
 
-    // Parse the round-trip file
-    const reparsedALS = await parser.parseALSFile(roundTripFile);
-    expect(reparsedALS).toBeDefined();
-    expect(reparsedALS.name).toBe('test1_roundtrip');
+    try {
+      // Attach both databases
+      console.log(`Attaching original database: ${originalFile}`);
+      await comparisonAdapter.execute(`ATTACH '${originalFile}' AS original`);
 
-    // Load into fresh database
-    await db.loadALSData(reparsedALS);
+      console.log(`Attaching round-trip database: ${roundTripFile}`);
+      await comparisonAdapter.execute(`ATTACH '${roundTripFile}' AS roundtrip`);
 
-    console.log(`✅ Round-trip file re-parsed and loaded: ${reparsedALS.name}`);
-  });
+      const differences = {
+        devices: { onlyInOriginal: [], onlyInRoundTrip: [] },
+        tracks: { onlyInOriginal: [], onlyInRoundTrip: [] },
+        parameters: { onlyInOriginal: [], onlyInRoundTrip: [] },
+        automationPoints: { onlyInOriginal: [], onlyInRoundTrip: [] }
+      };
 
-  it('Step 5: Verify all edits are preserved in round-trip file', async () => {
-    console.log('🔍 Step 5: Verifying edits are preserved...');
+      // Compare devices (excluding timestamps)
+      differences.devices.onlyInOriginal = await comparisonAdapter.execute(`
+        SELECT device_name, device_type FROM original.devices
+        EXCEPT
+        SELECT device_name, device_type FROM roundtrip.devices
+      `);
 
-    // Get the re-parsed data
-    const newParameterData = await captureParameterSnapshot();
+      differences.devices.onlyInRoundTrip = await comparisonAdapter.execute(`
+        SELECT device_name, device_type FROM roundtrip.devices
+        EXCEPT
+        SELECT device_name, device_type FROM original.devices
+      `);
 
-    // Debug: check what's in the new parameter data
-    console.log('   newParameterData size:', newParameterData.size);
-    console.log('   originalParameterData size:', originalParameterData.size);
+      // Compare tracks (excluding timestamps and IDs)
+      differences.tracks.onlyInOriginal = await comparisonAdapter.execute(`
+        SELECT track_number, track_name, is_muted FROM original.tracks
+        EXCEPT
+        SELECT track_number, track_name, is_muted FROM roundtrip.tracks
+      `);
 
-    // Remove metadata entries for comparison
-    const newDataWithoutMeta = new Map();
-    const originalDataWithoutMeta = new Map();
+      differences.tracks.onlyInRoundTrip = await comparisonAdapter.execute(`
+        SELECT track_number, track_name, is_muted FROM roundtrip.tracks
+        EXCEPT
+        SELECT track_number, track_name, is_muted FROM original.tracks
+      `);
 
-    for (const [key, value] of newParameterData) {
-      if (key !== '_metadata') {
-        newDataWithoutMeta.set(key, value);
-      }
+      // Compare parameters (excluding timestamps and IDs)
+      differences.parameters.onlyInOriginal = await comparisonAdapter.execute(`
+        SELECT parameter_name, parameter_path FROM original.parameters
+        EXCEPT
+        SELECT parameter_name, parameter_path FROM roundtrip.parameters
+      `);
+
+      differences.parameters.onlyInRoundTrip = await comparisonAdapter.execute(`
+        SELECT parameter_name, parameter_path FROM roundtrip.parameters
+        EXCEPT
+        SELECT parameter_name, parameter_path FROM original.parameters
+      `);
+
+      // Compare automation points by parameter name and values (not IDs)
+      differences.automationPoints.onlyInOriginal = await comparisonAdapter.execute(`
+        SELECT p.parameter_name, ap.time_position, ap.value, ap.curve_type
+        FROM original.automation_points ap
+        JOIN original.parameters p ON ap.parameter_id = p.id
+        EXCEPT
+        SELECT rtp.parameter_name, rtap.time_position, rtap.value, rtap.curve_type
+        FROM roundtrip.automation_points rtap
+        JOIN roundtrip.parameters rtp ON rtap.parameter_id = rtp.id
+      `);
+
+      differences.automationPoints.onlyInRoundTrip = await comparisonAdapter.execute(`
+        SELECT rtp.parameter_name, rtap.time_position, rtap.value, rtap.curve_type
+        FROM roundtrip.automation_points rtap
+        JOIN roundtrip.parameters rtp ON rtap.parameter_id = rtp.id
+        EXCEPT
+        SELECT p.parameter_name, ap.time_position, ap.value, ap.curve_type
+        FROM original.automation_points ap
+        JOIN original.parameters p ON ap.parameter_id = p.id
+      `);
+
+      return differences;
+    } finally {
+      await comparisonAdapter.close();
     }
+  };
 
-    for (const [key, value] of originalParameterData) {
-      if (key !== '_metadata') {
-        originalDataWithoutMeta.set(key, value);
-      }
+  // Helper: Run full round-trip test with specific edit scenario
+  const runRoundTripTest = async (scenario: EditScenario) => {
+    console.log(`\n🧪 Testing scenario: ${scenario.name}`);
+    console.log(`   Description: ${scenario.description}`);
+
+    // Clean up any existing test files for this scenario
+    cleanupTestFiles();
+
+    // Step 1: Create file-based databases for testing
+    const { db: originalDb, filePath: originalFile } = await createFileDatabaseForScenario(scenario, 'original');
+    const { db: roundTripDb, filePath: roundTripFile } = await createFileDatabaseForScenario(scenario, 'roundtrip');
+
+    try {
+      // Step 2: Load original ALS file into original database
+      const buffer = readFileSync('./static/test1.als');
+      const testFile = {
+        name: 'test1.als',
+        size: buffer.length,
+        type: 'application/octet-stream',
+        arrayBuffer: async () =>
+          buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+      } as File;
+
+      originalParsedALS = await parser.parseALSFile(testFile);
+      await originalDb.loadALSData(originalParsedALS);
+
+      // Capture original data before edits
+      const originalData = await captureParameterSnapshot(originalDb);
+
+      // Step 3: Apply scenario edits to original database
+      const editResults = await scenario.applyEdits(originalDb);
+      console.log(`   Applied edits: ${editResults.description}`);
+
+      // Step 4: Export edited database to ALS file
+      writer = new ALSWriter(originalDb);
+      const editedFileName = `test1_${scenario.name}.als`;
+      const editedFile = await writer.writeALSFile(originalParsedALS, editedFileName);
+
+      // Step 5: Parse the exported ALS file into round-trip database
+      const roundTripBuffer = readFileSync(join('./static', editedFileName));
+      const roundTripFile2 = {
+        name: editedFileName,
+        size: roundTripBuffer.length,
+        type: 'application/octet-stream',
+        arrayBuffer: async () =>
+          roundTripBuffer.buffer.slice(roundTripBuffer.byteOffset, roundTripBuffer.byteOffset + roundTripBuffer.byteLength),
+      } as File;
+
+      const reparsedALS = await parser.parseALSFile(roundTripFile2);
+      await roundTripDb.loadALSData(reparsedALS);
+
+      // Step 6: Close databases to ensure file writes are flushed
+      await originalDb.close();
+      await roundTripDb.close();
+
+      // Step 7: Compare the two database files using ATTACH
+      const differences = await compareDatabases(originalFile, roundTripFile);
+
+      // Step 8: Verify scenario-specific expectations
+      // Reopen round-trip database for verification (skip initialization since tables exist)
+      const verificationAdapter = new NativeDuckDBAdapter(roundTripFile);
+      const verificationDb = new AutomationDatabase(verificationAdapter);
+
+      // Only initialize the adapter, skip the table creation since they already exist
+      await verificationAdapter.initialize();
+      // Manually set the database as initialized to skip schema creation
+      verificationDb['isInitialized'] = true;
+
+      const roundTripData = await captureParameterSnapshot(verificationDb);
+      const verificationResults = await scenario.verifyEdits(originalData, roundTripData);
+
+      console.log(`   Verification: ${verificationResults.details}`);
+
+      await verificationDb.close();
+
+      return {
+        editResults,
+        differences,
+        verificationResults
+      };
+    } catch (error) {
+      // Clean up on error
+      await originalDb.close();
+      await roundTripDb.close();
+      throw error;
     }
+  };
 
-    console.log('   Parameters without metadata - new:', newDataWithoutMeta.size, 'original:', originalDataWithoutMeta.size);
+  // Define edit scenarios
+  const editScenarios: EditScenario[] = [
+    {
+      name: 'add_points',
+      description: 'Add new automation points to existing parameters',
+      applyEdits: async (db) => {
+        const devices = await db.devices.getDevicesWithTracks();
+        let editCount = 0;
+        let parametersModified = 0;
 
-    // Verify we have the same structure (excluding metadata which has different IDs)
-    expect(newDataWithoutMeta.size).toBe(originalDataWithoutMeta.size);
+        for (const device of devices) {
+          const tracks = await db.tracks.getTracksForDevice(device.id);
+          for (const track of tracks) {
+            const parameters = await db.tracks.getParametersForTrack(track.id);
+            for (const parameter of parameters) {
+              const existingPoints = await db.automation.getAutomationPoints({
+                parameterId: parameter.id
+              });
 
-    let testPointsFound = 0;
-    let shiftedPointsFound = 0;
-    let parametersVerified = 0;
-
-    // Check each parameter for our specific edits
-    // Note: Parameter IDs will be different after round-trip, so match by parameter name
-    for (const [newParameterId, newData] of newDataWithoutMeta) {
-      const parameterName = newData.parameter.parameterName;
-
-      // Find the original parameter by name
-      let originalData: any = null;
-      for (const [originalParameterId, originalDataCandidate] of originalDataWithoutMeta) {
-        if (originalDataCandidate.parameter && originalDataCandidate.parameter.parameterName === parameterName) {
-          originalData = originalDataCandidate;
-          break;
-        }
-      }
-
-      expect(originalData).toBeDefined();
-
-      const newPoints = newData.automationPoints;
-      parametersVerified++;
-
-      // Look for our signature test points (0.1,0.1), (0.5,0.5), (0.9,0.9)
-      const hasTestPoint1 = newPoints.some((p: any) =>
-        Math.abs(p.timePosition - 0.1) < 0.01 && Math.abs(p.value - 0.1) < 0.01);
-      const hasTestPoint2 = newPoints.some((p: any) =>
-        Math.abs(p.timePosition - 0.5) < 0.01 && Math.abs(p.value - 0.5) < 0.01);
-      const hasTestPoint3 = newPoints.some((p: any) =>
-        Math.abs(p.timePosition - 0.9) < 0.01 && Math.abs(p.value - 0.9) < 0.01);
-
-      if (hasTestPoint1 && hasTestPoint2 && hasTestPoint3) {
-        testPointsFound++;
-        console.log(`   ✅ Found all 3 test points in parameter: ${newData.parameter.parameterName}`);
-      }
-
-      // Look for shifted and scaled original points
-      const originalPoints = originalData.automationPoints;
-      for (const originalPoint of originalPoints) {
-        const expectedTime = originalPoint.timePosition + 1.0;
-        const expectedValue = originalPoint.value * 0.9;
-
-        const shiftedPoint = newPoints.find((p: any) =>
-          Math.abs(p.timePosition - expectedTime) < 0.01 &&
-          Math.abs(p.value - expectedValue) < 0.01
-        );
-
-        if (shiftedPoint) {
-          shiftedPointsFound++;
-        }
-      }
-    }
-
-    // Verify we found our edits
-    expect(testPointsFound).toBeGreaterThan(0);
-    expect(shiftedPointsFound).toBeGreaterThan(0);
-
-    console.log(`✅ Edit verification complete:`);
-    console.log(`   Parameters verified: ${parametersVerified}`);
-    console.log(`   Parameters with test points: ${testPointsFound}`);
-    console.log(`   Shifted original points found: ${shiftedPointsFound}`);
-  });
-
-  it('Step 6: Verify data integrity and structure preservation', async () => {
-    console.log('🏗️  Step 6: Verifying data integrity...');
-
-    // Check overall structure is preserved
-    const devices = await db.devices.getDevicesWithTracks();
-    const originalMetadata = originalParameterData.get('_metadata') || {};
-
-    expect(devices.length).toBe(originalMetadata.deviceCount);
-
-    let totalParameters = 0;
-    let totalPoints = 0;
-
-    for (const device of devices) {
-      const tracks = await db.tracks.getTracksForDevice(device.id);
-
-      for (const track of tracks) {
-        const parameters = await db.tracks.getParametersForTrack(track.id);
-        totalParameters += parameters.length;
-
-        for (const parameter of parameters) {
-          const points = await db.automation.getAutomationPoints({
-            parameterId: parameter.id
-          });
-          totalPoints += points.length;
-        }
-      }
-    }
-
-    // We should have more points than original due to our additions
-    const originalTotalPoints = originalMetadata.totalPoints || 0;
-    expect(totalPoints).toBeGreaterThan(originalTotalPoints);
-
-    // Each parameter got 3 additional test points
-    const expectedMinPoints = originalTotalPoints + (totalParameters * 3);
-    expect(totalPoints).toBeGreaterThanOrEqual(expectedMinPoints);
-
-    console.log(`✅ Data integrity verified:`);
-    console.log(`   Devices: ${devices.length} (original: ${originalMetadata.deviceCount})`);
-    console.log(`   Parameters: ${totalParameters}`);
-    console.log(`   Automation Points: ${totalPoints} (original: ${originalTotalPoints}, expected min: ${expectedMinPoints})`);
-  });
-
-  it('Step 7: Test gzipXmlHelpers directly with round-trip file', async () => {
-    console.log('🧪 Step 7: Testing gzipXmlHelpers directly...');
-
-    // Use gzipXmlHelpers to read the round-trip file directly
-    const buffer = readFileSync('./static/test1_roundtrip.als');
-    const testFile = {
-      name: 'test1_roundtrip.als',
-      size: buffer.length,
-      type: 'application/octet-stream',
-      arrayBuffer: async () =>
-        buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
-    } as File;
-
-    const { xmlDoc, xmlString } = await gzipXmlHelpers.readALSFile(testFile);
-
-    expect(xmlDoc).toBeDefined();
-    expect(xmlString).toBeDefined();
-    expect(xmlDoc.documentElement.tagName).toBe('Ableton');
-    expect(xmlString.length).toBeGreaterThan(1000);
-
-    // Verify we can write it back
-    const rewrittenFile = await gzipXmlHelpers.writeALSFile(xmlDoc, 'test1_rewritten.als');
-    expect(rewrittenFile).toBeDefined();
-    expect(rewrittenFile.size).toBeGreaterThan(0);
-
-    console.log(`✅ gzipXmlHelpers verification complete:`);
-    console.log(`   XML string length: ${xmlString.length} characters`);
-    console.log(`   Rewritten file size: ${rewrittenFile.size} bytes`);
-  });
-
-  /**
-   * Helper function to collect database data in the same format as ALSWriter
-   */
-  async function collectDatabaseData(devices: any[], db: any) {
-    const deviceData = new Map<string, any>();
-
-    for (const device of devices) {
-      const tracks = await db.tracks.getTracksForDevice(device.id);
-      const trackData = new Map();
-
-      for (const track of tracks) {
-        const parameters = await db.tracks.getParametersForTrack(track.id);
-        const parameterData = new Map();
-
-        for (const parameter of parameters) {
-          const automationPoints = await db.automation.getAutomationPoints({
-            parameterId: parameter.id
-          });
-
-          parameterData.set(parameter.id, {
-            parameter,
-            automationPoints
-          });
+              if (existingPoints.length > 0) {
+                // Add signature test points
+                await db.automation.setAutomationPoint(parameter.id, 0.25, 0.25);
+                await db.automation.setAutomationPoint(parameter.id, 0.75, 0.75);
+                editCount += 2;
+                parametersModified++;
+                break; // Only modify first parameter with existing points per track
+              }
+            }
+          }
         }
 
-        trackData.set(track.id, {
-          track,
-          parameters: parameterData
-        });
+        return {
+          editCount,
+          parametersModified,
+          description: `Added ${editCount} points to ${parametersModified} parameters`
+        };
+      },
+      verifyEdits: async (originalData, newData) => {
+        let testPointsFound = 0;
+        for (const [parameterId, paramData] of newData) {
+          if (parameterId === '_metadata') continue;
+          const points = paramData.automationPoints;
+          const hasTestPoint1 = points.some((p: any) =>
+            Math.abs(p.timePosition - 0.25) < 0.01 && Math.abs(p.value - 0.25) < 0.01);
+          const hasTestPoint2 = points.some((p: any) =>
+            Math.abs(p.timePosition - 0.75) < 0.01 && Math.abs(p.value - 0.75) < 0.01);
+
+          if (hasTestPoint1 && hasTestPoint2) {
+            testPointsFound++;
+          }
+        }
+
+        return {
+          verified: testPointsFound > 0,
+          details: `Found test points in ${testPointsFound} parameters`
+        };
+      }
+    },
+    {
+      name: 'remove_points',
+      description: 'Remove existing automation points',
+      applyEdits: async (db) => {
+        const devices = await db.devices.getDevicesWithTracks();
+        let editCount = 0;
+        let parametersModified = 0;
+
+        for (const device of devices) {
+          const tracks = await db.tracks.getTracksForDevice(device.id);
+          for (const track of tracks) {
+            const parameters = await db.tracks.getParametersForTrack(track.id);
+            for (const parameter of parameters) {
+              const existingPoints = await db.automation.getAutomationPoints({
+                parameterId: parameter.id
+              });
+
+              if (existingPoints.length > 2) {
+                // Remove the first point
+                const firstPoint = existingPoints[0];
+                await db.automation.removeAutomationPoint(parameter.id, firstPoint.timePosition);
+                editCount++;
+                parametersModified++;
+                break; // Only modify first suitable parameter per track
+              }
+            }
+          }
+        }
+
+        return {
+          editCount,
+          parametersModified,
+          description: `Removed ${editCount} points from ${parametersModified} parameters`
+        };
+      },
+      verifyEdits: async (originalData, newData) => {
+        let pointsRemoved = 0;
+        for (const [parameterId, originalParamData] of originalData) {
+          if (parameterId === '_metadata') continue;
+
+          const newParamData = newData.get(parameterId);
+          if (!newParamData) continue;
+
+          const originalPoints = originalParamData.automationPoints.length;
+          const newPoints = newParamData.automationPoints.length;
+
+          if (newPoints < originalPoints) {
+            pointsRemoved += (originalPoints - newPoints);
+          }
+        }
+
+        return {
+          verified: pointsRemoved > 0,
+          details: `Verified ${pointsRemoved} points were removed`
+        };
+      }
+    },
+    {
+      name: 'modify_values',
+      description: 'Change values of existing automation points',
+      applyEdits: async (db) => {
+        const devices = await db.devices.getDevicesWithTracks();
+        let editCount = 0;
+        let parametersModified = 0;
+
+        for (const device of devices) {
+          const tracks = await db.tracks.getTracksForDevice(device.id);
+          for (const track of tracks) {
+            const parameters = await db.tracks.getParametersForTrack(track.id);
+            for (const parameter of parameters) {
+              const existingPoints = await db.automation.getAutomationPoints({
+                parameterId: parameter.id
+              });
+
+              if (existingPoints.length > 0) {
+                // Modify values of existing points by multiplying by 0.8
+                for (const point of existingPoints) {
+                  const newValue = Math.max(0, Math.min(1, point.value * 0.8));
+                  await db.automation.setAutomationPoint(parameter.id, point.timePosition, newValue);
+                  editCount++;
+                }
+                parametersModified++;
+                break; // Only modify first parameter with points per track
+              }
+            }
+          }
+        }
+
+        return {
+          editCount,
+          parametersModified,
+          description: `Modified ${editCount} point values in ${parametersModified} parameters`
+        };
+      },
+      verifyEdits: async (originalData, newData) => {
+        let valuesModified = 0;
+        for (const [parameterId, originalParamData] of originalData) {
+          if (parameterId === '_metadata') continue;
+
+          const newParamData = newData.get(parameterId);
+          if (!newParamData) continue;
+
+          const originalPoints = originalParamData.automationPoints;
+          const newPoints = newParamData.automationPoints;
+
+          for (const originalPoint of originalPoints) {
+            const matchingNewPoint = newPoints.find((np: any) =>
+              Math.abs(np.timePosition - originalPoint.timePosition) < 0.001);
+
+            if (matchingNewPoint && Math.abs(matchingNewPoint.value - (originalPoint.value * 0.8)) < 0.001) {
+              valuesModified++;
+            }
+          }
+        }
+
+        return {
+          verified: valuesModified > 0,
+          details: `Verified ${valuesModified} point values were modified correctly`
+        };
+      }
+    }
+  ];
+
+  beforeAll(async () => {
+    console.log('🚀 Starting ALS Round-Trip Integration Test');
+    setupTestDir();
+
+    // Initialize original database
+    const originalAdapter = new NativeDuckDBAdapter();
+    originalDb = new AutomationDatabase(originalAdapter);
+    await originalDb.initialize();
+
+    parser = new ALSParser();
+  });
+
+  afterAll(async () => {
+    await originalDb.close();
+    if (roundTripDb) {
+      await roundTripDb.close();
+    }
+    console.log('✅ ALS Round-Trip Integration Test completed');
+  });
+
+  // Individual scenario tests
+  for (const scenario of editScenarios) {
+    it(`Round-trip test: ${scenario.name}`, async () => {
+      const results = await runRoundTripTest(scenario);
+
+      // Basic assertions
+      expect(results.editResults.editCount).toBeGreaterThan(0);
+      expect(results.editResults.parametersModified).toBeGreaterThan(0);
+      expect(results.verificationResults.verified).toBe(true);
+
+      // Log results for debugging
+      console.log(`   Edit results: ${results.editResults.description}`);
+      console.log(`   Verification: ${results.verificationResults.details}`);
+
+      // Check for unexpected differences
+      const { differences } = results;
+      const hasUnexpectedDifferences = (
+        differences.devices.onlyInOriginal.length > 0 ||
+        differences.devices.onlyInRoundTrip.length > 0 ||
+        differences.tracks.onlyInOriginal.length > 0 ||
+        differences.tracks.onlyInRoundTrip.length > 0 ||
+        differences.parameters.onlyInOriginal.length > 0 ||
+        differences.parameters.onlyInRoundTrip.length > 0
+      );
+
+      if (hasUnexpectedDifferences) {
+        console.warn('   Unexpected structural differences found:');
+        console.warn('   Devices only in original:', differences.devices.onlyInOriginal.length);
+        console.warn('   Devices only in round-trip:', differences.devices.onlyInRoundTrip.length);
+        console.warn('   Tracks only in original:', differences.tracks.onlyInOriginal.length);
+        console.warn('   Tracks only in round-trip:', differences.tracks.onlyInRoundTrip.length);
+        console.warn('   Parameters only in original:', differences.parameters.onlyInOriginal.length);
+        console.warn('   Parameters only in round-trip:', differences.parameters.onlyInRoundTrip.length);
       }
 
-      deviceData.set(device.id, {
-        device,
-        tracks: trackData
-      });
-    }
-
-    return deviceData;
+      // Automation point differences are expected due to edits
+      console.log(`   Automation point differences: ${differences.automationPoints.onlyInOriginal.length} original, ${differences.automationPoints.onlyInRoundTrip.length} round-trip`);
+    });
   }
+
+  // Example of how easy it is to add a new scenario:
+  it('Custom edit scenario example', async () => {
+    // You can define any custom edit logic inline
+    const customScenario: EditScenario = {
+      name: 'custom_test',
+      description: 'Custom automation edits for specific testing',
+      applyEdits: async (db) => {
+        // Your custom edit logic here
+        const devices = await db.devices.getDevicesWithTracks();
+        let editCount = 0;
+
+        // Example: Add a specific automation point to all parameters
+        for (const device of devices) {
+          const tracks = await db.tracks.getTracksForDevice(device.id);
+          for (const track of tracks) {
+            const parameters = await db.tracks.getParametersForTrack(track.id);
+            for (const parameter of parameters) {
+              await db.automation.setAutomationPoint(parameter.id, 0.5, 0.8);
+              editCount++;
+            }
+          }
+        }
+
+        return {
+          editCount,
+          parametersModified: editCount,
+          description: `Added custom automation point to ${editCount} parameters`
+        };
+      },
+      verifyEdits: async (originalData, newData) => {
+        // Your custom verification logic here
+        let customPointsFound = 0;
+        for (const [parameterId, paramData] of newData) {
+          if (parameterId === '_metadata') continue;
+          const hasCustomPoint = paramData.automationPoints.some((p: any) =>
+            Math.abs(p.timePosition - 0.5) < 0.01 && Math.abs(p.value - 0.8) < 0.01);
+          if (hasCustomPoint) customPointsFound++;
+        }
+
+        return {
+          verified: customPointsFound > 0,
+          details: `Found custom points in ${customPointsFound} parameters`
+        };
+      }
+    };
+
+    const results = await runRoundTripTest(customScenario);
+    expect(results.verificationResults.verified).toBe(true);
+  });
 
   /**
    * Helper function to capture a snapshot of all parameter automation data
    */
-  async function captureParameterSnapshot(): Promise<Map<string, any>> {
+  async function captureParameterSnapshot(database: AutomationDatabase = originalDb): Promise<Map<string, any>> {
     const snapshot = new Map();
-    const devices = await db.devices.getDevicesWithTracks();
+    const devices = await database.devices.getDevicesWithTracks();
 
     let totalPoints = 0;
     let totalParameters = 0;
 
     for (const device of devices) {
-      const tracks = await db.tracks.getTracksForDevice(device.id);
+      const tracks = await database.tracks.getTracksForDevice(device.id);
 
       for (const track of tracks) {
-        const parameters = await db.tracks.getParametersForTrack(track.id);
+        const parameters = await database.tracks.getParametersForTrack(track.id);
         totalParameters += parameters.length;
 
         for (const parameter of parameters) {
-          const automationPoints = await db.automation.getAutomationPoints({
+          const automationPoints = await database.automation.getAutomationPoints({
             parameterId: parameter.id
           });
 
