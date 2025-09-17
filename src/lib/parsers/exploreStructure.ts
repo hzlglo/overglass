@@ -177,18 +177,63 @@ function exploreALS() {
     const envelope = envelopes[i];
     const target = getFirstChildByTag(envelope, 'EnvelopeTarget');
 
-    if (target && target.hasAttribute('PointeeId')) {
-      const pointeeId = target.getAttribute('PointeeId');
-      const paramName = paramMapping[pointeeId || ''];
+    console.log(`  Envelope ${i} structure:`);
+    if (target) {
+      console.log(`    Has EnvelopeTarget`);
 
-      if (paramName) {
-        console.log(`  ✅ Envelope ${i}: PointeeId="${pointeeId}" → "${paramName}"`);
-        matchedCount++;
+      // Check for PointeeId in EnvelopeTarget
+      if (target.hasAttribute('PointeeId')) {
+        const pointeeId = target.getAttribute('PointeeId');
+        console.log(`    PointeeId="${pointeeId}"`);
+        const paramName = paramMapping[pointeeId || ''];
+        if (paramName) {
+          console.log(`    ✅ Matched: "${paramName}"`);
+          matchedCount++;
+        } else {
+          console.log(`    ❌ No match found for PointeeId "${pointeeId}"`);
+        }
       } else {
-        console.log(`  ❌ Envelope ${i}: PointeeId="${pointeeId}" → NOT FOUND`);
+        console.log(`    No PointeeId attribute`);
+
+        // Look for PointeeId child element
+        const pointeeIdElement = getFirstChildByTag(target, 'PointeeId');
+        if (pointeeIdElement) {
+          const pointeeId = pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
+          console.log(`    PointeeId (child element): "${pointeeId}"`);
+          const paramName = paramMapping[pointeeId];
+          if (paramName) {
+            console.log(`    ✅ Matched: "${paramName}"`);
+            matchedCount++;
+          } else {
+            console.log(`    ❌ No match found for PointeeId "${pointeeId}"`);
+          }
+        } else {
+          console.log(`    No PointeeId child element`);
+
+          // Show all attributes and children
+          console.log(`    Attributes:`);
+          if (target.attributes) {
+            for (let j = 0; j < target.attributes.length; j++) {
+              const attr = target.attributes[j];
+              console.log(`      ${attr.name}="${attr.value}"`);
+            }
+          }
+
+          console.log(`    Children:`);
+          for (let k = 0; k < target.childNodes.length; k++) {
+            const node = target.childNodes[k];
+            if (node.nodeType === 1) {
+              const childElement = node as Element;
+              console.log(`      ${childElement.tagName}`);
+              if (childElement.hasAttribute('Value')) {
+                console.log(`        Value="${childElement.getAttribute('Value')}"`);
+              }
+            }
+          }
+        }
       }
     } else {
-      console.log(`  ❌ Envelope ${i}: No PointeeId`);
+      console.log(`    No EnvelopeTarget`);
     }
   }
 

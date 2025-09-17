@@ -96,43 +96,43 @@ const compareDatabases = async (originalFile: string, roundTripFile: string): Pr
       automationPointsOnlyInRoundTrip: []
     };
 
-    // Compare devices (excluding timestamps)
+    // Compare devices (excluding generated IDs and timestamps)
     differences.devicesOnlyInOriginal = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (created_at) FROM original.devices
+      SELECT * EXCLUDE (id, created_at) FROM original.devices
       EXCEPT
-      SELECT * EXCLUDE (created_at) FROM roundtrip.devices
+      SELECT * EXCLUDE (id, created_at) FROM roundtrip.devices
     `);
 
     differences.devicesOnlyInRoundTrip = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (created_at) FROM roundtrip.devices
+      SELECT * EXCLUDE (id, created_at) FROM roundtrip.devices
       EXCEPT
-      SELECT * EXCLUDE (created_at) FROM original.devices
+      SELECT * EXCLUDE (id, created_at) FROM original.devices
     `);
 
-    // Compare tracks (excluding timestamps)
+    // Compare tracks (excluding generated IDs and timestamps)
     differences.tracksOnlyInOriginal = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (created_at, last_edit_time) FROM original.tracks
+      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM original.tracks
       EXCEPT
-      SELECT * EXCLUDE (created_at, last_edit_time) FROM roundtrip.tracks
+      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM roundtrip.tracks
     `);
 
     differences.tracksOnlyInRoundTrip = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (created_at, last_edit_time) FROM roundtrip.tracks
+      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM roundtrip.tracks
       EXCEPT
-      SELECT * EXCLUDE (created_at, last_edit_time) FROM original.tracks
+      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM original.tracks
     `);
 
-    // Compare parameters (excluding timestamps)
+    // Compare parameters (excluding generated IDs and timestamps)
     differences.parametersOnlyInOriginal = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (created_at) FROM original.parameters
+      SELECT * EXCLUDE (id, track_id, created_at) FROM original.parameters
       EXCEPT
-      SELECT * EXCLUDE (created_at) FROM roundtrip.parameters
+      SELECT * EXCLUDE (id, track_id, created_at) FROM roundtrip.parameters
     `);
 
     differences.parametersOnlyInRoundTrip = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (created_at) FROM roundtrip.parameters
+      SELECT * EXCLUDE (id, track_id, created_at) FROM roundtrip.parameters
       EXCEPT
-      SELECT * EXCLUDE (created_at) FROM original.parameters
+      SELECT * EXCLUDE (id, track_id, created_at) FROM original.parameters
     `);
 
     // Compare automation points (excluding timestamps and IDs)
@@ -193,6 +193,7 @@ export async function runRoundTripTest(
 
     // Step 5: Re-import exported file into round-trip database
     // Convert exported File to buffer and create a new File object for Node.js compatibility
+
     const exportedBuffer = Buffer.from(await exportedFile.arrayBuffer());
     const reimportedFile = createFileFromBuffer(exportedBuffer, exportedFile.name);
 

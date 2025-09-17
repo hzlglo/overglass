@@ -28,47 +28,66 @@ describe('DuckDB Schema Tests', () => {
   });
 
   it('should load minimal test data', async () => {
-    // Create minimal test data
-    const testData: ParsedALS = {
-      set: {
-        name: 'test',
-        bpm: 120,
-        elektron: [
-          {
-            deviceName: 'Test Device',
-            tracks: [
-              {
-                trackNumber: 1,
-                deviceName: 'Test Device',
-                isMuted: false,
-                automationEnvelopes: [
-                  {
-                    id: 'test_param_1',
-                    deviceName: 'Test Device',
-                    parameterName: 'Volume',
-                    points: [
-                      { time: 0, value: 0.5 },
-                      { time: 100, value: 0.8 },
-                    ],
-                    minValue: 0,
-                    maxValue: 1,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
+    // Create minimal test entities directly
+    const testDevice = {
+      id: 'test-device-1',
+      deviceName: 'Test Device',
+      deviceType: 'Elektron',
+      createdAt: new Date()
     };
 
-    await database.loadALSData(testData);
+    const testTrack = {
+      id: 'test-track-1',
+      deviceId: 'test-device-1',
+      trackName: 'Test Device Track 1',
+      trackNumber: 1,
+      isMuted: false,
+      createdAt: new Date(),
+      lastEditTime: new Date()
+    };
+
+    const testParameter = {
+      id: 'test-param-1',
+      trackId: 'test-track-1',
+      parameterName: 'Volume',
+      parameterPath: '/Test Device/Volume',
+      originalPointeeId: null,
+      createdAt: new Date()
+    };
+
+    const testAutomationPoint1 = {
+      id: 'test-point-1',
+      parameterId: 'test-param-1',
+      timePosition: 0.0,
+      value: 0.5,
+      curveType: 'linear',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const testAutomationPoint2 = {
+      id: 'test-point-2',
+      parameterId: 'test-param-1',
+      timePosition: 100.0,
+      value: 0.8,
+      curveType: 'linear',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Insert entities directly
+    await database.insertRecord('devices', testDevice);
+    await database.insertRecord('tracks', testTrack);
+    await database.insertRecord('parameters', testParameter);
+    await database.insertRecord('automation_points', testAutomationPoint1);
+    await database.insertRecord('automation_points', testAutomationPoint2);
 
     const devices = await database.devices.getDevicesWithTracks();
     console.log('Devices result:', devices);
     expect(devices.length).toBe(1);
-    expect(devices[0].device_name).toBe('Test Device');
-    expect(parseInt(devices[0].track_count)).toBe(1);
-    expect(parseInt(devices[0].parameter_count)).toBe(1);
-    expect(parseInt(devices[0].automation_point_count)).toBe(2);
+    expect(devices[0].deviceName).toBe('Test Device');
+    expect(Number(devices[0].trackCount)).toBe(1);
+    expect(Number(devices[0].parameterCount)).toBe(1);
+    expect(Number(devices[0].automationPointCount)).toBe(2);
   });
 });

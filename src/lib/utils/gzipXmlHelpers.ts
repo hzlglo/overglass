@@ -99,10 +99,36 @@ export class GzipXmlHelpersImpl implements GzipXmlHelpers {
       // Compress the XML string using the adapter (creates GZIP, not ZIP)
       const compressed = await this.compressionAdapter.compress(xmlString);
 
-      // Create ALS file directly from compressed data (ALS files are pure GZIP)
-      const file = new File([compressed], fileName, { type: 'application/octet-stream' });
+      // Create File object - handle Node.js vs Browser compatibility
+      // In test environments, we need to detect properly - vitest provides jsdom which has window but runs in Node
+      const isNodeEnv = typeof process !== 'undefined' && process.versions && process.versions.node;
 
-      return file;
+      if (!isNodeEnv && typeof window !== 'undefined') {
+        // Browser environment - use native File constructor
+        return new File([compressed], fileName, { type: 'application/octet-stream' });
+      } else {
+        // Node.js environment or test environment - create a File-like object with arrayBuffer method
+        return {
+          name: fileName,
+          size: compressed.length,
+          type: 'application/octet-stream',
+          arrayBuffer: async () => {
+            // Convert Uint8Array to ArrayBuffer
+            return compressed.buffer.slice(compressed.byteOffset, compressed.byteOffset + compressed.byteLength);
+          },
+          // Add other File-like properties for compatibility
+          lastModified: Date.now(),
+          stream: () => {
+            throw new Error('stream() method not implemented for Node.js File polyfill');
+          },
+          text: async () => {
+            throw new Error('text() method not appropriate for binary ALS file');
+          },
+          slice: () => {
+            throw new Error('slice() method not implemented for Node.js File polyfill');
+          }
+        } as File;
+      }
     } catch (error) {
       console.error('Error writing ALS file:', error);
       throw new Error(`Failed to write ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -29,8 +29,10 @@ export class ALSWriter {
       // Clone the original XML document to preserve structure
       const xmlDoc = gzipXmlHelpers.cloneXMLDocument(originalParsedALS.rawXML);
 
+
       // Update automation data in XML
       await this.updateAutomationInXML(xmlDoc, dbData);
+
 
       // Create new ALS file with updated XML using helper
       const file = await gzipXmlHelpers.writeALSFile(xmlDoc, fileName);
@@ -177,7 +179,6 @@ export class ALSWriter {
     console.log(`Successfully matched ${envelopeParameterMap.size} envelopes to parameters`);
 
     let updatedCount = 0;
-    let createdCount = 0;
 
     // Update existing matched envelopes
     for (const [envelopeElement, parameterInfo] of envelopeParameterMap) {
@@ -196,28 +197,10 @@ export class ALSWriter {
       }
     }
 
-    // Create new envelopes for parameters that weren't matched to existing envelopes
-    for (const [parameterId, parameterInfo] of parameterIdMap) {
-      if (!processedParameterIds.has(parameterId)) {
-        const { parameter, automationPoints } = parameterInfo;
+    // Note: We only update existing envelopes, we don't create new ones
+    // The writer should only edit timeseries data, not add new XML structure
 
-        if (automationPoints && automationPoints.length > 0) {
-          console.log(`Creating new envelope for unmatched parameter: "${parameter.parameterName}" (ID: ${parameterId})`);
-
-          const events = automationPoints.map((point: any) => ({
-            time: point.timePosition,
-            value: point.value,
-            curveType: point.curveType || 'linear'
-          }));
-
-          const envelopeElement = getOrCreateAutomationEnvelope(xmlDoc, parameter.id, parameter.parameterPath || parameter.parameterName);
-          updateAutomationEvents(envelopeElement, events);
-          createdCount++;
-        }
-      }
-    }
-
-    console.log(`✅ XML automation update complete: ${updatedCount} updated, ${createdCount} created`);
+    console.log(`✅ XML automation update complete: ${updatedCount} updated`);
   }
 
 

@@ -74,7 +74,7 @@ ALS file → Parser → Database entities → UI components → Database updates
   - Approach: Unit tests where possible
   - DB Testing: `duckdb-node` for tests; `duckdb-wasm` in frontend
 - **Dependency Injection:** For libraries that differ between browser & node/testing environments
-- **Package Management:** Yarn
+- **Package Management:** Yarn. Imports should always go at the top of files.
 - **Code Style:** Prioritize readability, minimal duplication, full TypeScript
 
 ---

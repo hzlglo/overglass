@@ -240,7 +240,7 @@ export class ALSParser {
       tracks.push(track);
 
       // Create parameter and automation point entities
-      console.log(`🎯 ALWAYS: About to process ${trackParameters.length} trackParameters:`, trackParameters.map(p => ({ name: p.parameterName, hasOriginalPointeeId: !!p.originalPointeeId })));
+      if (this.debug) console.log(`🎯 About to process ${trackParameters.length} trackParameters:`, trackParameters.map(p => ({ name: p.parameterName, hasOriginalPointeeId: !!p.originalPointeeId })));
       trackParameters.forEach(({ parameterName, originalPointeeId, points }) => {
         const parameterId = this.generateId();
 
@@ -258,7 +258,7 @@ export class ALSParser {
           originalPointeeId,
           createdAt: new Date()
         };
-        console.log(`🔍 ALWAYS: Parameter object created with originalPointeeId: "${originalPointeeId}"`);
+        if (this.debug) console.log(`🔍 Parameter object created with originalPointeeId: "${originalPointeeId}"`);
         parameters.push(parameter);
 
         // Create automation points
@@ -410,7 +410,7 @@ export class ALSParser {
   ): { parameterName: string; originalPointeeId?: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] } | null {
     // Extract parameter name and original PointeeId from automation target using the parameter mapping
     const extractedInfo = this.extractParameterInfo(envElement, parameterMapping);
-    console.log(`🎯 ALWAYS: extractParameterInfo returned:`, extractedInfo);
+    if (this.debug) console.log(`🎯 extractParameterInfo returned:`, extractedInfo);
 
     const parameterInfo = extractedInfo || {
       parameterName: `Param ${index + 1}`,
@@ -432,7 +432,7 @@ export class ALSParser {
   }
 
   private extractParameterInfo(envElement: Element, parameterMapping: Record<string, string>): { parameterName: string; originalPointeeId?: string } | null {
-    console.log(`🔍 ALWAYS: Extracting parameter info for envelope`);
+    if (this.debug) console.log(`🔍 Extracting parameter info for envelope`);
     if (this.debug) {
       console.log(`    🔍 Extracting parameter info for envelope:`);
     }
@@ -440,24 +440,24 @@ export class ALSParser {
     // Look for EnvelopeTarget to get the parameter reference
     const targetElement = envElement.querySelector('EnvelopeTarget');
     if (!targetElement) {
-      console.log(`❌ ALWAYS: No EnvelopeTarget found`);
+      if (this.debug) console.log(`❌ No EnvelopeTarget found`);
       if (this.debug) {
         console.log(`    ❌ No EnvelopeTarget found`);
       }
       return null;
     }
-    console.log(`✅ ALWAYS: Found EnvelopeTarget`);
+    if (this.debug) console.log(`✅ Found EnvelopeTarget`);
 
     // Check for PointeeId child element first (most direct)
     const pointeeIdElement = targetElement.querySelector('PointeeId');
     if (pointeeIdElement) {
-      console.log(`✅ ALWAYS: Found PointeeId element`);
+      if (this.debug) console.log(`✅ Found PointeeId element`);
       const pointeeId = pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
-      console.log(`🔍 ALWAYS: PointeeId value: "${pointeeId}"`);
-      console.log(`🔍 ALWAYS: Parameter mapping has ${Object.keys(parameterMapping).length} entries`);
+      if (this.debug) console.log(`🔍 PointeeId value: "${pointeeId}"`);
+      if (this.debug) console.log(`🔍 Parameter mapping has ${Object.keys(parameterMapping).length} entries`);
 
       if (pointeeId && parameterMapping[pointeeId]) {
-        console.log(`✅ ALWAYS: Found mapping for PointeeId "${pointeeId}" → "${parameterMapping[pointeeId]}"`);
+        if (this.debug) console.log(`✅ Found mapping for PointeeId "${pointeeId}" → "${parameterMapping[pointeeId]}"`);
         if (this.debug) {
           console.log(`    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${parameterMapping[pointeeId]}"`);
         }
@@ -469,13 +469,13 @@ export class ALSParser {
           originalPointeeId: pointeeId
         };
       } else {
-        console.log(`❌ ALWAYS: PointeeId "${pointeeId}" not found in parameter mapping`);
+        if (this.debug) console.log(`❌ PointeeId "${pointeeId}" not found in parameter mapping`);
         if (this.debug) {
           console.log(`    ❌ PointeeId "${pointeeId}" not found in parameter mapping`);
         }
       }
     } else {
-      console.log(`❌ ALWAYS: No PointeeId element found`);
+      if (this.debug) console.log(`❌ No PointeeId element found`);
     }
 
     // Fall back to other extraction methods but without PointeeId
