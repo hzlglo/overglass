@@ -1,14 +1,10 @@
 import type { ParsedALS } from '../types/automation';
 import type { AutomationDatabase } from '../database/duckdb';
 import type { Device, Track, Parameter, AutomationPoint } from '../database/schema';
-import {
-  gzipXmlHelpers,
-  createMinimalALSDocument
-} from '../utils/gzipXmlHelpers';
+import { gzipXmlHelpers } from '../utils/gzipXmlHelpers';
 import {
   extractAutomationEnvelopes,
-  updateAutomationEvents,
-  getOrCreateAutomationEnvelope
+  updateAutomationEvents
 } from './alsXmlHelpers';
 
 export class ALSWriter {
@@ -28,7 +24,6 @@ export class ALSWriter {
 
       // Clone the original XML document to preserve structure
       const xmlDoc = gzipXmlHelpers.cloneXMLDocument(originalParsedALS.rawXML);
-
 
       // Update automation data in XML
       await this.updateAutomationInXML(xmlDoc, dbData);
@@ -204,82 +199,4 @@ export class ALSWriter {
   }
 
 
-  /**
-   * Create a completely new ALS file from database data (for testing purposes)
-   */
-  async createNewALSFile(fileName: string, bpm = 120): Promise<File> {
-    // Create minimal ALS XML structure
-    const xmlDoc = this.createMinimalALSStructure(bpm);
-
-    // Get all data from database
-    const devices = await this.db.devices.getDevicesWithTracks();
-    const dbData = await this.collectDatabaseData(devices);
-
-    // Add devices and tracks to XML
-    await this.addDevicesAndTracksToXML(xmlDoc, dbData);
-
-    // Create ALS file using the gzipXmlHelpers
-    const file = await gzipXmlHelpers.writeALSFile(xmlDoc, fileName);
-
-    return file;
-  }
-
-  /**
-   * Create minimal ALS XML structure
-   */
-  private createMinimalALSStructure(bpm: number): Document {
-    return createMinimalALSDocument(bpm);
-  }
-
-  /**
-   * Add devices and tracks to XML structure
-   */
-  private async addDevicesAndTracksToXML(xmlDoc: Document, dbData: Map<string, any>) {
-    const tracksElement = xmlDoc.querySelector('Tracks');
-    if (!tracksElement) return;
-
-    for (const [deviceId, deviceInfo] of dbData) {
-      for (const [trackId, trackInfo] of deviceInfo.tracks) {
-        const trackElement = xmlDoc.createElement('MidiTrack');
-        trackElement.setAttribute('Id', trackInfo.track.id);
-
-        // Add track name structure
-        const nameElement = xmlDoc.createElement('Name');
-        const effectiveName = xmlDoc.createElement('EffectiveName');
-        effectiveName.setAttribute('Value', trackInfo.track.trackName);
-        nameElement.appendChild(effectiveName);
-        trackElement.appendChild(nameElement);
-
-        // Add device chain for automation envelopes
-        const deviceChain = xmlDoc.createElement('DeviceChain');
-        const innerDeviceChain = xmlDoc.createElement('DeviceChain');
-        deviceChain.appendChild(innerDeviceChain);
-        trackElement.appendChild(deviceChain);
-
-        // Add automation envelopes for this track's parameters
-        for (const [parameterId, parameterInfo] of trackInfo.parameters) {
-          const { parameter, automationPoints } = parameterInfo;
-
-          if (automationPoints && automationPoints.length > 0) {
-            const envelope = getOrCreateAutomationEnvelope(
-              xmlDoc,
-              parameter.id,
-              parameter.parameterPath
-            );
-
-            const events = automationPoints.map((point: any) => ({
-              time: point.timePosition,
-              value: point.value,
-              curveType: point.curveType || 'linear'
-            }));
-
-            updateAutomationEvents(envelope, events);
-            innerDeviceChain.appendChild(envelope);
-          }
-        }
-
-        tracksElement.appendChild(trackElement);
-      }
-    }
-  }
 }

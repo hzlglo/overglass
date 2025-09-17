@@ -14,8 +14,8 @@ describe('ALS Round-Trip Integration Test', () => {
       // Add 2 points to first 3 parameters
       for (let i = 0; i < Math.min(3, parametersWithPoints.length); i++) {
         const { parameter } = parametersWithPoints[i];
-        await db.automation.setAutomationPoint(parameter.id, 0.25, 0.6);
-        await db.automation.setAutomationPoint(parameter.id, 0.75, 0.4);
+        await db.automation.createAutomationPoint(parameter.id, 0.25, 0.6);
+        await db.automation.createAutomationPoint(parameter.id, 0.75, 0.4);
         console.log(`✅ Added automation points to parameter ${parameter.parameterName}`);
       }
     });
@@ -53,7 +53,7 @@ describe('ALS Round-Trip Integration Test', () => {
           console.log(`🎯 Editing point: parameter="${parameter.parameterName}", time=${existingPoint.timePosition}, value=${originalValue} → ${newValue}`);
 
           // This should update the existing point, not create a new one
-          await db.automation.setAutomationPoint(parameter.id, existingPoint.timePosition, newValue);
+          await db.automation.updateAutomationPoint(existingPoint.id, parameter.id, existingPoint.timePosition, newValue);
 
           console.log(`✅ Edited point value for parameter ${parameter.parameterName}`);
         }
