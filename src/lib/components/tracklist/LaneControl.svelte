@@ -13,6 +13,7 @@
     laneId: string;
     class?: string;
     actions?: Snippet;
+    color?: string;
   }
 
   let {
@@ -24,6 +25,7 @@
     laneId,
     class: className,
     actions,
+    color,
   }: TrackLaneProps = $props();
 
   // if isExpandedProp is not provided, show the content
@@ -34,8 +36,8 @@
   let newTitle = $state(title || '');
 </script>
 
-<div class="min-w-0">
-  <div class="border-base-100 box-border w-[300px] border" style="height: {height}px">
+<div class="border-base-content/20 mr-2 box-border min-w-0 border-b">
+  <div class="box-border w-[300px] border-r-2" style="height: {height}px; border-color: {color}">
     <div class="flex flex-row">
       {#if onToggleExpanded}
         <button class="btn btn-xs btn-ghost" onclick={onToggleExpanded}>

@@ -33,6 +33,7 @@
       isExpanded={isTrackExpanded}
       onToggleExpanded={() => gridDisplayState.toggleTrackExpansion(trackId)}
       laneId={trackId}
+      color={trackConfig?.color}
     >
       {#snippet actions()}
         <ColorChooser
@@ -41,7 +42,7 @@
         />
       {/snippet}
       {#each parameterIds as parameterId}
-        <TrackParamControl {parameterId} />
+        <TrackParamControl {parameterId} {trackConfig} />
       {/each}
     </LaneControl>
   {:else}

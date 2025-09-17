@@ -75,12 +75,12 @@ export class AutomationDatabase {
   async insertRecord(tableName: string, record: Record<string, any>): Promise<void> {
     const snakeCaseRecord = toSnakeCase(record);
     const keys = Object.keys(snakeCaseRecord);
-    const values = Object.values(snakeCaseRecord);
+    const values = Object.values(snakeCaseRecord).map(value => value === undefined ? null : value);
     const placeholders = values.map(() => '?').join(',');
-    
+
     const sql = `INSERT INTO ${tableName} (${keys.join(',')}) VALUES (${placeholders})`;
-    
-    
+
+
     await this.adapter.execute(sql, values);
   }
 

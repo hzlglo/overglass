@@ -24,7 +24,7 @@
     width,
     yPosition,
     automationPoints,
-    color,
+    color: colorProp,
   }: AutomationCurveProps = $props();
 
   // State
@@ -68,6 +68,8 @@
 
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
+  let color = $derived(colorProp ?? 'var(--color-secondary)');
+
   let { area, line } = $derived.by(() => {
     if (!svgGroup) {
       return { area: undefined, line: undefined };
@@ -77,7 +79,7 @@
     const area = svgGroup
       .append('path')
       .attr('class', 'area')
-      .attr('fill', 'var(--color-secondary)')
+      .attr('fill', color)
       .attr('fill-opacity', 0.2)
       .style('pointer-events', 'none');
 
@@ -86,7 +88,7 @@
       .append('path')
       .attr('class', 'line')
       .attr('fill', 'none')
-      .attr('stroke', 'var(--color-secondary)')
+      .attr('stroke', color)
       .attr('stroke-opacity', 0.4)
       .attr('stroke-width', 2)
       .style('pointer-events', 'none');
@@ -115,20 +117,20 @@
       ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
       .data(automationPoints, (p) => p.id)
       .join(
-        (enter) =>
-          enter
-            .append('circle')
-            .attr('class', 'point')
-            .attr('r', 3)
-            .attr('fill', 'var(--color-secondary)')
-            .attr('fill-opacity', 0.4)
-            .attr('stroke', 'var(--color-secondary)')
-            .attr('stroke-width', 1),
+        (enter) => enter.append('circle'),
         (update) => update,
         (exit) => exit.remove(),
       );
 
-    circles?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
+    circles
+      ?.attr('cx', (d) => xScale(d.timePosition))
+      .attr('cy', (d) => yScale(d.value))
+      .attr('class', 'point')
+      .attr('r', 3)
+      .attr('fill', color)
+      .attr('fill-opacity', 0.4)
+      .attr('stroke', color)
+      .attr('stroke-width', 1);
 
     return circles;
   });

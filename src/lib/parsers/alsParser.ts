@@ -206,19 +206,20 @@ export class ALSParser {
     );
 
     // Group envelopes by track number found in parameter names
-    const envelopesByTrack = new Map<number, { parameterName: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] }[]>();
-    
+    const envelopesByTrack = new Map<number, { parameterName: string; originalPointeeId?: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] }[]>();
+
     allEnvelopes.forEach(envelope => {
       // Extract track number from parameter name (e.g., "T1 Mute" -> 1, "T3 Filter Frequency" -> 3)
       const trackNumberMatch = envelope.parameterName.match(/^T(\d+)\s+/);
       const trackNumber = trackNumberMatch ? parseInt(trackNumberMatch[1]) : 0;
-      
+
       if (!envelopesByTrack.has(trackNumber)) {
         envelopesByTrack.set(trackNumber, []);
       }
-      
+
       envelopesByTrack.get(trackNumber)!.push({
         parameterName: envelope.parameterName,
+        originalPointeeId: envelope.originalPointeeId,
         points: envelope.points
       });
     });
@@ -239,15 +240,25 @@ export class ALSParser {
       tracks.push(track);
 
       // Create parameter and automation point entities
-      trackParameters.forEach(({ parameterName, points }) => {
+      console.log(`🎯 ALWAYS: About to process ${trackParameters.length} trackParameters:`, trackParameters.map(p => ({ name: p.parameterName, hasOriginalPointeeId: !!p.originalPointeeId })));
+      trackParameters.forEach(({ parameterName, originalPointeeId, points }) => {
         const parameterId = this.generateId();
+
+        if (originalPointeeId) {
+          console.log(`📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}"`);
+        } else {
+          console.log(`📝 Creating parameter "${parameterName}" with NO originalPointeeId`);
+        }
+
         const parameter: Parameter = {
           id: parameterId,
           trackId,
           parameterName,
           parameterPath: `/${deviceName}/${parameterName}`,
+          originalPointeeId,
           createdAt: new Date()
         };
+        console.log(`🔍 ALWAYS: Parameter object created with originalPointeeId: "${originalPointeeId}"`);
         parameters.push(parameter);
 
         // Create automation points
@@ -265,7 +276,7 @@ export class ALSParser {
     });
   }
 
-  private getLastEditTimeFromParameters(trackParameters: { parameterName: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] }[]): Date {
+  private getLastEditTimeFromParameters(trackParameters: { parameterName: string; originalPointeeId?: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] }[]): Date {
     // For now, return the latest automation point time converted to a date
     let maxTime = 0;
     trackParameters.forEach(param => {
@@ -396,9 +407,15 @@ export class ALSParser {
     trackNumber: number,
     index: number,
     parameterMapping: Record<string, string>,
-  ): { parameterName: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] } | null {
-    // Extract parameter name from automation target using the parameter mapping
-    const parameterName = this.extractParameterName(envElement, parameterMapping) || `Param ${index + 1}`;
+  ): { parameterName: string; originalPointeeId?: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] } | null {
+    // Extract parameter name and original PointeeId from automation target using the parameter mapping
+    const extractedInfo = this.extractParameterInfo(envElement, parameterMapping);
+    console.log(`🎯 ALWAYS: extractParameterInfo returned:`, extractedInfo);
+
+    const parameterInfo = extractedInfo || {
+      parameterName: `Param ${index + 1}`,
+      originalPointeeId: undefined
+    };
 
     // Extract automation points
     const points = this.extractAutomationPoints(envElement);
@@ -408,9 +425,69 @@ export class ALSParser {
     }
 
     return {
-      parameterName,
+      parameterName: parameterInfo.parameterName,
+      originalPointeeId: parameterInfo.originalPointeeId,
       points,
     };
+  }
+
+  private extractParameterInfo(envElement: Element, parameterMapping: Record<string, string>): { parameterName: string; originalPointeeId?: string } | null {
+    console.log(`🔍 ALWAYS: Extracting parameter info for envelope`);
+    if (this.debug) {
+      console.log(`    🔍 Extracting parameter info for envelope:`);
+    }
+
+    // Look for EnvelopeTarget to get the parameter reference
+    const targetElement = envElement.querySelector('EnvelopeTarget');
+    if (!targetElement) {
+      console.log(`❌ ALWAYS: No EnvelopeTarget found`);
+      if (this.debug) {
+        console.log(`    ❌ No EnvelopeTarget found`);
+      }
+      return null;
+    }
+    console.log(`✅ ALWAYS: Found EnvelopeTarget`);
+
+    // Check for PointeeId child element first (most direct)
+    const pointeeIdElement = targetElement.querySelector('PointeeId');
+    if (pointeeIdElement) {
+      console.log(`✅ ALWAYS: Found PointeeId element`);
+      const pointeeId = pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
+      console.log(`🔍 ALWAYS: PointeeId value: "${pointeeId}"`);
+      console.log(`🔍 ALWAYS: Parameter mapping has ${Object.keys(parameterMapping).length} entries`);
+
+      if (pointeeId && parameterMapping[pointeeId]) {
+        console.log(`✅ ALWAYS: Found mapping for PointeeId "${pointeeId}" → "${parameterMapping[pointeeId]}"`);
+        if (this.debug) {
+          console.log(`    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${parameterMapping[pointeeId]}"`);
+        }
+        if (this.debug) {
+          console.log(`    ✅ Storing originalPointeeId: "${pointeeId}" for parameter: "${parameterMapping[pointeeId]}"`);
+        }
+        return {
+          parameterName: parameterMapping[pointeeId],
+          originalPointeeId: pointeeId
+        };
+      } else {
+        console.log(`❌ ALWAYS: PointeeId "${pointeeId}" not found in parameter mapping`);
+        if (this.debug) {
+          console.log(`    ❌ PointeeId "${pointeeId}" not found in parameter mapping`);
+        }
+      }
+    } else {
+      console.log(`❌ ALWAYS: No PointeeId element found`);
+    }
+
+    // Fall back to other extraction methods but without PointeeId
+    const parameterName = this.extractParameterName(envElement, parameterMapping);
+    if (parameterName) {
+      return {
+        parameterName,
+        originalPointeeId: undefined
+      };
+    }
+
+    return null;
   }
 
   private extractParameterName(envElement: Element, parameterMapping: Record<string, string>): string | null {

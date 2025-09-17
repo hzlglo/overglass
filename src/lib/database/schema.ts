@@ -32,6 +32,7 @@ export interface Parameter {
   trackId: string; // Foreign key to tracks
   parameterName: string; // e.g., "Filter Cutoff", "Volume"
   parameterPath?: string; // Full automation target path from ALS
+  originalPointeeId?: string; // Original PointeeId from ALS XML for envelope matching
   createdAt: Date;
 }
 
@@ -93,6 +94,7 @@ export const CREATE_TABLES = {
       track_id VARCHAR NOT NULL,
       parameter_name VARCHAR NOT NULL,
       parameter_path VARCHAR,
+      original_pointee_id VARCHAR,
       created_at TIMESTAMP NOT NULL,
       FOREIGN KEY (track_id) REFERENCES tracks(id)
     )

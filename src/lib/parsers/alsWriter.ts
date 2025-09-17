@@ -126,100 +126,94 @@ export class ALSWriter {
     const existingEnvelopes = extractAutomationEnvelopes(xmlDoc);
     console.log(`Found ${existingEnvelopes.length} existing automation envelopes in XML`);
 
-    // Create a mapping of parameter names to existing envelopes (since paths don't match)
-    const envelopeMap = new Map<string, Element>();
-    for (const envelope of existingEnvelopes) {
-      envelopeMap.set(envelope.id, envelope.element);
-    }
+    // Build parameter mapping by originalPointeeId for reliable matching
+    const parameterPointeeIdMap = new Map<string, any>();
+    const parameterIdMap = new Map<string, any>(); // Keep ID map for parameters without originalPointeeId
 
-    // Create a mapping by parameter name (more reliable than path matching)
-    const parameterNameMap = new Map<string, any>();
     for (const [deviceId, deviceInfo] of dbData) {
       for (const [trackId, trackInfo] of deviceInfo.tracks) {
         for (const [parameterId, parameterInfo] of trackInfo.parameters) {
-          const paramName = parameterInfo.parameter.parameterName;
-          if (paramName) {
-            parameterNameMap.set(paramName, parameterInfo);
+          parameterIdMap.set(parameterInfo.parameter.id, parameterInfo);
+
+          // If parameter has an originalPointeeId, use that for matching
+          if (parameterInfo.parameter.originalPointeeId) {
+            parameterPointeeIdMap.set(parameterInfo.parameter.originalPointeeId, parameterInfo);
           }
         }
       }
     }
 
-    console.log(`Parameter mapping: ${parameterNameMap.size} parameters, ${envelopeMap.size} envelopes`);
-    console.log('Sample parameters:', Array.from(parameterNameMap.keys()).slice(0, 5));
+    console.log(`Parameter mapping: ${parameterIdMap.size} total parameters, ${parameterPointeeIdMap.size} with original PointeeId, ${existingEnvelopes.length} envelopes`);
+
+    // Build envelope-to-parameter mapping using PointeeId (same logic as parser)
+    const envelopeParameterMap = new Map<Element, any>();
+    const processedParameterIds = new Set<string>();
+
+    for (const envelope of existingEnvelopes) {
+      // Look for EnvelopeTarget > PointeeId to match with parameter originalPointeeId
+      const targetElement = envelope.element.querySelector('EnvelopeTarget');
+      if (targetElement) {
+        const pointeeIdElement = targetElement.querySelector('PointeeId');
+        if (pointeeIdElement) {
+          const pointeeId = pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
+
+          // Check if this PointeeId matches any of our parameters' originalPointeeId
+          if (pointeeId && parameterPointeeIdMap.has(pointeeId)) {
+            const parameterInfo = parameterPointeeIdMap.get(pointeeId)!;
+            envelopeParameterMap.set(envelope.element, parameterInfo);
+            processedParameterIds.add(parameterInfo.parameter.id);
+            console.log(`✅ Matched envelope ${envelope.id} to parameter "${parameterInfo.parameter.parameterName}" via PointeeId "${pointeeId}"`);
+          } else {
+            console.log(`⚠️  Envelope ${envelope.id} has PointeeId "${pointeeId}" but no matching parameter found`);
+          }
+        } else {
+          console.log(`⚠️  Envelope ${envelope.id} has no PointeeId element`);
+        }
+      } else {
+        console.log(`⚠️  Envelope ${envelope.id} has no EnvelopeTarget element`);
+      }
+    }
+
+    console.log(`Successfully matched ${envelopeParameterMap.size} envelopes to parameters`);
 
     let updatedCount = 0;
     let createdCount = 0;
 
-    // The problem is that envelope IDs don't match parameter names or paths
-    // We need to rebuild the parameter mapping from the parser logic
-    // For now, let's try to match envelopes to parameters using a different strategy
+    // Update existing matched envelopes
+    for (const [envelopeElement, parameterInfo] of envelopeParameterMap) {
+      const { automationPoints } = parameterInfo;
 
-    // Since we can't reliably match existing envelopes, let's update all of them
-    // by looking at their structure and comparing to our database parameters
-
-    // TODO: This is a temporary workaround. The proper fix would be to:
-    // 1. Store the original envelope ID → parameter mapping during parsing
-    // 2. Use that mapping during writing
-
-    console.log('WARNING: Using brute force approach to update envelopes');
-
-    // For each envelope, try to find a matching parameter from the database
-    for (const envelope of existingEnvelopes) {
-      console.log(`Processing envelope with ID: ${envelope.id}`);
-
-      // Look through all automation points to find a matching parameter
-      let matchingParameter = null;
-      for (const [paramName, parameterInfo] of parameterNameMap) {
-        // This is crude but necessary - we'll improve it later
-        if (parameterInfo.automationPoints && parameterInfo.automationPoints.length > 0) {
-          matchingParameter = parameterInfo;
-          break;
-        }
-      }
-
-      if (matchingParameter) {
-        const events = matchingParameter.automationPoints.map((point: any) => ({
-          time: point.timePosition,
-          value: point.value,
-          curveType: point.curveType || 'linear'
-        }));
-
-        updateAutomationEvents(envelope.element, events);
-        updatedCount++;
-        console.log(`Updated envelope ${envelope.id} with ${events.length} events`);
-      }
-    }
-
-    // For any remaining database parameters without envelopes, create new ones
-    for (const [paramName, parameterInfo] of parameterNameMap) {
-      const { parameter, automationPoints } = parameterInfo;
-
-      if (!automationPoints || automationPoints.length === 0) {
-        continue;
-      }
-
-      // Check if we already handled this parameter
-      let alreadyHandled = false;
-      for (const envelope of existingEnvelopes) {
-        // Very crude check - this needs improvement
-        if (envelope.id.includes(paramName) || paramName.includes(envelope.id)) {
-          alreadyHandled = true;
-          break;
-        }
-      }
-
-      if (!alreadyHandled) {
-        console.log(`Creating new envelope for parameter: ${paramName}`);
+      if (automationPoints && automationPoints.length > 0) {
         const events = automationPoints.map((point: any) => ({
           time: point.timePosition,
           value: point.value,
           curveType: point.curveType || 'linear'
         }));
 
-        const envelopeElement = getOrCreateAutomationEnvelope(xmlDoc, parameter.id, parameter.parameterPath || paramName);
         updateAutomationEvents(envelopeElement, events);
-        createdCount++;
+        updatedCount++;
+        console.log(`Updated matched envelope with ${events.length} events for parameter "${parameterInfo.parameter.parameterName}"`);
+      }
+    }
+
+    // Create new envelopes for parameters that weren't matched to existing envelopes
+    for (const [parameterId, parameterInfo] of parameterIdMap) {
+      if (!processedParameterIds.has(parameterId)) {
+        const { parameter, automationPoints } = parameterInfo;
+
+        if (automationPoints && automationPoints.length > 0) {
+          console.log(`Creating new envelope for unmatched parameter: "${parameter.parameterName}" (ID: ${parameterId})`);
+
+          const events = automationPoints.map((point: any) => ({
+            time: point.timePosition,
+            value: point.value,
+            curveType: point.curveType || 'linear'
+          }));
+
+          const envelopeElement = getOrCreateAutomationEnvelope(xmlDoc, parameter.id, parameter.parameterPath || parameter.parameterName);
+          updateAutomationEvents(envelopeElement, events);
+          createdCount++;
+        }
       }
     }
 
