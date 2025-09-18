@@ -103,8 +103,8 @@ describe('ALS Round-Trip Integration Test', () => {
 
     // Read and parse both XML files for content comparison
     const { gzipXmlHelpers } = await import('../lib/utils/gzipXmlHelpers');
-    const originalXml = await gzipXmlHelpers.readGzipFile('./static/test1.als');
-    const editedXml = await gzipXmlHelpers.readGzipFile('./static/test1_xml_diff.als');
+    const originalXml = await gzipXmlHelpers.readGzipFile('./src/tests/test1.als');
+    const editedXml = await gzipXmlHelpers.readGzipFile('./src/tests/test1_xml_diff.als');
     const originalDoc = gzipXmlHelpers.parseXMLString(originalXml);
     const editedDoc = gzipXmlHelpers.parseXMLString(editedXml);
 

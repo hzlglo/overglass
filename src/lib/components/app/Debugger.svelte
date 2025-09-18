@@ -1,7 +1,6 @@
 <script lang="ts">
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import { automationDb } from '$lib/stores/database.svelte';
-  import { Field } from '@ark-ui/svelte';
   import { debounce } from 'lodash';
 
   let value = $state('');
@@ -28,15 +27,10 @@
       Clear app state
     </button>
   </div>
-  <Field.Root class="flex flex-col gap-2">
-    <Field.Label>Enter SQL</Field.Label>
-    <Field.Context>
-      {#snippet render(field)}
-        <textarea {...field().getTextareaProps()} bind:value class="textarea textarea-bordered">
-        </textarea>
-      {/snippet}
-    </Field.Context>
-  </Field.Root>
+  <div class="flex flex-col gap-2">
+    <p>Enter SQL</p>
+    <textarea bind:value class="textarea textarea-bordered"> </textarea>
+  </div>
   {#await res}
     running query...
   {:then resolved}

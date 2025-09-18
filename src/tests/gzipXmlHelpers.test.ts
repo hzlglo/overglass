@@ -14,7 +14,7 @@ describe('Gzip XML Helpers', () => {
     console.log('📖 Testing ALS file reading...');
 
     // Load test ALS file (this is a real compressed XML file)
-    const buffer = readFileSync('./static/test1.als');
+    const buffer = readFileSync('./src/tests/test1.als');
     const testFile = {
       name: 'test1.als',
       size: buffer.length,

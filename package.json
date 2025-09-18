@@ -19,8 +19,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@ark-ui/svelte": "^5.8.0",
     "@duckdb/duckdb-wasm": "^1.30.0",
+    "@internationalized/date": "^3.9.0",
     "@lucide/svelte": "^0.544.0",
     "@tailwindcss/vite": "^4.1.13",
     "@tauri-apps/api": "^2",
