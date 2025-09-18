@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync, writeFileSync } from 'fs';
-import {
-  gzipXmlHelpers,
-  createMinimalALSDocument
-} from '../lib/utils/gzipXmlHelpers';
+import { gzipXmlHelpers } from '../lib/utils/gzipXmlHelpers';
 
 describe('Gzip XML Helpers', () => {
   let originalXmlDoc: Document;
@@ -80,7 +77,9 @@ describe('Gzip XML Helpers', () => {
     expect(outputFile.name).toBe('test_compressed.als');
     expect(outputFile.size).toBeGreaterThan(0);
 
-    console.log(`✅ XML file compressed and written: ${outputFile.name} (${outputFile.size} bytes)`);
+    console.log(
+      `✅ XML file compressed and written: ${outputFile.name} (${outputFile.size} bytes)`,
+    );
   });
 
   it('should compress and decompress XML correctly (integration test)', async () => {
@@ -98,31 +97,12 @@ describe('Gzip XML Helpers', () => {
     expect(compressedFile.size).toBeGreaterThan(0);
     expect(compressedFile.size).toBeLessThan(originalSerialized.length); // Should be compressed
 
-    console.log(`✅ Compression successful: ${originalSerialized.length} bytes → ${compressedFile.size} bytes`);
-    console.log(`✅ Compression ratio: ${(compressedFile.size / originalSerialized.length * 100).toFixed(1)}%`);
-  });
-
-  it('should create minimal ALS document', () => {
-    console.log('🏗️  Testing minimal ALS document creation...');
-
-    const minimalDoc = createMinimalALSDocument(140);
-
-    expect(minimalDoc).toBeDefined();
-    expect(minimalDoc.documentElement.tagName).toBe('Ableton');
-
-    // Check basic elements
-    const creator = minimalDoc.querySelector('Creator');
-    expect(creator).toBeDefined();
-    expect(creator?.getAttribute('Value')).toBe('Overglass Automation Editor');
-
-    const tempo = minimalDoc.querySelector('MasterTempo');
-    expect(tempo).toBeDefined();
-    expect(tempo?.getAttribute('Value')).toBe('140');
-
-    const tracks = minimalDoc.querySelector('Tracks');
-    expect(tracks).toBeDefined();
-
-    console.log(`✅ Minimal ALS document created with 140 BPM`);
+    console.log(
+      `✅ Compression successful: ${originalSerialized.length} bytes → ${compressedFile.size} bytes`,
+    );
+    console.log(
+      `✅ Compression ratio: ${((compressedFile.size / originalSerialized.length) * 100).toFixed(1)}%`,
+    );
   });
 
   it('should handle parse and serialize operations', () => {

@@ -37,47 +37,46 @@
 </script>
 
 <div class="border-base-content/20 mr-2 box-border min-w-0 border-b">
-  <div class="box-border w-[300px] border-r-2" style="height: {height}px; border-color: {color}">
+  <div class="box-border w-[300px] border-l-2" style="height: {height}px; border-color: {color}">
     <div class="flex flex-row">
       {#if onToggleExpanded}
         <button class="btn btn-xs btn-ghost" onclick={onToggleExpanded}>
           {isExpanded ? '▼' : '▶'}
         </button>
       {/if}
-      <div class="group flex w-full flex-row justify-between pr-4">
-        <div class="group flex flex-row gap-1">
-          <div
-            class={classNames(
-              !isExpanded ? 'text-base-content/60' : 'text-base-content',
-              className,
-            )}
-          >
-            {#if isRenaming}
-              <input type="text" bind:value={newTitle} />
-            {:else}
-              {title}
-            {/if}
-          </div>
-          {#if isRenaming && onRename}
-            <button
-              class="btn btn-xs btn-ghost"
-              onclick={() => {
-                onRename(newTitle);
-                isRenaming = false;
-              }}
-            >
-              <CheckIcon class="size-3" />
-            </button>
+      <div class="group flex w-full flex-row justify-between">
+        <div
+          class={classNames(!isExpanded ? 'text-base-content/60' : 'text-base-content', className)}
+        >
+          {#if isRenaming}
+            <input type="text" bind:value={newTitle} />
           {:else}
-            <button
-              class="btn btn-xs btn-ghost hidden group-hover:block"
-              onclick={() => (isRenaming = true)}
-            >
-              <PencilIcon class="size-3" />
-            </button>
+            {title}
           {/if}
         </div>
-        {@render actions?.()}
+        <div class="flex flex-row gap-1">
+          {#if onRename}
+            {#if isRenaming}
+              <button
+                class="btn btn-xs btn-ghost"
+                onclick={() => {
+                  onRename(newTitle);
+                  isRenaming = false;
+                }}
+              >
+                <CheckIcon class="size-3" />
+              </button>
+            {:else}
+              <button
+                class="btn btn-xs btn-ghost hidden group-hover:block"
+                onclick={() => (isRenaming = true)}
+              >
+                <PencilIcon class="size-3" />
+              </button>
+            {/if}
+          {/if}
+          {@render actions?.()}
+        </div>
       </div>
     </div>
   </div>

@@ -4,3 +4,4 @@
 - Code is read more often than it is written, make sure your code is always optimised for readability
 - Put each d3.js logical block into its own $state / $derived / $effect call
 - Use context7 for more context on daisyui
+- always use `import from` syntax rather than `require()`

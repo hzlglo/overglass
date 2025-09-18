@@ -50,7 +50,7 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
     envelopes.push({
       id: automationId,
       element: envelope,
-      events
+      events,
     });
   }
 
@@ -62,28 +62,39 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
  */
 export function updateAutomationEvents(
   envelopeElement: Element,
-  newEvents: Array<{ time: number; value: number; curveType?: string }>
+  newEvents: Array<{ time: number; value: number; curveType?: string }>,
 ): void {
-  // Find or create Automation element (ALS uses 'Automation', not 'Events')
-  let eventsElement = envelopeElement.querySelector('Automation');
-  if (!eventsElement) {
-    eventsElement = envelopeElement.ownerDocument!.createElement('Automation');
-    envelopeElement.appendChild(eventsElement);
+  // Find the Automation element
+  let automationElement = envelopeElement.querySelector('Automation');
+  if (!automationElement) {
+    automationElement = envelopeElement.ownerDocument!.createElement('Automation');
+    envelopeElement.appendChild(automationElement);
   }
 
-  // Clear existing events
+  // Find or create the Events element within Automation (preserve existing structure)
+  let eventsElement = automationElement.querySelector('Events');
+  if (!eventsElement) {
+    eventsElement = automationElement.ownerDocument!.createElement('Events');
+    // Insert Events as the first child, before any other elements like AutomationTransformViewState
+    automationElement.insertBefore(eventsElement, automationElement.firstChild);
+  }
+
+  // Clear only the Events content, preserving other Automation children like AutomationTransformViewState
   eventsElement.innerHTML = '';
 
   // Sort events by time
   const sortedEvents = newEvents.sort((a, b) => a.time - b.time);
 
-  // Add each event as a FloatEvent
-  for (const event of sortedEvents) {
+  // Add each event as a FloatEvent within Events
+  for (const [index, event] of sortedEvents.entries()) {
     const eventElement = eventsElement.ownerDocument!.createElement('FloatEvent');
-    eventElement.setAttribute('Id', String(Math.floor(event.time * 1000))); // Use time * 1000 as ID
+    eventElement.setAttribute('Id', (index + 1).toString()); // Use 1-indexed IDs
     eventElement.setAttribute('Time', String(event.time));
     eventElement.setAttribute('Value', String(event.value));
-    eventElement.setAttribute('CurveType', event.curveType || 'linear');
+    // Only add CurveType if it's not the default 'linear' to match original ALS format
+    if (event.curveType && event.curveType !== 'linear') {
+      eventElement.setAttribute('CurveType', event.curveType);
+    }
 
     eventsElement.appendChild(eventElement);
   }
@@ -94,10 +105,7 @@ export function updateAutomationEvents(
 /**
  * Find automation envelope by parameter path or ID
  */
-export function findAutomationEnvelope(
-  xmlDoc: Document,
-  parameterPath: string
-): Element | null {
+export function findAutomationEnvelope(xmlDoc: Document, parameterPath: string): Element | null {
   const automationEnvelopes = xmlDoc.querySelectorAll('AutomationEnvelope');
 
   for (const envelope of automationEnvelopes) {
@@ -132,7 +140,7 @@ export function createAutomationEnvelope(
   xmlDoc: Document,
   parameterId: string,
   parameterPath: string,
-  events: Array<{ time: number; value: number; curveType?: string }>
+  events: Array<{ time: number; value: number; curveType?: string }>,
 ): Element {
   const envelope = xmlDoc.createElement('AutomationEnvelope');
 
@@ -160,7 +168,7 @@ export function createAutomationEnvelope(
 export function getOrCreateAutomationEnvelope(
   xmlDoc: Document,
   parameterId: string,
-  parameterPath: string
+  parameterPath: string,
 ): Element {
   // Try to find existing envelope
   let envelope = findAutomationEnvelope(xmlDoc, parameterPath);

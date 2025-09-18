@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  runRoundTripTest,
-  findParametersWithPoints
-} from './helpers/roundTripTestHelper';
+import { runRoundTripTest, findParametersWithPoints } from './helpers/roundTripTestHelper';
+import fs from 'fs/promises';
 
 describe('ALS Round-Trip Integration Test', () => {
   console.log('🚀 Starting ALS Round-Trip Integration Test');
@@ -50,10 +48,17 @@ describe('ALS Round-Trip Integration Test', () => {
           const originalValue = existingPoint.value;
           const newValue = originalValue === 0 ? 0.8 : 0.2;
 
-          console.log(`🎯 Editing point: parameter="${parameter.parameterName}", time=${existingPoint.timePosition}, value=${originalValue} → ${newValue}`);
+          console.log(
+            `🎯 Editing point: parameter="${parameter.parameterName}", time=${existingPoint.timePosition}, value=${originalValue} → ${newValue}`,
+          );
 
           // This should update the existing point, not create a new one
-          await db.automation.updateAutomationPoint(existingPoint.id, parameter.id, existingPoint.timePosition, newValue);
+          await db.automation.updateAutomationPoint(
+            existingPoint.id,
+            parameter.id,
+            existingPoint.timePosition,
+            newValue,
+          );
 
           console.log(`✅ Edited point value for parameter ${parameter.parameterName}`);
         }
@@ -70,9 +75,160 @@ describe('ALS Round-Trip Integration Test', () => {
     });
   });
 
-  it.skip('custom test for debugging parameter duplication', async () => {
-    // This test is skipped for now to focus on the failing tests above
-    // The duplication issue will cause this test to fail until we fix the root cause
-    console.log('🔍 DEBUGGING: This test is skipped until we fix the duplication issue');
+  it('should make minimal changes to XML structure (diff test)', async () => {
+    // First, run the round trip test to generate the edited file
+    await runRoundTripTest('xml_diff', async (db) => {
+      // Make a minimal edit (edit one existing automation point value)
+      const parametersWithPoints = await findParametersWithPoints(db);
+      if (parametersWithPoints.length > 0) {
+        const { parameter, points } = parametersWithPoints[0];
+        if (points.length > 0) {
+          const existingPoint = points[0];
+          const originalValue = existingPoint.value;
+          const newValue = originalValue + 0.2;
+
+          await db.automation.updateAutomationPoint(
+            existingPoint.id,
+            parameter.id,
+            existingPoint.timePosition,
+            newValue,
+          );
+
+          console.log(
+            `✅ Edited automation point value: ${parameter.parameterName} at time ${existingPoint.timePosition}: ${originalValue} → ${newValue}`,
+          );
+        }
+      }
+    });
+
+    // Read and parse both XML files for content comparison
+    const { gzipXmlHelpers } = await import('../lib/utils/gzipXmlHelpers');
+    const originalXml = await gzipXmlHelpers.readGzipFile('./static/test1.als');
+    const editedXml = await gzipXmlHelpers.readGzipFile('./static/test1_xml_diff.als');
+    const originalDoc = gzipXmlHelpers.parseXMLString(originalXml);
+    const editedDoc = gzipXmlHelpers.parseXMLString(editedXml);
+
+    // Write out the raw XML files for manual inspection
+    await fs.writeFile('./test_output/xml_diff_original_raw.xml', originalXml, 'utf8');
+    await fs.writeFile('./test_output/xml_diff_edited_raw.xml', editedXml, 'utf8');
+    console.log(`📝 Wrote raw XML files to test_output/ for inspection`);
+
+    // Function to recursively compare syntax trees and find content differences
+    function compareXMLNodes(
+      original: Element | Document,
+      edited: Element | Document,
+      path: string = '',
+    ): string[] {
+      const differences: string[] = [];
+
+      // Get all child elements
+      const originalElements = original.children ? Array.from(original.children) : [];
+      const editedElements = edited.children ? Array.from(edited.children) : [];
+
+      // Create maps by tag name to match equivalent elements
+      const createElementMap = (elements: Element[]) => {
+        const map = new Map<string, Element[]>();
+        for (const element of elements) {
+          const key = element.tagName;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(element);
+        }
+        return map;
+      };
+
+      const originalMap = createElementMap(originalElements);
+      const editedMap = createElementMap(editedElements);
+      const allTagNames = new Set([...originalMap.keys(), ...editedMap.keys()]);
+
+      for (const tagName of allTagNames) {
+        const originalOfType = originalMap.get(tagName) || [];
+        const editedOfType = editedMap.get(tagName) || [];
+
+        // Check for count changes
+        if (originalOfType.length !== editedOfType.length) {
+          differences.push(
+            `${path}${tagName}: count changed from ${originalOfType.length} to ${editedOfType.length}`,
+          );
+        }
+
+        // Compare elements of the same type
+        const minLength = Math.min(originalOfType.length, editedOfType.length);
+        for (let i = 0; i < minLength; i++) {
+          const origElement = originalOfType[i];
+          const editedElement = editedOfType[i];
+
+          // Compare attributes
+          const origAttrs = origElement.attributes;
+          for (let j = 0; j < origAttrs.length; j++) {
+            const origAttr = origAttrs[j];
+            const editedAttr = editedElement.getAttribute(origAttr.name);
+
+            if (editedAttr !== origAttr.value) {
+              // Skip FloatEvent Id attributes (they're often regenerated)
+              if (tagName === 'FloatEvent' && origAttr.name === 'Id') {
+                continue;
+              }
+
+              // For FloatEvent Time and Value attributes, only report significant numerical differences
+              if (
+                tagName === 'FloatEvent' &&
+                (origAttr.name === 'Time' || origAttr.name === 'Value')
+              ) {
+                const origNum = parseFloat(origAttr.value);
+                const editedNum = parseFloat(editedAttr || '0');
+
+                // Consider differences < 0.01 as equal (accounting for floating point precision)
+                if (Math.abs(origNum - editedNum) < 0.01) {
+                  continue;
+                }
+              }
+
+              differences.push(
+                `${path}${tagName}[${i}]@${origAttr.name}: "${origAttr.value}" → "${editedAttr}"`,
+              );
+            }
+          }
+
+          // Recursively compare child elements
+          const childDiffs = compareXMLNodes(
+            origElement,
+            editedElement,
+            `${path}${tagName}[${i}]/`,
+          );
+          differences.push(...childDiffs);
+        }
+
+        // Handle added elements
+        if (editedOfType.length > originalOfType.length) {
+          for (let i = originalOfType.length; i < editedOfType.length; i++) {
+            const addedElement = editedOfType[i];
+            let elementDesc = `${tagName}`;
+            ['Id', 'Time', 'Value', 'PointeeId'].forEach((attr) => {
+              const value = addedElement.getAttribute(attr);
+              if (value) elementDesc += ` ${attr}="${value}"`;
+            });
+            differences.push(`${path}+${elementDesc}: added`);
+          }
+        }
+      }
+
+      return differences;
+    }
+
+    // Compare the XML syntax trees
+    const contentDifferences = compareXMLNodes(originalDoc, editedDoc);
+
+    console.log(`📊 Found ${contentDifferences.length} content differences`);
+    console.log(`🔍 First 10 content differences:`);
+    contentDifferences.slice(0, 10).forEach((diff, index) => {
+      console.log(`  ${index + 1}: ${diff}`);
+    });
+
+    // Verify that we have changes (proving our edit worked) but not an unreasonable amount
+    expect(contentDifferences.length).toEqual(1);
+
+    console.log(
+      `✅ Content-focused XML diff test passed: Found ${contentDifferences.length} content differences from automation point edit`,
+    );
   });
 });

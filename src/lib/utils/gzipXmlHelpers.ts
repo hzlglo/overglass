@@ -1,5 +1,6 @@
 import type { CompressionAdapter } from './compression/compressionAdapter';
 import { PakoCompressionAdapter } from './compression/pakoAdapter';
+import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 
 // XML handling for Node.js vs Browser environments
 let XMLSerializer: any;
@@ -49,6 +50,16 @@ export interface GzipXmlHelpers {
    * Serialize Document to XML string
    */
   serializeXMLDocument(xmlDoc: Document): string;
+
+  /**
+   * Read and decompress a gzip file from filesystem (Node.js only)
+   */
+  readGzipFile(filePath: string): Promise<string>;
+
+  /**
+   * Format XML string with consistent indentation
+   */
+  formatXmlString(xmlString: string): string;
 }
 
 export class GzipXmlHelpersImpl implements GzipXmlHelpers {
@@ -82,19 +93,20 @@ export class GzipXmlHelpersImpl implements GzipXmlHelpers {
 
       return {
         xmlDoc,
-        xmlString: decompressed
+        xmlString: decompressed,
       };
     } catch (error) {
       console.error('Error reading ALS file:', error);
-      throw new Error(`Failed to read ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to read ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   async writeALSFile(xmlDoc: Document, fileName: string): Promise<File> {
     try {
-      // Serialize XML document to string
-      const serializer = new XMLSerializer();
-      const xmlString = serializer.serializeToString(xmlDoc);
+      // Serialize XML document to string using our method that preserves UTF-8 declaration
+      const xmlString = this.serializeXMLDocument(xmlDoc);
 
       // Compress the XML string using the adapter (creates GZIP, not ZIP)
       const compressed = await this.compressionAdapter.compress(xmlString);
@@ -114,7 +126,10 @@ export class GzipXmlHelpersImpl implements GzipXmlHelpers {
           type: 'application/octet-stream',
           arrayBuffer: async () => {
             // Convert Uint8Array to ArrayBuffer
-            return compressed.buffer.slice(compressed.byteOffset, compressed.byteOffset + compressed.byteLength);
+            return compressed.buffer.slice(
+              compressed.byteOffset,
+              compressed.byteOffset + compressed.byteLength,
+            );
           },
           // Add other File-like properties for compatibility
           lastModified: Date.now(),
@@ -126,12 +141,14 @@ export class GzipXmlHelpersImpl implements GzipXmlHelpers {
           },
           slice: () => {
             throw new Error('slice() method not implemented for Node.js File polyfill');
-          }
+          },
         } as File;
       }
     } catch (error) {
       console.error('Error writing ALS file:', error);
-      throw new Error(`Failed to write ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to write ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -149,7 +166,9 @@ export class GzipXmlHelpersImpl implements GzipXmlHelpers {
       return parser.parseFromString(xmlString, 'text/xml');
     } catch (error) {
       console.error('Error cloning XML document:', error);
-      throw new Error(`Failed to clone XML document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to clone XML document: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -167,52 +186,87 @@ export class GzipXmlHelpersImpl implements GzipXmlHelpers {
       return xmlDoc;
     } catch (error) {
       console.error('Error parsing XML string:', error);
-      throw new Error(`Failed to parse XML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to parse XML: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   serializeXMLDocument(xmlDoc: Document): string {
     try {
       const serializer = new XMLSerializer();
-      return serializer.serializeToString(xmlDoc);
+      const serializedXml = serializer.serializeToString(xmlDoc);
+
+      // Ensure the XML declaration includes UTF-8 encoding
+      if (serializedXml.startsWith('<?xml version="1.0"?>')) {
+        return serializedXml.replace(
+          '<?xml version="1.0"?>',
+          '<?xml version="1.0" encoding="UTF-8"?>',
+        );
+      } else if (!serializedXml.startsWith('<?xml')) {
+        // Add XML declaration if missing
+        return '<?xml version="1.0" encoding="UTF-8"?>' + serializedXml;
+      }
+
+      return serializedXml;
     } catch (error) {
       console.error('Error serializing XML document:', error);
-      throw new Error(`Failed to serialize XML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to serialize XML: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  async readGzipFile(filePath: string): Promise<string> {
+    try {
+      // Import fs dynamically for Node.js environment
+      const fs = await import('fs/promises');
+
+      // Read the gzipped file
+      const buffer = await fs.readFile(filePath);
+      const uint8Array = new Uint8Array(buffer);
+
+      // Decompress using the compression adapter
+      return await this.compressionAdapter.decompress(uint8Array);
+    } catch (error) {
+      console.error('Error reading gzip file:', error);
+      throw new Error(
+        `Failed to read gzip file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  formatXmlString(xmlString: string): string {
+    try {
+      // Use fast-xml-parser for consistent formatting
+
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        preserveOrder: true,
+        ignoreDeclaration: false,
+        parseAttributeValue: false,
+        trimValues: false,
+      });
+
+      const builder = new XMLBuilder({
+        ignoreAttributes: false,
+        format: true,
+        indentBy: '\t',
+        preserveOrder: true,
+        suppressEmptyNode: true,
+        suppressBooleanAttributes: false,
+      });
+
+      const parsed = parser.parse(xmlString);
+      return builder.build(parsed);
+    } catch (error) {
+      console.error('Error formatting XML string:', error);
+      throw new Error(
+        `Failed to format XML: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 }
 
 // Default instance using Pako adapter (works everywhere)
 export const gzipXmlHelpers = new GzipXmlHelpersImpl();
-
-/**
- * Helper to create a minimal ALS XML structure for testing
- */
-export function createMinimalALSDocument(bpm = 120): Document {
-  const xmlDoc = DOMImplementation.createDocument(null, 'Ableton', null);
-  const root = xmlDoc.documentElement;
-
-  // Add basic structure
-  const creator = xmlDoc.createElement('Creator');
-  creator.setAttribute('Value', 'Overglass Automation Editor');
-  root.appendChild(creator);
-
-  const majorVersion = xmlDoc.createElement('MajorVersion');
-  majorVersion.setAttribute('Value', '5');
-  root.appendChild(majorVersion);
-
-  const minorVersion = xmlDoc.createElement('MinorVersion');
-  minorVersion.setAttribute('Value', '0');
-  root.appendChild(minorVersion);
-
-  const tempo = xmlDoc.createElement('MasterTempo');
-  tempo.setAttribute('Value', String(bpm));
-  root.appendChild(tempo);
-
-  // Add tracks container
-  const tracks = xmlDoc.createElement('Tracks');
-  root.appendChild(tracks);
-
-  return xmlDoc;
-}
-

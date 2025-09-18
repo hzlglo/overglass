@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { EllipsisVerticalIcon } from '@lucide/svelte';
   import { appStore } from '../../stores/app.svelte';
   import ExportButton from './ExportButton.svelte';
+  import Menu from '../core/Menu.svelte';
 
   interface NavbarProps {
     projectName?: string;
@@ -49,24 +51,17 @@
     <div class="flex items-center gap-2">
       <ExportButton />
 
-      <button
-        class="btn btn-outline btn-sm"
-        class:btn-active={appStore.showDebugger}
-        onclick={() => appStore.toggleDebugger()}
+      <Menu
+        options={[
+          { label: 'Settings', onSelect: () => {} },
+          { label: 'Debugger', onSelect: () => appStore.toggleDebugger() },
+        ]}
+        triggerClass="btn btn-ghost btn-sm"
       >
-        {appStore.showDebugger ? 'Hide' : 'Show'} Debugger
-      </button>
-
-      <div class="dropdown dropdown-end">
-        <div tabindex="0" role="button" class="btn btn-square btn-ghost">
-          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"
-            />
-          </svg>
-        </div>
-        <!-- TODO: Add settings dropdown -->
-      </div>
+        {#snippet trigger()}
+          <EllipsisVerticalIcon />
+        {/snippet}
+      </Menu>
     </div>
   </div>
 </div>
