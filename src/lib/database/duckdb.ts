@@ -18,7 +18,7 @@ export class AutomationDatabase {
 
   constructor(adapter: DatabaseAdapter) {
     this.adapter = adapter;
-    
+
     // Initialize service instances with shared database methods
     this.devices = new DeviceService(this);
     this.tracks = new TracksService(this);
@@ -58,14 +58,14 @@ export class AutomationDatabase {
    */
   async run(sql: string, params: any[] = []): Promise<any> {
     const results = await this.adapter.execute(sql, params);
-    
+
     // Convert all snake_case keys to camelCase for TypeScript friendliness
     if (Array.isArray(results)) {
-      return results.map(row => toCamelCase(row));
+      return results.map((row) => toCamelCase(row));
     } else if (results && typeof results === 'object') {
       return toCamelCase(results);
     }
-    
+
     return results;
   }
 
@@ -75,11 +75,12 @@ export class AutomationDatabase {
   async insertRecord(tableName: string, record: Record<string, any>): Promise<void> {
     const snakeCaseRecord = toSnakeCase(record);
     const keys = Object.keys(snakeCaseRecord);
-    const values = Object.values(snakeCaseRecord).map(value => value === undefined ? null : value);
+    const values = Object.values(snakeCaseRecord).map((value) =>
+      value === undefined ? null : value,
+    );
     const placeholders = values.map(() => '?').join(',');
 
     const sql = `INSERT INTO ${tableName} (${keys.join(',')}) VALUES (${placeholders})`;
-
 
     await this.adapter.execute(sql, values);
   }
@@ -87,13 +88,13 @@ export class AutomationDatabase {
   /**
    * Load ALS data into the database using the device service
    */
-  async loadALSData(parsedALS: ParsedALS): Promise<void> {
+  async loadALSData(parsedALS: ParsedALS, trackToName: Record<string, string>): Promise<void> {
     console.log('📊 Loading ALS data into database...');
 
     try {
       await this.run('BEGIN TRANSACTION');
       await this.clearAllData();
-      await this.devices.loadALSData(parsedALS);
+      await this.devices.loadALSData(parsedALS, trackToName);
       await this.run('COMMIT');
       console.log('✅ ALS data loaded successfully');
       await this.printDatabaseSummary();

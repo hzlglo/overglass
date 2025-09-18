@@ -21,10 +21,10 @@
 
   let devicePromise = $derived(automationDb.get().devices.getTrackDevice(trackId));
   let parameterIds = $derived(gridDisplayState.getParameterOrder()[trackId]);
-  let trackConfigPromise = $derived(appConfigStore.getTrackCustomization(trackId));
+  let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
 </script>
 
-{#await Promise.all( [trackPromise, devicePromise, trackConfigPromise], ) then [track, device, trackConfig]}
+{#await Promise.all([trackPromise, devicePromise]) then [track, device]}
   {#if track}
     <LaneControl
       title={trackConfig?.userEnteredName || track.trackName}

@@ -15,7 +15,7 @@
   import type { AutomationPoint } from '$lib/database/schema';
   import { flatten, groupBy } from 'lodash';
   import { SvelteSet } from 'svelte/reactivity';
-  import { appConfigStore, type TrackCustomization } from '$lib/stores/customization.svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
 
   $effect(async () => {
     let setMaxTime = sharedXScale.setMaxTime;
@@ -46,11 +46,7 @@
     };
   });
 
-  let trackCustomizations = $state<Record<string, TrackCustomization>>();
-  $effect(async () => {
-    trackCustomizations = await appConfigStore.getAllTrackCustomizations();
-  });
-
+  let trackCustomizations = $derived(appConfigStore.get()?.trackCustomizations ?? {});
   const margin = { top: 0, right: 0, bottom: 0, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
 

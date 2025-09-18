@@ -57,7 +57,10 @@ export class ALSParser {
   /**
    * Extract database entities from parsed ALS data
    */
-  extractDatabaseEntities(parsedALS: ParsedALS): {
+  extractDatabaseEntities(
+    parsedALS: ParsedALS,
+    trackIdMapping?: Record<string, string>
+  ): {
     devices: Device[];
     tracks: Track[];
     parameters: Parameter[];
@@ -73,7 +76,7 @@ export class ALSParser {
     const automationPoints: AutomationPoint[] = [];
 
     // Extract Elektron automation data directly to database entities
-    this.extractElektronEntities(parsedALS.rawXML, devices, tracks, parameters, automationPoints);
+    this.extractElektronEntities(parsedALS.rawXML, devices, tracks, parameters, automationPoints, trackIdMapping);
 
     return { devices, tracks, parameters, automationPoints };
   }
@@ -92,7 +95,8 @@ export class ALSParser {
     devices: Device[],
     tracks: Track[],
     parameters: Parameter[],
-    automationPoints: AutomationPoint[]
+    automationPoints: AutomationPoint[],
+    trackIdMapping?: Record<string, string>
   ): void {
     // Find all tracks
     const trackElements = xmlDoc.querySelectorAll('MidiTrack, AudioTrack');
@@ -120,7 +124,7 @@ export class ALSParser {
         }
 
         // Parse track data directly into database entities
-        this.parseElektronTrackToDB(trackElement, elektron_device, device, tracks, parameters, automationPoints);
+        this.parseElektronTrackToDB(trackElement, elektron_device, device, tracks, parameters, automationPoints, trackIdMapping);
       }
     });
 
@@ -187,7 +191,8 @@ export class ALSParser {
     device: Device,
     tracks: Track[],
     parameters: Parameter[],
-    automationPoints: AutomationPoint[]
+    automationPoints: AutomationPoint[],
+    trackIdMapping?: Record<string, string>
   ): void {
     const trackName = this.getTrackName(trackElement);
 
@@ -227,12 +232,13 @@ export class ALSParser {
     // Create database entities for each track number found
     envelopesByTrack.forEach((trackParameters, trackNumber) => {
       // Create track entity
-      const trackId = this.generateId();
+      const trackName = `${deviceName} Track ${trackNumber}`;
+      const trackId = trackIdMapping?.[trackName] || this.generateId();
       const track: Track = {
         id: trackId,
         deviceId: device.id,
         trackNumber,
-        trackName: `${deviceName} Track ${trackNumber}`,
+        trackName,
         isMuted,
         lastEditTime: this.getLastEditTimeFromParameters(trackParameters),
         createdAt: new Date()

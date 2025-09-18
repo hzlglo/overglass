@@ -1,15 +1,17 @@
 import { browser } from '$app/environment';
 import { fromPairs } from 'lodash';
 import { automationDb } from './database.svelte';
+import type { Track } from '$lib/database/schema';
 
 // Types for customization data
 export interface TrackCustomization {
+  rawTrackName: string;
   userEnteredName?: string;
   color?: string;
 }
 
 export interface FileCustomization {
-  trackCustomizations: Record<string, TrackCustomization>; // trackName -> customization
+  trackCustomizations: Record<string, TrackCustomization>; // trackId -> customization
   lastOpened: Date;
 }
 
@@ -54,22 +56,25 @@ function saveStateToStorage(state: CustomizationState): void {
   }
 }
 
-async function getTrackName(trackId: string): Promise<string> {
-  return (await automationDb.get().tracks.getTrackById(trackId))?.trackName || '';
-}
-
 const createCustomizationStore = () => {
   let state = $state<CustomizationState>(getStoredState());
   let currentFile = $state<string | null>(null);
 
   return {
-    // Getters
-    getState() {
-      return state;
+    get() {
+      return currentFile ? state.fileCustomizations[currentFile] : null;
     },
-
-    getCurrentFile() {
-      return currentFile;
+    initializeTrackCustomizations(tracks: Track[]) {
+      if (!currentFile) {
+        throw new Error('No file is currently loaded. Call initializeFile() first.');
+      }
+      for (const track of tracks) {
+        if (!state.fileCustomizations[currentFile].trackCustomizations[track.id]) {
+          state.fileCustomizations[currentFile].trackCustomizations[track.id] = {
+            rawTrackName: track.trackName,
+          };
+        }
+      }
     },
     setCurrentFile(fileName: string) {
       currentFile = fileName;
@@ -84,86 +89,30 @@ const createCustomizationStore = () => {
       saveStateToStorage(state);
     },
 
-    getFileCustomization(fileName: string): FileCustomization | null {
-      return state.fileCustomizations[fileName] || null;
-    },
-
-    async getTrackCustomization(trackId: string): Promise<TrackCustomization | null> {
-      if (!currentFile) {
-        throw new Error('No file is currently loaded. Call setCurrentFile() first.');
-      }
-      const fileCustom = state.fileCustomizations[currentFile];
-      if (!fileCustom) return null;
-      const trackName = await getTrackName(trackId);
-      return fileCustom.trackCustomizations[trackName] || null;
-    },
-    async getAllTrackCustomizations(): Promise<{ [trackId: string]: TrackCustomization } | null> {
-      if (!currentFile) {
-        throw new Error('No file is currently loaded. Call setCurrentFile() first.');
-      }
-      const fileCustom = state.fileCustomizations[currentFile];
-      if (!fileCustom) return null;
-      const tracks = await automationDb.get().tracks.getAllTracks();
-      return fromPairs(
-        tracks.map((track) => [track.id, fileCustom.trackCustomizations[track.trackName] || null]),
-      );
-    },
-
-    async getTrackDisplayName(trackId: string, defaultName: string): Promise<string> {
-      const trackName = await getTrackName(trackId);
-      const trackCustom = await this.getTrackCustomization(trackName);
-      return trackCustom?.userEnteredName || defaultName;
-    },
-
-    async getTrackColor(trackId: string): Promise<string | undefined> {
-      const trackName = await getTrackName(trackId);
-      const trackCustom = await this.getTrackCustomization(trackName);
-      return trackCustom?.color;
-    },
-
-    getLastOpened(): Date | null {
-      if (!currentFile) {
-        throw new Error('No file is currently loaded. Call setCurrentFile() first.');
-      }
-      const fileCustom = state.fileCustomizations[currentFile];
-      return fileCustom?.lastOpened || null;
-    },
-
-    getRecentFiles(): Array<{ fileName: string; lastOpened: Date }> {
-      return Object.entries(state.fileCustomizations)
-        .map(([fileName, fileCustom]) => ({
-          fileName,
-          lastOpened: fileCustom.lastOpened,
-        }))
-        .sort((a, b) => b.lastOpened.getTime() - a.lastOpened.getTime());
-    },
-
     // Setters
-    async setTrackName(trackId: string, userEnteredName: string): Promise<void> {
+    setTrackName(trackId: string, userEnteredName: string) {
       if (!currentFile) {
         throw new Error('No file is currently loaded. Call initializeFile() first.');
       }
-      const trackName = await getTrackName(trackId);
-      if (!state.fileCustomizations[currentFile].trackCustomizations[trackName]) {
-        state.fileCustomizations[currentFile].trackCustomizations[trackName] = {};
+      if (!state.fileCustomizations[currentFile].trackCustomizations[trackId]) {
+        throw new Error('Track not found. Call initializeTrackCustomizations() first.');
       }
 
-      state.fileCustomizations[currentFile].trackCustomizations[trackName].userEnteredName =
+      state.fileCustomizations[currentFile].trackCustomizations[trackId].userEnteredName =
         userEnteredName;
       saveStateToStorage(state);
     },
 
-    async setTrackColor(trackId: string, color: string): Promise<void> {
+    setTrackColor(trackId: string, color: string) {
       if (!currentFile) {
         throw new Error('No file is currently loaded. Call initializeFile() first.');
       }
-      const trackName = await getTrackName(trackId);
 
-      if (!state.fileCustomizations[currentFile].trackCustomizations[trackName]) {
-        state.fileCustomizations[currentFile].trackCustomizations[trackName] = {};
+      if (!state.fileCustomizations[currentFile].trackCustomizations[trackId]) {
+        throw new Error('Track not found. Call initializeTrackCustomizations() first.');
       }
 
-      state.fileCustomizations[currentFile].trackCustomizations[trackName].color = color;
+      state.fileCustomizations[currentFile].trackCustomizations[trackId].color = color;
       saveStateToStorage(state);
     },
 

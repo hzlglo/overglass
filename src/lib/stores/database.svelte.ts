@@ -48,11 +48,11 @@ const createAutomationDbStore = () => {
     }
   };
 
-  const loadALSData = async (parsedALS: ParsedALS) => {
+  const loadALSData = async (parsedALS: ParsedALS, trackToName: Record<string, string>) => {
     if (!database) {
       throw new Error('Database not initialized');
     }
-    await database.loadALSData(parsedALS);
+    await database.loadALSData(parsedALS, trackToName);
     await refreshData();
   };
 

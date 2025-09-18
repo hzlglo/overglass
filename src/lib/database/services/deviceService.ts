@@ -9,9 +9,9 @@ export class DeviceService {
   /**
    * Load ALS data into devices, tracks, and parameters
    */
-  async loadALSData(parsedALS: ParsedALS): Promise<void> {
+  async loadALSData(parsedALS: ParsedALS, trackToName: Record<string, string>): Promise<void> {
     const parser = new ALSParser();
-    const entities = parser.extractDatabaseEntities(parsedALS);
+    const entities = parser.extractDatabaseEntities(parsedALS, trackToName);
 
     // Insert all entities using the database insertRecord method
     for (const device of entities.devices) {

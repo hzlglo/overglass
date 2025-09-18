@@ -174,4 +174,51 @@ describe('ALS Parser', () => {
 
     expect(elektron_specific.length).toBeGreaterThan(0);
   });
+
+  it('should use provided track ID mapping instead of generating new IDs', async () => {
+    const result = await parser.parseALSFile(testFile);
+
+    // First, get the entities without any mapping to see what tracks exist
+    const entitiesWithoutMapping = parser.extractDatabaseEntities(result);
+
+    // Create a mapping for some of the tracks we found
+    const trackIdMapping: Record<string, string> = {};
+    const customTrackIds: string[] = [];
+
+    // Map the first few tracks to custom IDs
+    entitiesWithoutMapping.tracks.slice(0, 2).forEach((track, index) => {
+      const customId = `custom-track-id-${index + 1}`;
+      trackIdMapping[track.trackName] = customId;
+      customTrackIds.push(customId);
+    });
+
+    // Now extract entities with the mapping
+    const entitiesWithMapping = parser.extractDatabaseEntities(result, trackIdMapping);
+
+    // Verify that the specified tracks use the provided IDs
+    customTrackIds.forEach(customId => {
+      const trackWithCustomId = entitiesWithMapping.tracks.find(t => t.id === customId);
+      expect(trackWithCustomId).toBeDefined();
+      expect(trackWithCustomId?.id).toBe(customId);
+    });
+
+    // Verify that tracks not in the mapping still have generated IDs
+    const tracksWithGeneratedIds = entitiesWithMapping.tracks.filter(
+      track => !customTrackIds.includes(track.id)
+    );
+
+    // These should all have different IDs from the custom ones
+    tracksWithGeneratedIds.forEach(track => {
+      expect(customTrackIds.includes(track.id)).toBe(false);
+      expect(track.id).toMatch(/^[a-z0-9]+$/); // Generated IDs are alphanumeric
+    });
+
+    // Verify the total number of tracks is the same
+    expect(entitiesWithMapping.tracks.length).toBe(entitiesWithoutMapping.tracks.length);
+
+    console.log('Track ID mapping test results:');
+    console.log(`Total tracks: ${entitiesWithMapping.tracks.length}`);
+    console.log(`Tracks with custom IDs: ${customTrackIds.length}`);
+    console.log(`Tracks with generated IDs: ${tracksWithGeneratedIds.length}`);
+  });
 });

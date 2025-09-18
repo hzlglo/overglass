@@ -1,3 +1,4 @@
+- Read 'README-tech.md' for context on this project
 - Use yarn for package management
 - To understand and debug .als file structure, use the ./src/lib/parsers/exploreStructure.ts helper that you made
 - Avoid code duplication. Ensure that the codebase is well-structured and modular, with separation of concerns between classes/components. Organize code into separate files wherever appropriate.

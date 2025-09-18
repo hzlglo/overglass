@@ -3,6 +3,7 @@
   import { automationDb } from '../../stores/database.svelte';
   import { appStore } from '../../stores/app.svelte';
   import { appConfigStore } from '$lib/stores/customization.svelte';
+  import { fromPairs, toPairs } from 'lodash';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
@@ -70,9 +71,20 @@
       const parsedSet = await parser.parseALSFile(file);
 
       // Load data into DuckDB
-      await automationDb.loadALSData(parsedSet);
 
       appConfigStore.setCurrentFile(file.name);
+      const savedTracks = appConfigStore.get()?.trackCustomizations;
+      console.log('savedTracks', savedTracks);
+      const trackToName = fromPairs(
+        toPairs(savedTracks ?? {})?.map(([trackId, trackCustomization]) => [
+          trackCustomization.rawTrackName,
+          trackId,
+        ]),
+      );
+      console.log('trackToName', trackToName);
+      await automationDb.loadALSData(parsedSet, trackToName);
+      const tracks = await automationDb.get().tracks.getAllTracks();
+      appConfigStore.initializeTrackCustomizations(tracks);
 
       // Update app state to go to main screen
       appStore.setLoadedFile(parsedSet);
