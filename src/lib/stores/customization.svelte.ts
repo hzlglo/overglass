@@ -1,6 +1,5 @@
 import { browser } from '$app/environment';
 import { fromPairs } from 'lodash';
-import { automationDb } from './database.svelte';
 import type { Track } from '$lib/database/schema';
 
 /**

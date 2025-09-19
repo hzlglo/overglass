@@ -4,7 +4,7 @@
   import ExportButton from './ExportButton.svelte';
   import Menu from '../core/Menu.svelte';
   import { goto } from '$app/navigation';
-  import { automationDb } from '$lib/stores/database.svelte';
+  import { trackDb } from '$lib/stores/trackDb.svelte';
 
   interface NavbarProps {
     projectName?: string;
@@ -27,7 +27,7 @@
         class="btn btn-ghost btn-sm"
         onclick={() => {
           appStore.resetApp();
-          automationDb.destroy();
+          trackDb.destroy();
           goto('/');
         }}
       >

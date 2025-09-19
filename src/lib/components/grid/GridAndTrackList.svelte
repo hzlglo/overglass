@@ -2,15 +2,16 @@
   import TrackList from '../tracklist/TrackList.svelte';
   import Grid from './Grid.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
-  import { automationDb } from '../../stores/database.svelte';
+  import { trackDb } from '../../stores/trackDb.svelte';
 
-  let isInitialized = $derived(automationDb.isInitialized());
+  let isInitialized = $derived(trackDb.isInitialized());
 
   $effect(() => {
     if (!isInitialized) {
       return;
     }
-    gridDisplayState.initFromDb(automationDb.get());
+    console.log('GridAndTrackList: syncWithDb');
+    gridDisplayState.syncWithDb(trackDb.get());
   });
 </script>
 

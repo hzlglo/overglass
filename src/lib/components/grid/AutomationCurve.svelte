@@ -5,7 +5,7 @@
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { clamp } from '$lib/utils/utils';
   import { sortBy } from 'lodash';
-  import { automationDb } from '$lib/stores/database.svelte';
+  import { trackDb } from '$lib/stores/trackDb.svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -29,8 +29,6 @@
 
   // State
   let gElement = $state<SVGElement>();
-
-  $inspect('here', gElement?.getBoundingClientRect());
 
   // Derived values
   const margin = { top: 1, right: 0, bottom: 1, left: 0 };
@@ -163,8 +161,8 @@
         points?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
       })
       .on('end', async (event, d) => {
-        await automationDb.get().automation.bulkSetAutomationPoints(Array.from(selectedPoints));
-        await automationDb.refreshData();
+        await trackDb.get().automation.bulkSetAutomationPoints(Array.from(selectedPoints));
+        await trackDb.refreshData();
       });
     points?.call(drag, []);
   });

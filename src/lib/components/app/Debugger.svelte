@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appConfigStore } from '$lib/stores/customization.svelte';
-  import { automationDb } from '$lib/stores/database.svelte';
+  import { trackDb } from '$lib/stores/trackDb.svelte';
   import { debounce } from 'lodash';
 
   let value = $state('');
@@ -10,7 +10,7 @@
   };
   const debouncedUpdate = debounce(updateValueDebounced, 500);
   $effect(() => debouncedUpdate(value));
-  let db = $derived(automationDb.get());
+  let db = $derived(trackDb.get());
 
   let res = $derived.by(() => {
     if (value === '' || !db) {

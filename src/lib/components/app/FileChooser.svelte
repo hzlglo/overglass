@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ALSParser } from '../../parsers/alsParser';
-  import { automationDb } from '../../stores/database.svelte';
+  import { trackDb } from '../../stores/trackDb.svelte';
   import { appStore } from '../../stores/app.svelte';
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import { fromPairs, toPairs } from 'lodash';
@@ -65,7 +65,7 @@
 
     try {
       // Initialize database if not already done
-      await automationDb.init();
+      await trackDb.init();
 
       // Parse the ALS file
       const parsedSet = await parser.parseALSFile(file);
@@ -82,8 +82,8 @@
         ]),
       );
       console.log('trackToName', trackToName);
-      await automationDb.loadALSData(parsedSet, trackToName);
-      const tracks = await automationDb.get().tracks.getAllTracks();
+      await trackDb.loadALSData(parsedSet, trackToName);
+      const tracks = await trackDb.get().tracks.getAllTracks();
       appConfigStore.initializeTrackCustomizations(tracks);
 
       // Update app state to go to main screen

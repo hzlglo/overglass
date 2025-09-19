@@ -143,6 +143,7 @@ const getSharedXScale = () => {
       timeSigNumerator = timeSigNumeratorInner;
       timeSigDenominator = timeSigDenominatorInner;
     },
+    getMaxTime: () => maxTime,
   };
 };
 

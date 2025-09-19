@@ -45,8 +45,14 @@ const getGridDisplayState = () => {
     return lanes;
   });
 
-  async function initFromDb(db: AutomationDatabase) {
+  async function syncWithDb(db: AutomationDatabase) {
     const tracks = await db.tracks.getAllTracks();
+    // TODO make this sync logic more robust - we should merge tracks and params
+    if (expandedTracks.size === tracks.length) {
+      console.log('syncWithDb: tracks already synced');
+      return;
+    }
+    console.log('syncWithDb: resetting all track display state');
     if (tracks.length > 0) {
       // Expand all tracks
       expandedTracks = new SvelteSet(tracks.map((t) => t.id));
@@ -104,7 +110,7 @@ const getGridDisplayState = () => {
   }
 
   return {
-    initFromDb,
+    syncWithDb,
     getTrackExpanded: (trackId: string) => expandedTracks.has(trackId),
     getParameterExpanded: (parameterId: string) => expandedParameters.has(parameterId),
     toggleTrackExpansion,

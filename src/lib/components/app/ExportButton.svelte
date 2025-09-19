@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { automationDb } from '../../stores/database.svelte';
+  import { trackDb } from '../../stores/trackDb.svelte';
   import { appStore } from '../../stores/app.svelte';
   import { ALSWriter } from '../../parsers/alsWriter';
 
@@ -19,12 +19,12 @@
       console.log('🚀 Starting export with edited database data...');
 
       // Ensure database is initialized
-      if (!automationDb.isInitialized()) {
+      if (!trackDb.isInitialized()) {
         throw new Error('Database not initialized. Please load a file first.');
       }
 
       // Create writer instance with current database
-      const writer = new ALSWriter(automationDb.get());
+      const writer = new ALSWriter(trackDb.get());
 
       // Export the current database state back to ALS format
       // This uses the edited data, not the original

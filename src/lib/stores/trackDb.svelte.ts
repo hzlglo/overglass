@@ -1,6 +1,7 @@
 import { AutomationDatabase } from '../database/duckdb';
 import { WasmDuckDBAdapter } from '../database/adapters/wasm';
 import type { ParsedALS } from '../types/automation';
+import { isEqual } from 'lodash';
 
 /**
  * Database that stores the parsed ableton project data
@@ -8,7 +9,7 @@ import type { ParsedALS } from '../types/automation';
 
 let creatingDb = false;
 
-const createAutomationDbStore = () => {
+const createTrackDbStore = () => {
   let database: AutomationDatabase | null = $state(null);
   let isRecalculating = $state(false);
 
@@ -88,4 +89,21 @@ const createAutomationDbStore = () => {
   };
 };
 
-export const automationDb = createAutomationDbStore();
+export const trackDb = createTrackDbStore();
+
+export const useTrackDbQuery = <T>(
+  query: (db: AutomationDatabase) => Promise<T>,
+  initialValue: T,
+): { getResult: () => T } => {
+  let result = $state<T>(initialValue);
+  $effect(() => {
+    query(trackDb.get()).then((r) => {
+      if (isEqual(result, r)) {
+        return;
+      }
+      console.log('useTrackDbQuery: result changed', r, result);
+      result = r;
+    });
+  });
+  return { getResult: () => result };
+};

@@ -4,7 +4,6 @@ import type { AutomationDatabase } from '../duckdb';
 export class AutomationService {
   constructor(private db: AutomationDatabase) {}
 
-
   /**
    * Create a new automation point for a parameter
    * @param parameterId - The parameter to create point for
@@ -187,9 +186,6 @@ export class AutomationService {
 
     sql += ' ORDER BY time_position';
 
-    console.log('sql', sql);
-    console.log('params', params);
-
     return await this.db.run(sql, params);
   }
 
@@ -213,7 +209,11 @@ export class AutomationService {
    * @param points - Array of automation points (with or without ids)
    * @returns Array of created/updated automation points
    */
-  async bulkSetAutomationPoints(points: Array<Partial<AutomationPoint> & { parameterId: string; timePosition: number; value: number }>): Promise<AutomationPoint[]> {
+  async bulkSetAutomationPoints(
+    points: Array<
+      Partial<AutomationPoint> & { parameterId: string; timePosition: number; value: number }
+    >,
+  ): Promise<AutomationPoint[]> {
     console.log(`🔍 Bulk setting ${points.length} automation points`, points);
     const results: AutomationPoint[] = [];
 
@@ -309,17 +309,14 @@ export class AutomationService {
 
       // Create new point at offset position
       const newPointId = Math.random().toString(36).substring(2, 15);
-      await this.db.insertRecord(
-        'automation_points',
-        ({
-          id: newPointId,
-          parameterId,
-          timePosition: newTimePosition,
-          value: point.value,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      );
+      await this.db.insertRecord('automation_points', {
+        id: newPointId,
+        parameterId,
+        timePosition: newTimePosition,
+        value: point.value,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
     console.log(
@@ -354,17 +351,14 @@ export class AutomationService {
       const newTimePosition = point.timePosition + timeOffset;
       const newPointId = Math.random().toString(36).substring(2, 15);
 
-      await this.db.insertRecord(
-        'automation_points',
-        ({
-          id: newPointId,
-          parameterId,
-          timePosition: newTimePosition,
-          value: point.value,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-      );
+      await this.db.insertRecord('automation_points', {
+        id: newPointId,
+        parameterId,
+        timePosition: newTimePosition,
+        value: point.value,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
     console.log(
