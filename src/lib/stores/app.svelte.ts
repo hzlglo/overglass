@@ -1,5 +1,8 @@
-import { sharedXScale } from '$lib/components/grid/sharedXScale.svelte';
 import type { ParsedALS } from '../types/automation';
+
+/**
+ * Transient app state that is not persisted to localStorage
+ */
 
 type AppScreen = 'file-chooser' | 'main';
 

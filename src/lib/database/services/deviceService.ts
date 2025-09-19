@@ -9,7 +9,7 @@ export class DeviceService {
   /**
    * Load ALS data into devices, tracks, and parameters
    */
-  async loadALSData(parsedALS: ParsedALS, trackToName: Record<string, string>): Promise<void> {
+  async loadALSData(parsedALS: ParsedALS, trackToName?: Record<string, string>): Promise<void> {
     const parser = new ALSParser();
     const entities = parser.extractDatabaseEntities(parsedALS, trackToName);
 

@@ -3,6 +3,8 @@
   import { appStore } from '../../stores/app.svelte';
   import ExportButton from './ExportButton.svelte';
   import Menu from '../core/Menu.svelte';
+  import { goto } from '$app/navigation';
+  import { automationDb } from '$lib/stores/database.svelte';
 
   interface NavbarProps {
     projectName?: string;
@@ -21,7 +23,14 @@
   <!-- Left side - Project info -->
   <div class="navbar-start">
     <div class="flex items-center gap-4">
-      <button class="btn btn-ghost btn-sm" onclick={() => appStore.resetApp()}>
+      <button
+        class="btn btn-ghost btn-sm"
+        onclick={() => {
+          appStore.resetApp();
+          automationDb.destroy();
+          goto('/');
+        }}
+      >
         ← Back to Files
       </button>
 
@@ -54,7 +63,7 @@
       <Menu
         options={[
           { label: 'Settings', onSelect: () => {} },
-          { label: 'Debugger', onSelect: () => appStore.toggleDebugger() },
+          { label: 'Debugger', onSelect: () => goto('/debugger') },
         ]}
         triggerClass="btn btn-ghost btn-sm"
       >

@@ -20,9 +20,9 @@
   });
 </script>
 
-<div class="flex w-full flex-col gap-2">
+<div class="border-base-content/20 flex w-full flex-col gap-2 border-t p-4">
   <div class="flex flex-row justify-between">
-    <h3>Debug</h3>
+    <h1>Debug</h1>
     <button class="btn btn-sm btn-error" onclick={() => appConfigStore.clearAllCustomizations()}>
       Clear app state
     </button>

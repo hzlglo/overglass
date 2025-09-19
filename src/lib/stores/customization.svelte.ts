@@ -3,6 +3,10 @@ import { fromPairs } from 'lodash';
 import { automationDb } from './database.svelte';
 import type { Track } from '$lib/database/schema';
 
+/**
+ * Display settings that are persisted to localStorage
+ */
+
 // Types for customization data
 export interface TrackCustomization {
   rawTrackName: string;

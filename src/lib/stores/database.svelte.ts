@@ -2,6 +2,10 @@ import { AutomationDatabase } from '../database/duckdb';
 import { WasmDuckDBAdapter } from '../database/adapters/wasm';
 import type { ParsedALS } from '../types/automation';
 
+/**
+ * Database that stores the parsed ableton project data
+ */
+
 let creatingDb = false;
 
 const createAutomationDbStore = () => {

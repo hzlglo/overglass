@@ -88,7 +88,7 @@ export class AutomationDatabase {
   /**
    * Load ALS data into the database using the device service
    */
-  async loadALSData(parsedALS: ParsedALS, trackToName: Record<string, string>): Promise<void> {
+  async loadALSData(parsedALS: ParsedALS, trackToName?: Record<string, string>): Promise<void> {
     console.log('📊 Loading ALS data into database...');
 
     try {

@@ -104,7 +104,7 @@ describe('ALS Round-Trip Integration Test', () => {
     // Read and parse both XML files for content comparison
     const { gzipXmlHelpers } = await import('../lib/utils/gzipXmlHelpers');
     const originalXml = await gzipXmlHelpers.readGzipFile('./src/tests/test1.als');
-    const editedXml = await gzipXmlHelpers.readGzipFile('./src/tests/test1_xml_diff.als');
+    const editedXml = await gzipXmlHelpers.readGzipFile('./static/test1_xml_diff.als');
     const originalDoc = gzipXmlHelpers.parseXMLString(originalXml);
     const editedDoc = gzipXmlHelpers.parseXMLString(editedXml);
 
@@ -216,19 +216,26 @@ describe('ALS Round-Trip Integration Test', () => {
     }
 
     // Compare the XML syntax trees
-    const contentDifferences = compareXMLNodes(originalDoc, editedDoc);
+    const contentDifferencesNew = compareXMLNodes(originalDoc, editedDoc);
 
-    console.log(`📊 Found ${contentDifferences.length} content differences`);
+    console.log(`📊 Found ${contentDifferencesNew.length} content (old to new) differences`);
     console.log(`🔍 First 10 content differences:`);
-    contentDifferences.slice(0, 10).forEach((diff, index) => {
+    contentDifferencesNew.slice(0, 10).forEach((diff, index) => {
       console.log(`  ${index + 1}: ${diff}`);
     });
 
     // Verify that we have changes (proving our edit worked) but not an unreasonable amount
-    expect(contentDifferences.length).toEqual(1);
+    expect(contentDifferencesNew.length).toEqual(1);
 
-    console.log(
-      `✅ Content-focused XML diff test passed: Found ${contentDifferences.length} content differences from automation point edit`,
-    );
+    const contentDifferencesOld = compareXMLNodes(editedDoc, originalDoc);
+
+    console.log(`📊 Found ${contentDifferencesOld.length} content (new to old) differences`);
+    console.log(`🔍 First 10 content differences:`);
+    contentDifferencesOld.slice(0, 10).forEach((diff, index) => {
+      console.log(`  ${index + 1}: ${diff}`);
+    });
+
+    // Verify that we have changes (proving our edit worked) but not an unreasonable amount
+    expect(contentDifferencesOld.length).toEqual(1);
   });
 });
