@@ -73,6 +73,7 @@
 
     const pan = (event: WheelEvent) => {
       zoom.translateBy(svg.transition().duration(50), event.wheelDeltaX, 0);
+      event.preventDefault();
     };
     svg.call(zoom).on('wheel', pan);
   });

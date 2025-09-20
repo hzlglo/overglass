@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { secondsToBars } from '../../utils/timeConversion';
 function nextPowerOfTwo(n: number) {
   return Math.pow(2, Math.ceil(Math.log2(n)));
 }
@@ -28,28 +29,6 @@ export function getTicksForBarSpan(minBar: number, maxBar: number) {
   return result;
 }
 
-export function secondsToBars(
-  timeInSeconds: number,
-  bpm: number,
-  timeSigNumerator: number,
-  timeSigDenominator: number,
-) {
-  const bps = bpm / 60;
-  const beatLength = 4 / timeSigDenominator; // quarter = 1, eighth = 0.5, half = 2
-  const effectiveBPS = bps * beatLength;
-
-  const totalBeats = timeInSeconds * effectiveBPS;
-
-  const beatsPerBar = timeSigNumerator;
-  const totalBars = Math.floor(totalBeats / beatsPerBar);
-  const barNumber = totalBars + 1;
-
-  const beatInBar = (totalBeats % beatsPerBar) + 1;
-
-  const barFractional = barNumber + beatInBar / beatsPerBar;
-
-  return { bar: barNumber, beat: beatInBar, barFractional };
-}
 
 const getSharedXScale = () => {
   // the max time across all automation points, i.e. the length of the song

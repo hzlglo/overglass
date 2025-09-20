@@ -1,5 +1,6 @@
 import type { Track, Parameter, ParameterStats } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
+import SQL from 'sql-template-tag';
 
 export class TracksService {
   constructor(private db: AutomationDatabase) {}
@@ -10,7 +11,7 @@ export class TracksService {
   async getAllTracks(): Promise<
     (Track & { parameterCount: number; automationPointCount: number; deviceName: string })[]
   > {
-    return await this.db.run(`
+    const sql = SQL`
       SELECT
         t.id,
         t.device_id,
@@ -28,7 +29,8 @@ export class TracksService {
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.is_muted, t.last_edit_time, t.created_at, d.device_name
       ORDER BY d.device_name, t.track_number
-    `);
+    `;
+    return await this.db.run(sql.sql, sql.values);
   }
 
   /**
@@ -37,8 +39,7 @@ export class TracksService {
   async getTracksForDevice(
     deviceId: string,
   ): Promise<(Track & { parameterCount: number; automationPointCount: number })[]> {
-    return await this.db.run(
-      `
+    const sql = SQL`
       SELECT
         t.id,
         t.device_id,
@@ -52,20 +53,18 @@ export class TracksService {
       FROM tracks t
       LEFT JOIN parameters p ON t.id = p.track_id
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
-      WHERE t.device_id = ?
+      WHERE t.device_id = ${deviceId}
       GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.is_muted, t.last_edit_time, t.created_at
       ORDER BY t.track_number
-    `,
-      [deviceId],
-    );
+    `;
+    return await this.db.run(sql.sql, sql.values);
   }
 
   /**
    * Get parameters with computed statistics for a track
    */
   async getParametersForTrack(trackId: string): Promise<(Parameter & ParameterStats)[]> {
-    const parameters = await this.db.run(
-      `
+    const sql = SQL`
       SELECT
         p.id,
         p.track_id,
@@ -80,19 +79,17 @@ export class TracksService {
         COUNT(ap.id) as point_count
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
-      WHERE p.track_id = ?
+      WHERE p.track_id = ${trackId}
       GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.created_at
       ORDER BY p.parameter_name
-    `,
-      [trackId],
-    );
+    `;
+    const parameters = await this.db.run(sql.sql, sql.values);
 
     return parameters;
   }
 
   async getParameterById(parameterId: string): Promise<(Parameter & ParameterStats) | null> {
-    const parameters = await this.db.run(
-      `
+    const sql = SQL`
       SELECT
         p.id,
         p.track_id,
@@ -107,11 +104,10 @@ export class TracksService {
         COUNT(ap.id) as point_count
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
-      WHERE p.id = ?
+      WHERE p.id = ${parameterId}
       GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.created_at
-      `,
-      [parameterId],
-    );
+    `;
+    const parameters = await this.db.run(sql.sql, sql.values);
     return parameters.length > 0 ? parameters[0] : null;
   }
 
@@ -123,8 +119,7 @@ export class TracksService {
   ): Promise<
     (Track & { parameterCount: number; automationPointCount: number; deviceName: string }) | null
   > {
-    const tracks = await this.db.run(
-      `
+    const sql = SQL`
       SELECT
         t.id,
         t.device_id,
@@ -140,11 +135,10 @@ export class TracksService {
       LEFT JOIN devices d ON t.device_id = d.id
       LEFT JOIN parameters p ON t.id = p.track_id
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
-      WHERE t.id = ?
+      WHERE t.id = ${trackId}
       GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.is_muted, t.last_edit_time, t.created_at, d.device_name
-    `,
-      [trackId],
-    );
+    `;
+    const tracks = await this.db.run(sql.sql, sql.values);
 
     return tracks.length > 0 ? tracks[0] : null;
   }

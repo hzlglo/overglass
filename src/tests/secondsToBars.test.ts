@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { secondsToBars } from '../lib/components/grid/sharedXScale.svelte';
+import { secondsToBars } from '../lib/utils/timeConversion';
 
 describe('secondsToBars', () => {
   describe('4/4 120 BPM', () => {
@@ -9,32 +9,32 @@ describe('secondsToBars', () => {
 
     it('should convert 0 seconds to bar 1, beat 1', () => {
       const result = secondsToBars(0, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 1 });
+      expect(result).toEqual({ bar: 1, beat: 1, barFractional: 1.25 });
     });
 
     it('should convert 0.5 seconds to bar 1, beat 2', () => {
       const result = secondsToBars(0.5, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 2 });
+      expect(result).toEqual({ bar: 1, beat: 2, barFractional: 1.5 });
     });
 
     it('should convert 1 second to bar 1, beat 3', () => {
       const result = secondsToBars(1, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 3 });
+      expect(result).toEqual({ bar: 1, beat: 3, barFractional: 1.75 });
     });
 
     it('should convert 2 seconds (1 complete bar) to bar 2, beat 1', () => {
       const result = secondsToBars(2, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 2, beat: 1 });
+      expect(result).toEqual({ bar: 2, beat: 1, barFractional: 2.25 });
     });
 
     it('should convert 4 seconds (2 complete bars) to bar 3, beat 1', () => {
       const result = secondsToBars(4, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 3, beat: 1 });
+      expect(result).toEqual({ bar: 3, beat: 1, barFractional: 3.25 });
     });
 
     it('should convert 4.5 seconds to bar 3, beat 2', () => {
       const result = secondsToBars(4.5, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 3, beat: 2 });
+      expect(result).toEqual({ bar: 3, beat: 2, barFractional: 3.5 });
     });
   });
 
@@ -45,7 +45,7 @@ describe('secondsToBars', () => {
 
     it('should convert 0 seconds to bar 1, beat 1', () => {
       const result = secondsToBars(0, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 1 });
+      expect(result).toEqual({ bar: 1, beat: 1, barFractional: 1.16666666666666667 });
     });
 
     it('should handle eighth note beats - 1 second should be within bar 1', () => {
@@ -75,13 +75,13 @@ describe('secondsToBars', () => {
 
     it('should convert 0 seconds to bar 1, beat 1', () => {
       const result = secondsToBars(0, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 1 });
+      expect(result).toEqual({ bar: 1, beat: 1, barFractional: 1.25 });
     });
 
     it('should handle faster tempo - 1 second should be in bar 1, beat 4', () => {
       // At 180 BPM: 3 beats per second, so 1 second = 3 beats
       const result = secondsToBars(1, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 4 });
+      expect(result).toEqual({ bar: 1, beat: 4, barFractional: 2 });
     });
 
     it('should convert to bar 2 after complete bar duration', () => {
@@ -99,7 +99,7 @@ describe('secondsToBars', () => {
     it('should convert 2 seconds to bar 2, beat 2', () => {
       // 2 seconds * 3 BPS = 6 beats = 1 bar + 2 beats
       const result = secondsToBars(2, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 2, beat: 3 }); // 6 beats = bar 1 (4 beats) + 2 beats in bar 2
+      expect(result).toEqual({ bar: 2, beat: 3, barFractional: 2.75 }); // 6 beats = bar 1 (4 beats) + 2 beats in bar 2
     });
   });
 
@@ -110,7 +110,7 @@ describe('secondsToBars', () => {
 
     it('should convert 0 seconds to bar 1, beat 1', () => {
       const result = secondsToBars(0, bpm, timeSigNumerator, timeSigDenominator);
-      expect(result).toEqual({ bar: 1, beat: 1 });
+      expect(result).toEqual({ bar: 1, beat: 1, barFractional: 1.3333333333333333 });
     });
 
     it('should handle 3/4 time signature - 1 second should be bar 1, beat ~3.67', () => {
@@ -178,7 +178,7 @@ describe('secondsToBars', () => {
       // 120 BPM = 2 BPS for quarter notes
       // 4/4 time with quarter note denominator
       const result = secondsToBars(0.5, 120, 4, 4); // 0.5 seconds = 1 beat
-      expect(result).toEqual({ bar: 1, beat: 2 });
+      expect(result).toEqual({ bar: 1, beat: 2, barFractional: 1.5 });
     });
 
     it('should correctly handle different note values in denominator', () => {
@@ -189,8 +189,8 @@ describe('secondsToBars', () => {
       // For 4/8 time: effective BPS = (120/60) * (4/8) = 1 BPS, so 1 second = 1 beat -> bar 1, beat 2
       // For 4/4 time: effective BPS = (120/60) * (4/4) = 2 BPS, so 1 second = 2 beats -> bar 1, beat 3
       expect(result8th.beat).toBeLessThan(result4th.beat); // 8th note beats progress slower
-      expect(result8th).toEqual({ bar: 1, beat: 2 });
-      expect(result4th).toEqual({ bar: 1, beat: 3 });
+      expect(result8th).toEqual({ bar: 1, beat: 2, barFractional: 1.5 });
+      expect(result4th).toEqual({ bar: 1, beat: 3, barFractional: 1.75 });
     });
   });
 });

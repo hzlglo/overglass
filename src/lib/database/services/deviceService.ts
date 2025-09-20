@@ -2,6 +2,7 @@ import type { Device } from '../schema';
 import type { ParsedALS } from '../../types/automation';
 import { ALSParser } from '../../parsers/alsParser';
 import type { AutomationDatabase } from '../duckdb';
+import SQL from 'sql-template-tag';
 
 export class DeviceService {
   constructor(private db: AutomationDatabase) {}
@@ -37,8 +38,8 @@ export class DeviceService {
   async getDevicesWithTracks(): Promise<
     (Device & { trackCount: number; parameterCount: number; automationPointCount: number })[]
   > {
-    return await this.db.run(`
-      SELECT 
+    const sql = SQL`
+      SELECT
         d.id,
         d.device_name,
         d.device_type,
@@ -51,16 +52,15 @@ export class DeviceService {
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       GROUP BY d.id, d.device_name, d.device_type
       ORDER BY d.device_name
-    `);
+    `;
+    return await this.db.run(sql.sql, sql.values);
   }
 
   async getDeviceById(deviceId: string): Promise<Device> {
-    const devices = await this.db.run(
-      `
-      SELECT id, device_name, device_type, created_at FROM devices WHERE id = ?
-    `,
-      [deviceId],
-    );
+    const sql = SQL`
+      SELECT id, device_name, device_type, created_at FROM devices WHERE id = ${deviceId}
+    `;
+    const devices = await this.db.run(sql.sql, sql.values);
     if (devices.length === 0) {
       throw new Error(`Device with id ${deviceId} not found`);
     }
@@ -69,7 +69,8 @@ export class DeviceService {
   }
   async getTrackDevice(trackId: string): Promise<Device> {
     console.log('getTrackDevice', trackId);
-    const track = await this.db.run(`SELECT device_id FROM tracks WHERE id = ?`, [trackId]);
+    const sql = SQL`SELECT device_id FROM tracks WHERE id = ${trackId}`;
+    const track = await this.db.run(sql.sql, sql.values);
     console.log('track', track);
     return this.getDeviceById(track[0].deviceId);
   }
