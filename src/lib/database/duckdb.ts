@@ -3,7 +3,6 @@ import type { ParsedALS } from '../types/automation';
 import type { DatabaseAdapter } from './interface';
 import { DeviceService } from './services/deviceService';
 import { AutomationService } from './services/automationService';
-import { ClipService } from './services/clipService';
 import { TracksService } from './services/tracksService';
 
 export class AutomationDatabase {
@@ -14,7 +13,6 @@ export class AutomationDatabase {
   public readonly devices: DeviceService;
   public readonly tracks: TracksService;
   public readonly automation: AutomationService;
-  public readonly clips: ClipService;
 
   constructor(adapter: DatabaseAdapter) {
     this.adapter = adapter;
@@ -23,7 +21,6 @@ export class AutomationDatabase {
     this.devices = new DeviceService(this);
     this.tracks = new TracksService(this);
     this.automation = new AutomationService(this);
-    this.clips = new ClipService(this);
   }
 
   async initialize(): Promise<void> {

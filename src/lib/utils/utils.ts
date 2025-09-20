@@ -1,5 +1,3 @@
-import type { LaneDisplay } from '$lib/components/gridDisplayState.svelte';
-
 export type themeColor =
   | 'primary'
   | 'primary-content'

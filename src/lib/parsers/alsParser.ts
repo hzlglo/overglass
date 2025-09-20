@@ -256,12 +256,16 @@ export class ALSParser {
           console.log(`📝 Creating parameter "${parameterName}" with NO originalPointeeId`);
         }
 
+        // Check if parameter is a mute parameter using the regex pattern
+        const { isMute } = this.regexMatcher.parsemuteParameter(parameterName);
+
         const parameter: Parameter = {
           id: parameterId,
           trackId,
           parameterName,
           parameterPath: `/${deviceName}/${parameterName}`,
           originalPointeeId,
+          isMute,
           createdAt: new Date()
         };
         if (this.debug) console.log(`🔍 Parameter object created with originalPointeeId: "${originalPointeeId}"`);

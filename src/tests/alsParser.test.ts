@@ -61,31 +61,43 @@ describe('ALS Parser', () => {
     console.log(`Found ${entities.devices.length} Elektron devices`);
 
     entities.devices.forEach((device, index) => {
-      console.log(`Device ${index + 1}: ${device.deviceName} (${entities.tracks.filter(t => t.deviceId === device.id).length} tracks)`);
+      console.log(
+        `Device ${index + 1}: ${device.deviceName} (${entities.tracks.filter((t) => t.deviceId === device.id).length} tracks)`,
+      );
     });
 
     // Group tracks by device
-    const tracksByDevice = entities.tracks.reduce((acc, track) => {
-      if (!acc[track.deviceId]) acc[track.deviceId] = [];
-      acc[track.deviceId].push(track);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const tracksByDevice = entities.tracks.reduce(
+      (acc, track) => {
+        if (!acc[track.deviceId]) acc[track.deviceId] = [];
+        acc[track.deviceId].push(track);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
     // Group parameters by track
-    const paramsByTrack = entities.parameters.reduce((acc, param) => {
-      if (!acc[param.trackId]) acc[param.trackId] = [];
-      acc[param.trackId].push(param);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const paramsByTrack = entities.parameters.reduce(
+      (acc, param) => {
+        if (!acc[param.trackId]) acc[param.trackId] = [];
+        acc[param.trackId].push(param);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
-    Object.keys(tracksByDevice).forEach(deviceId => {
+    Object.keys(tracksByDevice).forEach((deviceId) => {
       const tracks = tracksByDevice[deviceId];
       tracks.forEach((track, trackIndex) => {
         const trackParams = paramsByTrack[track.id] || [];
-        console.log(`  Track ${trackIndex + 1}: ${track.trackName}, Parameters: ${trackParams.length}`);
+        console.log(
+          `  Track ${trackIndex + 1}: ${track.trackName}, Parameters: ${trackParams.length}`,
+        );
         trackParams.slice(0, 3).forEach((param, paramIndex) => {
-          const paramPoints = entities.automationPoints.filter(p => p.parameterId === param.id);
-          console.log(`    Parameter ${paramIndex + 1}: ${param.parameterName} (${paramPoints.length} points)`);
+          const paramPoints = entities.automationPoints.filter((p) => p.parameterId === param.id);
+          console.log(
+            `    Parameter ${paramIndex + 1}: ${param.parameterName} (${paramPoints.length} points)`,
+          );
         });
       });
     });
@@ -121,29 +133,29 @@ describe('ALS Parser', () => {
     expect(entities.parameters.length).toBeGreaterThan(0);
 
     // Check that we have meaningful parameter names, not generic "Param X"
-    const meaningfulParams = entities.parameters.filter(param =>
-      !param.parameterName.startsWith('Param ')
+    const meaningfulParams = entities.parameters.filter(
+      (param) => !param.parameterName.startsWith('Param '),
     );
 
     expect(meaningfulParams.length).toBeGreaterThan(0);
 
     // Verify we have expected Elektron parameter names
-    const paramNames = entities.parameters.map(param => param.parameterName);
+    const paramNames = entities.parameters.map((param) => param.parameterName);
     const expectedPatterns = [
-      /^T\d+\s+Mute$/,           // Track mute parameters
-      /^T\d+\s+Filter/,         // Filter parameters  
-      /^T\d+\s+FX/              // FX parameters
+      /^T\d+\s+Mute$/, // Track mute parameters
+      /^T\d+\s+Filter/, // Filter parameters
+      /^T\d+\s+FX/, // FX parameters
     ];
-    
+
     let matchedPatterns = 0;
-    expectedPatterns.forEach(pattern => {
-      if (paramNames.some(name => pattern.test(name))) {
+    expectedPatterns.forEach((pattern) => {
+      if (paramNames.some((name) => pattern.test(name))) {
         matchedPatterns++;
       }
     });
-    
+
     expect(matchedPatterns).toBeGreaterThan(0);
-    
+
     console.log('Parameter names found:', paramNames);
   });
 
@@ -167,9 +179,9 @@ describe('ALS Parser', () => {
     });
 
     // Verify we have specific Elektron parameter types
-    const paramNames = entities.parameters.map(param => param.parameterName);
-    const elektron_specific = paramNames.filter(name =>
-      name.includes('Mute') || name.includes('Filter') || name.includes('FX')
+    const paramNames = entities.parameters.map((param) => param.parameterName);
+    const elektron_specific = paramNames.filter(
+      (name) => name.includes('Mute') || name.includes('Filter') || name.includes('FX'),
     );
 
     expect(elektron_specific.length).toBeGreaterThan(0);
@@ -196,19 +208,19 @@ describe('ALS Parser', () => {
     const entitiesWithMapping = parser.extractDatabaseEntities(result, trackIdMapping);
 
     // Verify that the specified tracks use the provided IDs
-    customTrackIds.forEach(customId => {
-      const trackWithCustomId = entitiesWithMapping.tracks.find(t => t.id === customId);
+    customTrackIds.forEach((customId) => {
+      const trackWithCustomId = entitiesWithMapping.tracks.find((t) => t.id === customId);
       expect(trackWithCustomId).toBeDefined();
       expect(trackWithCustomId?.id).toBe(customId);
     });
 
     // Verify that tracks not in the mapping still have generated IDs
     const tracksWithGeneratedIds = entitiesWithMapping.tracks.filter(
-      track => !customTrackIds.includes(track.id)
+      (track) => !customTrackIds.includes(track.id),
     );
 
     // These should all have different IDs from the custom ones
-    tracksWithGeneratedIds.forEach(track => {
+    tracksWithGeneratedIds.forEach((track) => {
       expect(customTrackIds.includes(track.id)).toBe(false);
       expect(track.id).toMatch(/^[a-z0-9]+$/); // Generated IDs are alphanumeric
     });
@@ -220,5 +232,39 @@ describe('ALS Parser', () => {
     console.log(`Total tracks: ${entitiesWithMapping.tracks.length}`);
     console.log(`Tracks with custom IDs: ${customTrackIds.length}`);
     console.log(`Tracks with generated IDs: ${tracksWithGeneratedIds.length}`);
+  });
+
+  it('should correctly identify mute parameters and set isMute attribute', async () => {
+    const result = await parser.parseALSFile(testFile);
+    const entities = parser.extractDatabaseEntities(result);
+
+    expect(entities.parameters.length).toBeGreaterThan(0);
+
+    // Filter parameters to find mute and non-mute parameters
+    const muteParameters = entities.parameters.filter((param) => param.isMute);
+    const nonMuteParameters = entities.parameters.filter((param) => !param.isMute);
+
+    // Log parameters for debugging
+    console.log('Mute parameters found:');
+    muteParameters.forEach((param, index) => {
+      console.log(`  ${index + 1}: ${param.parameterName} (isMute: ${param.isMute})`);
+    });
+
+    console.log('Non-mute parameters found (first 5):');
+    nonMuteParameters.slice(0, 5).forEach((param, index) => {
+      console.log(`  ${index + 1}: ${param.parameterName} (isMute: ${param.isMute})`);
+    });
+
+    expect(entities.parameters.find((param) => param.parameterName === 'T6 Mute')?.isMute).toBe(
+      true,
+    );
+    expect(
+      entities.parameters.find((param) => param.parameterName === 'T3 Filter Frequency')?.isMute,
+    ).toBe(false);
+
+    // Verify that all parameters have a defined isMute attribute
+    entities.parameters.forEach((param) => {
+      expect(typeof param.isMute).toBe('boolean');
+    });
   });
 });

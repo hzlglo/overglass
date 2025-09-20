@@ -2,6 +2,7 @@
   import type { TrackCustomization } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '../../stores/trackDb.svelte';
   import AutomationCurve from './AutomationCurve.svelte';
+  import AutomationMute from './AutomationMute.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
 
   interface AutomationCurveProps {
@@ -10,9 +11,10 @@
     width: number;
     yPosition: number;
     trackCustomizations: Record<string, TrackCustomization>;
+    isMute?: boolean;
   }
 
-  let { parameterId, height, width, yPosition, trackCustomizations }: AutomationCurveProps =
+  let { parameterId, height, width, yPosition, trackCustomizations, isMute }: AutomationCurveProps =
     $props();
   let parameterStore = useTrackDbQuery((db) => db.tracks.getParameterById(parameterId), null);
   let parameter = $derived(parameterStore.getResult());
@@ -25,8 +27,8 @@
   let automationPoints = $derived(automationPointsStore.getResult());
 </script>
 
-{#if isExpanded}
-  {#if parameter}
+{#if parameter}
+  {#if isExpanded}
     <AutomationCurve
       {parameterId}
       {parameter}
@@ -36,7 +38,17 @@
       {automationPoints}
       color={trackCustomizations[parameter.trackId]?.color}
     />
-  {:else}
-    <g><text> {parameterId} Parameter not found</text></g>
+  {:else if isMute}
+    <AutomationMute
+      {parameterId}
+      {parameter}
+      {height}
+      {width}
+      {yPosition}
+      {automationPoints}
+      color={trackCustomizations[parameter.trackId]?.color}
+    />
   {/if}
+{:else}
+  <g><text> {parameterId} Parameter not found</text></g>
 {/if}

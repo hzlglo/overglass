@@ -18,8 +18,8 @@ export const DEFAULT_ELEKTRON_REGEX: RegexConfig = {
   // Extract track number from patterns like "T1 Filter Cutoff", "T11 Reverb Send"
   trackNumberPattern: /^T(\d+)\s+/,
 
-  // Identify mute parameters like "T1 Muted", "T5 Muted"
-  muteParameterPattern: /^T(\d+)\s+Muted$/i,
+  // Identify mute parameters like "T1 Mute", "T5 Muted", "T1 MuteLevel", etc.
+  muteParameterPattern: /^T(\d+)\s+Mute.*$/i,
 
   // Clean parameter names by removing track prefix "T1 Filter Cutoff" -> "Filter Cutoff"
   parameterNameCleanPattern: /^T\d+\s+/,

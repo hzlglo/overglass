@@ -1,6 +1,7 @@
 import type { AutomationDatabase } from '$lib/database/duckdb';
+import type { Parameter } from '$lib/database/schema';
 import { fromPairs, get, sum } from 'lodash';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 export let TOP_TIMELINE_HEIGHT = 60;
 export let BOTTOM_TIMELINE_HEIGHT = 60;
@@ -9,93 +10,124 @@ let DEFAULT_PARAMETER_HEIGHT = 100;
 let DEFAULT_TRACK_HEIGHT = 50;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
-export type LaneDisplay = { top: number; bottom: number; type: 'track' | 'parameter'; id: string };
+export type LaneDisplay =
+  | { top: number; bottom: number; type: 'parameter'; id: string }
+  | { top: number; bottom: number; type: 'track'; id: string; muteParameterId: string | null };
+
+export type TrackLaneState = {
+  expanded: boolean;
+  muteParameterId: string | null;
+};
+export type ParameterLaneState = {
+  expanded: boolean;
+};
 
 const getGridDisplayState = () => {
   // Reactive state for expansion
-  let expandedTracks = $state<SvelteSet<string>>(new SvelteSet());
-  let expandedParameters = $state<SvelteSet<string>>(new SvelteSet());
+  let trackLaneStates = $state<SvelteMap<string, TrackLaneState>>(new SvelteMap());
+  let parameterLaneStates = $state<SvelteMap<string, ParameterLaneState>>(new SvelteMap());
   let trackOrder = $state<string[]>([]);
-  let parameterOrder = $state<{ [trackId: string]: string[] }>({});
+  let parameterOrder = $state<SvelteMap<string, string[]>>(new SvelteMap());
   // store both track and parameter heights
-  let laneHeights = $state<{ [laneId: string]: number }>({});
+  let laneHeights = $state<SvelteMap<string, number>>(new SvelteMap());
   let lanes: LaneDisplay[] = $derived.by(() => {
-    let lanes: LaneDisplay[] = [];
+    let lanesInner: LaneDisplay[] = [];
     let y = 0;
     for (const trackId of trackOrder) {
-      lanes.push({
+      const trackLaneState = trackLaneStates.get(trackId);
+      if (!trackLaneState) {
+        continue;
+      }
+      lanesInner.push({
         top: y,
-        bottom: y + laneHeights[trackId],
+        bottom: y + (laneHeights.get(trackId) ?? 0),
         type: 'track',
         id: trackId,
+        muteParameterId: trackLaneState.muteParameterId,
       });
-      y += laneHeights[trackId];
-      if (expandedTracks.has(trackId)) {
-        for (const parameterId of get(parameterOrder, trackId, [])) {
-          lanes.push({
+      y += laneHeights.get(trackId) ?? 0;
+      if (trackLaneState.expanded) {
+        const trackParameters = parameterOrder.get(trackId) ?? [];
+        for (const parameterId of trackParameters) {
+          lanesInner.push({
             top: y,
-            bottom: y + laneHeights[parameterId],
+            bottom: y + (laneHeights.get(parameterId) ?? 0),
             type: 'parameter',
             id: parameterId,
           });
-          y += laneHeights[parameterId];
+          y += laneHeights.get(parameterId) ?? 0;
         }
       }
     }
-    return lanes;
+    return lanesInner;
   });
 
   async function syncWithDb(db: AutomationDatabase) {
     const tracks = await db.tracks.getAllTracks();
     // TODO make this sync logic more robust - we should merge tracks and params
-    if (expandedTracks.size === tracks.length) {
+    if (trackLaneStates.size === tracks.length) {
       console.log('syncWithDb: tracks already synced');
       return;
     }
     console.log('syncWithDb: resetting all track display state');
     if (tracks.length > 0) {
-      // Expand all tracks
-      expandedTracks = new SvelteSet(tracks.map((t) => t.id));
       trackOrder = tracks.map((t) => t.id);
-      laneHeights = fromPairs(tracks.map((t) => [t.id, DEFAULT_TRACK_HEIGHT]));
+      laneHeights = new SvelteMap(tracks.map((t) => [t.id, DEFAULT_TRACK_HEIGHT]));
 
       // Expand all parameters for each track
-      const allParameterIds = new Set<string>();
       for (const track of tracks) {
         const parameters = await db.tracks.getParametersForTrack(track.id);
-        if (parameters) {
-          parameters.forEach((param) => {
-            allParameterIds.add(param.id);
+        const muteParameterId = parameters?.find((p) => p.isMute)?.id ?? null;
+        const nonMuteParameters = parameters?.filter((p) => p.id !== muteParameterId) ?? [];
+        trackLaneStates.set(track.id, { expanded: true, muteParameterId });
+        if (nonMuteParameters) {
+          nonMuteParameters.forEach((param) => {
+            parameterLaneStates.set(param.id, { expanded: true });
 
-            laneHeights = { ...$state.snapshot(laneHeights), [param.id]: DEFAULT_PARAMETER_HEIGHT };
+            laneHeights.set(param.id, DEFAULT_PARAMETER_HEIGHT);
           });
         }
-        parameterOrder = {
-          ...$state.snapshot(parameterOrder),
-          [track.id]: parameters.map((p) => p.id),
-        };
+        parameterOrder.set(
+          track.id,
+          nonMuteParameters.map((p) => p.id),
+        );
       }
-      expandedParameters = new SvelteSet(allParameterIds);
     }
+    console.log('syncWithDb finished', {
+      trackLaneStates: $state.snapshot(trackLaneStates),
+      parameterLaneStates: $state.snapshot(parameterLaneStates),
+      trackOrder: $state.snapshot(trackOrder),
+      parameterOrder: $state.snapshot(parameterOrder),
+      laneHeights: $state.snapshot(laneHeights),
+    });
   }
 
   function toggleTrackExpansion(trackId: string) {
-    if (expandedTracks.has(trackId)) {
-      expandedTracks.delete(trackId);
-      laneHeights[trackId] = DEFAULT_COLLAPSED_HEIGHT;
+    const trackLaneState = trackLaneStates.get(trackId);
+    if (!trackLaneState) {
+      return;
+    }
+    const newExpandedState = !trackLaneState.expanded;
+    trackLaneStates.set(trackId, { ...trackLaneState, expanded: newExpandedState });
+
+    if (newExpandedState) {
+      laneHeights.set(trackId, DEFAULT_TRACK_HEIGHT);
     } else {
-      expandedTracks.add(trackId);
-      laneHeights[trackId] = DEFAULT_TRACK_HEIGHT;
+      laneHeights.set(trackId, DEFAULT_COLLAPSED_HEIGHT);
     }
   }
 
   function toggleParameterExpansion(parameterId: string) {
-    if (expandedParameters.has(parameterId)) {
-      expandedParameters.delete(parameterId);
-      laneHeights[parameterId] = DEFAULT_COLLAPSED_HEIGHT;
+    const parameterLaneState = parameterLaneStates.get(parameterId);
+    if (!parameterLaneState) {
+      return;
+    }
+    const newExpandedState = !parameterLaneState.expanded;
+    parameterLaneStates.set(parameterId, { ...parameterLaneState, expanded: newExpandedState });
+    if (newExpandedState) {
+      laneHeights.set(parameterId, DEFAULT_PARAMETER_HEIGHT);
     } else {
-      expandedParameters.add(parameterId);
-      laneHeights[parameterId] = DEFAULT_PARAMETER_HEIGHT;
+      laneHeights.set(parameterId, DEFAULT_COLLAPSED_HEIGHT);
     }
   }
 
@@ -111,8 +143,9 @@ const getGridDisplayState = () => {
 
   return {
     syncWithDb,
-    getTrackExpanded: (trackId: string) => expandedTracks.has(trackId),
-    getParameterExpanded: (parameterId: string) => expandedParameters.has(parameterId),
+    getTrackExpanded: (trackId: string) => trackLaneStates.get(trackId)?.expanded ?? false,
+    getParameterExpanded: (parameterId: string) =>
+      parameterLaneStates.get(parameterId)?.expanded ?? false,
     toggleTrackExpansion,
     toggleParameterExpansion,
     getTrackOrder: () => trackOrder,
@@ -121,13 +154,13 @@ const getGridDisplayState = () => {
       trackOrder = order;
     },
     setParameterOrder: (trackId: string, order: string[]) => {
-      parameterOrder[trackId] = order;
+      parameterOrder.set(trackId, order);
     },
-    getLaneHeight: (trackOrParamId: string) => laneHeights[trackOrParamId],
-    getGridHeight: () => sum(Object.values(laneHeights)),
+    getLaneHeight: (trackOrParamId: string) => laneHeights.get(trackOrParamId) ?? 0,
+    getGridHeight: () => sum(Array.from(laneHeights.values())),
     getLanes: () => lanes,
     setLaneHeight: (trackOrParamId: string, height: number) => {
-      laneHeights[trackOrParamId] = height;
+      laneHeights.set(trackOrParamId, height);
     },
     setGridContainer: (container: HTMLDivElement) => {
       gridContainer = container;

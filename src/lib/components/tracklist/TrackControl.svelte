@@ -19,7 +19,7 @@
 
   let deviceStore = useTrackDbQuery((trackDb) => trackDb.devices.getTrackDevice(trackId), null);
   let device = $derived(deviceStore.getResult());
-  let parameterIds = $derived(gridDisplayState.getParameterOrder()[trackId]);
+  let parameterIds = $derived(gridDisplayState.getParameterOrder().get(trackId) ?? []);
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
 </script>
 

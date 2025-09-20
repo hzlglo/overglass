@@ -17,16 +17,22 @@
       return;
     }
     let [[x0, y0], [x1, y1]] = event.selection;
+
+    // Ensure y0 < y1
+    if (y0 > y1) [y0, y1] = [y1, y0];
+    if (x0 > x1) [x0, x1] = [x1, x0];
+
     let { sourceEvent } = event;
     if (sourceEvent && brushG) {
       // Snap y0 and y1 to allowed values
-      const firstLaneIndex = lanes.findIndex((l) => l.top <= y0);
-      const lastLaneIndex = lanes.findIndex((l) => l.bottom >= y1);
+      const firstLaneIndex = lanes.findIndex((l) => l.top < y0 && l.bottom > y0);
+      const lastLaneIndex = lanes.findIndex((l) => l.top < y1 && l.bottom > y1);
+      if (firstLaneIndex === -1 || lastLaneIndex === -1) {
+        return;
+      }
+
       y0 = lanes[firstLaneIndex].top;
       y1 = lanes[lastLaneIndex].bottom;
-
-      // Ensure y0 < y1
-      if (y0 > y1) [y0, y1] = [y1, y0];
 
       // Update the brush rectangle visually
       brushG.call(brush.move, [

@@ -31,9 +31,13 @@ describe('Regex Configuration', () => {
       expect(result1.isMute).toBe(true);
       expect(result1.trackNumber).toBe(1);
 
-      const result2 = matcher.parsemuteParameter('T8 Muted');
+      const result2 = matcher.parsemuteParameter('T8 Mute');
       expect(result2.isMute).toBe(true);
       expect(result2.trackNumber).toBe(8);
+
+      const result3 = matcher.parsemuteParameter('T5 MuteLevel');
+      expect(result3.isMute).toBe(true);
+      expect(result3.trackNumber).toBe(5);
     });
 
     it('should handle case insensitive mute detection', () => {
@@ -41,7 +45,7 @@ describe('Regex Configuration', () => {
       expect(result1.isMute).toBe(true);
       expect(result1.trackNumber).toBe(1);
 
-      const result2 = matcher.parsemuteParameter('T5 muted');
+      const result2 = matcher.parsemuteParameter('T5 mute');
       expect(result2.isMute).toBe(true);
       expect(result2.trackNumber).toBe(5);
     });

@@ -7,7 +7,6 @@ export interface DatabaseSchema {
   tracks: Track;
   parameters: Parameter;
   automationPoints: AutomationPoint;
-  editHistory: EditHistory;
 }
 
 export interface Device {
@@ -33,6 +32,7 @@ export interface Parameter {
   parameterName: string; // e.g., "Filter Cutoff", "Volume"
   parameterPath?: string; // Full automation target path from ALS
   originalPointeeId?: string; // Original PointeeId from ALS XML for envelope matching
+  isMute: boolean; // Whether this parameter is a mute parameter
   createdAt: Date;
 }
 
@@ -44,15 +44,6 @@ export interface AutomationPoint {
   curveType?: string; // Linear, bezier, etc. (future)
   createdAt: Date;
   updatedAt?: Date;
-}
-
-export interface EditHistory {
-  id: string; // UUID for the edit
-  editType: 'parameter' | 'clip_move' | 'bulk_move' | 'timeline_edit';
-  editTimestamp: Date; // When the edit was made
-  affectedTracks: string; // JSON array of track_ids
-  editData: string; // JSON blob of edit details
-  canUndo: boolean; // Whether this edit can be undone
 }
 
 // Utility functions for camelCase <-> snake_case conversion
@@ -95,6 +86,7 @@ export const CREATE_TABLES = {
       parameter_name VARCHAR NOT NULL,
       parameter_path VARCHAR,
       original_pointee_id VARCHAR,
+      is_mute BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMP NOT NULL,
       FOREIGN KEY (track_id) REFERENCES tracks(id)
     )
@@ -144,14 +136,4 @@ export interface ParameterStats {
   minTime: number;
   maxTime: number;
   pointCount: number;
-}
-
-// Computed clip information derived from mute automation
-export interface ComputedClip {
-  trackId: string;
-  trackNumber: number;
-  startTime: number;
-  endTime: number;
-  duration: number; // endTime - startTime
-  isActive: boolean;
 }

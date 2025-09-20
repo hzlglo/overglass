@@ -58,6 +58,7 @@
   let innerHeight = $derived(gridHeight - margin.top - margin.bottom);
 
   let lanes = $derived(gridDisplayState.getLanes());
+  $inspect('lanes', lanes);
 
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
@@ -73,7 +74,10 @@
 
     const pan = (event: WheelEvent) => {
       zoom.translateBy(svg.transition().duration(50), event.wheelDeltaX, 0);
-      event.preventDefault();
+      console.log(event.wheelDeltaX, event.wheelDeltaY);
+      if (Math.abs(event.wheelDeltaX) > Math.abs(event.wheelDeltaY)) {
+        event.preventDefault();
+      }
     };
     svg.call(zoom).on('wheel', pan);
   });
@@ -114,6 +118,8 @@
       }
     }
   });
+  $inspect('gridwidth', gridWidth);
+  $inspect('gridheight', gridHeight);
 </script>
 
 <SizeObserver bind:width bind:height>
@@ -124,7 +130,16 @@
         <GridBrush />
         <g bind:this={svgGroupElement}>
           {#each lanes as lane (lane.id)}
-            {#if lane.type === 'parameter'}
+            {#if lane.type === 'track' && lane.muteParameterId}
+              <AutomationCurveWrapper
+                parameterId={lane.muteParameterId}
+                height={gridDisplayState.getLaneHeight(lane.id)}
+                width={gridWidth}
+                yPosition={lane.top}
+                {trackCustomizations}
+                isMute
+              />
+            {:else if lane.type === 'parameter'}
               <AutomationCurveWrapper
                 parameterId={lane.id}
                 height={gridDisplayState.getLaneHeight(lane.id)}

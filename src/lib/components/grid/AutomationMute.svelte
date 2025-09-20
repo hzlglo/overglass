@@ -4,10 +4,10 @@
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { clamp } from '$lib/utils/utils';
-  import { sortBy } from 'lodash';
+  import { sortBy, uniq } from 'lodash';
   import { trackDb } from '$lib/stores/trackDb.svelte';
 
-  interface AutomationCurveProps {
+  interface AutomationMuteProps {
     parameterId: string;
     parameter: Parameter & ParameterStats;
     height: number;
@@ -25,23 +25,13 @@
     yPosition,
     automationPoints,
     color: colorProp,
-  }: AutomationCurveProps = $props();
-
-  $inspect('automationcurve', {
-    parameterId,
-    parameter,
-    height,
-    width,
-    yPosition,
-    automationPoints,
-    color: colorProp,
-  });
+  }: AutomationMuteProps = $props();
 
   // State
   let gElement = $state<SVGElement>();
 
   // Derived values
-  const margin = { top: 1, right: 0, bottom: 1, left: 0 };
+  const margin = { top: 10, right: 0, bottom: 10, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
 
   let innerHeight = $derived(height - margin.top - margin.bottom);
@@ -57,14 +47,6 @@
       .range([0, 0 - innerHeight]),
   );
 
-  let lineFn = $derived(
-    d3
-      .line<AutomationPoint>()
-      .x((d) => xScale(d.timePosition))
-      .y((d) => yScale(d.value))
-      .curve(d3.curveLinear),
-  );
-
   let areaFn = $derived(
     d3
       .area<AutomationPoint>()
@@ -78,33 +60,23 @@
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
 
-  let { area, line } = $derived.by(() => {
+  let { area } = $derived.by(() => {
     if (!svgGroup) {
-      return { area: undefined, line: undefined };
+      return { area: undefined };
     }
-    svgGroup.selectAll('.area, .line').remove();
+    svgGroup.selectAll('.area').remove();
     // Draw area
     const area = svgGroup
       .append('path')
       .attr('class', 'area')
       .attr('fill', color)
-      .attr('fill-opacity', 0.2)
+      .attr('fill-opacity', 0.6)
       .style('pointer-events', 'none');
-
-    // Draw line
-    const line = svgGroup
-      .append('path')
-      .attr('class', 'line')
-      .attr('fill', 'none')
-      .attr('stroke', color)
-      .attr('stroke-opacity', 0.4)
-      .attr('stroke-width', 2)
-      .style('pointer-events', 'none');
-    return { area: area, line: line };
+    return { area: area };
   });
 
   $effect(() => {
-    if (area && line) {
+    if (area) {
       // Ensure points are within the range of the xScale
       const updatedAutomationPoints = sortBy(
         automationPoints.map((point) => ({
@@ -114,37 +86,38 @@
         (p) => p.timePosition,
       );
       area.datum(updatedAutomationPoints).attr('d', areaFn);
-      line.datum(updatedAutomationPoints).attr('d', lineFn);
     }
   });
 
-  // Draw points
-  let points = $derived.by(() => {
-    // Add new points
-    let circles = svgGroup
-      ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
-      .data(automationPoints, (p) => p.id)
+  let muteTransitions = $derived(uniq(automationPoints.map((p) => p.timePosition)));
+
+  let muteDragHandles = $derived.by(() => {
+    if (!svgGroup) {
+      return undefined;
+    }
+    const rects = svgGroup
+      .selectAll('.mute-drag-handle')
+      .data(muteTransitions, (d) => d)
       .join(
-        (enter) => enter.append('circle'),
+        (enter) => enter.append('rect'),
         (update) => update,
         (exit) => exit.remove(),
       );
-
-    circles
-      ?.attr('cx', (d) => xScale(d.timePosition))
-      .attr('cy', (d) => yScale(d.value))
-      .attr('class', 'point')
-      .attr('r', 3)
+    rects
+      ?.attr('x', (d) => xScale(d))
+      .attr('y', (d) => 0)
+      .attr('class', 'mute-drag-handle')
+      .attr('width', 2)
+      .attr('height', innerHeight)
       .attr('fill', color)
-      .attr('fill-opacity', 0.4)
+      .attr('fill-opacity', 1)
       .attr('stroke', color)
-      .attr('stroke-width', 1);
-
-    return circles;
+      .attr('stroke-width', 1)
+      .attr('rx', 2);
+    return rects;
   });
 
   let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
-  $inspect('selectedPoints', selectedPoints);
   let thisParameterSelectedPoints = $derived(
     selectedPoints.filter((p) => p.parameterId === parameterId),
   );
@@ -174,35 +147,35 @@
   );
 
   $effect(() => {
-    points?.call(drag, []);
+    muteDragHandles?.call(drag, []);
   });
 
-  // Draw selected points
-  let selectedPointsCircles = $derived.by(() => {
-    // Add new points
-    let circles = svgGroup
-      ?.selectAll<SVGCircleElement, AutomationPoint>('.point.selected')
-      .data(thisParameterSelectedPoints, (p) => p.id)
-      .join(
-        (enter) => enter.append('circle'),
-        (update) => update,
-        (exit) => exit.remove(),
-      );
+  // // Draw selected points
+  // let selectedPointsCircles = $derived.by(() => {
+  //   // Add new points
+  //   let circles = svgGroup
+  //     ?.selectAll<SVGCircleElement, AutomationPoint>('.point.selected')
+  //     .data(thisParameterSelectedPoints, (p) => p.id)
+  //     .join(
+  //       (enter) => enter.append('circle'),
+  //       (update) => update,
+  //       (exit) => exit.remove(),
+  //     );
 
-    circles
-      ?.attr('cx', (d) => xScale(d.timePosition))
-      .attr('cy', (d) => yScale(d.value))
-      .attr('class', 'point selected')
-      .attr('r', 3)
-      .attr('fill', 'var(--color-base-content)')
-      .attr('fill-opacity', 0.4)
-      .attr('stroke', 'var(--color-base-content)')
-      .attr('stroke-width', 1);
-    return circles;
-  });
-  $effect(() => {
-    selectedPointsCircles?.call(drag, []);
-  });
+  //   circles
+  //     ?.attr('cx', (d) => xScale(d.timePosition))
+  //     .attr('cy', (d) => yScale(d.value))
+  //     .attr('class', 'point selected')
+  //     .attr('r', 3)
+  //     .attr('fill', 'var(--color-base-content)')
+  //     .attr('fill-opacity', 0.4)
+  //     .attr('stroke', 'var(--color-base-content)')
+  //     .attr('stroke-width', 1);
+  //   return circles;
+  // });
+  // $effect(() => {
+  //   selectedPointsCircles?.call(drag, []);
+  // });
 </script>
 
 <g

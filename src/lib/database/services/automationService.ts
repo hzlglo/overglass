@@ -293,7 +293,7 @@ export class AutomationService {
     endTime: number,
     timeOffset: number,
   ): Promise<number> {
-    // Get automation points within the clip time range
+    // Get automation points within the time range
     const pointsInRange = await this.getAutomationPointsInRange(parameterId, startTime, endTime);
 
     if (pointsInRange.length === 0) {
@@ -339,7 +339,7 @@ export class AutomationService {
     endTime: number,
     timeOffset: number,
   ): Promise<number> {
-    // Get automation points within the clip time range
+    // Get automation points within the time range
     const pointsInRange = await this.getAutomationPointsInRange(parameterId, startTime, endTime);
 
     if (pointsInRange.length === 0) {

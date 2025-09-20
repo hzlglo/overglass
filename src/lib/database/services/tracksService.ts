@@ -71,6 +71,7 @@ export class TracksService {
         p.parameter_name,
         p.parameter_path,
         p.original_pointee_id,
+        p.is_mute,
         p.created_at,
         COALESCE(MIN(ap.value), 0) as min_value,
         COALESCE(MAX(ap.value), 1) as max_value,
@@ -80,7 +81,7 @@ export class TracksService {
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE p.track_id = ${trackId}
-      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.created_at
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.is_mute, p.created_at
       ORDER BY p.parameter_name
     `;
     const parameters = await this.db.run(sql.sql, sql.values);
@@ -96,6 +97,7 @@ export class TracksService {
         p.parameter_name,
         p.parameter_path,
         p.original_pointee_id,
+        p.is_mute,
         p.created_at,
         COALESCE(MIN(ap.value), 0) as min_value,
         COALESCE(MAX(ap.value), 1) as max_value,
@@ -105,7 +107,7 @@ export class TracksService {
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE p.id = ${parameterId}
-      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.created_at
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.is_mute, p.created_at
     `;
     const parameters = await this.db.run(sql.sql, sql.values);
     return parameters.length > 0 ? parameters[0] : null;
