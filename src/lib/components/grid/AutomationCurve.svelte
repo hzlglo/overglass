@@ -132,10 +132,15 @@
 
     return circles;
   });
-  let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
 
-  $effect(() => {
-    const drag = d3
+  let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
+  $inspect('selectedPoints', selectedPoints);
+  let thisParameterSelectedPoints = $derived(
+    selectedPoints.filter((p) => p.parameterId === parameterId),
+  );
+
+  let drag = $derived(
+    d3
       .drag()
       .on(
         'start',
@@ -143,10 +148,9 @@
           event: d3.D3DragEvent<SVGCircleElement, AutomationPoint, SVGElement>,
           d: AutomationPoint,
         ) => {
-          if (!selectedPoints.has(d)) {
+          if (!selectedPoints.find((p) => p.id === d.id)) {
             sharedDragSelect.setBrushSelection(null);
-            selectedPoints.clear();
-            selectedPoints.add(d);
+            sharedDragSelect.setSelectedPoints([d]);
           }
         },
       )
@@ -161,10 +165,40 @@
         points?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
       })
       .on('end', async (event, d) => {
-        await trackDb.get().automation.bulkSetAutomationPoints(Array.from(selectedPoints));
+        await trackDb.get().automation.bulkSetAutomationPoints(selectedPoints);
         await trackDb.refreshData();
-      });
+      }),
+  );
+
+  $effect(() => {
     points?.call(drag, []);
+  });
+
+  // Draw selected points
+  let selectedPointsCircles = $derived.by(() => {
+    // Add new points
+    let circles = svgGroup
+      ?.selectAll<SVGCircleElement, AutomationPoint>('.point.selected')
+      .data(thisParameterSelectedPoints, (p) => p.id)
+      .join(
+        (enter) => enter.append('circle'),
+        (update) => update,
+        (exit) => exit.remove(),
+      );
+
+    circles
+      ?.attr('cx', (d) => xScale(d.timePosition))
+      .attr('cy', (d) => yScale(d.value))
+      .attr('class', 'point selected')
+      .attr('r', 3)
+      .attr('fill', 'var(--color-base-content)')
+      .attr('fill-opacity', 0.4)
+      .attr('stroke', 'var(--color-base-content)')
+      .attr('stroke-width', 1);
+    return circles;
+  });
+  $effect(() => {
+    selectedPointsCircles?.call(drag, []);
   });
 </script>
 

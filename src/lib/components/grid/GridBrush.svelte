@@ -1,30 +1,19 @@
 <script lang="ts">
-  import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
+  import { trackDb } from '$lib/stores/trackDb.svelte';
   import * as d3 from 'd3';
-  import { flatten, groupBy } from 'lodash';
-  import { SvelteSet } from 'svelte/reactivity';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
 
   let lanes = $derived(gridDisplayState.getLanes());
 
-  // Load automation points
-  let automationPointsStore = useTrackDbQuery(
-    (trackDb) => trackDb.automation.getAutomationPoints({}),
-    [],
-  );
-  let automationPointsByParameterId = $derived(
-    groupBy(automationPointsStore.getResult(), (point) => point.parameterId),
-  );
-
   let brushGElement = $state<SVGGElement>();
   let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);
-  let brushHandler = (event) => {
+  let brushHandler = async (event: unknown) => {
     if (!event.selection) {
       sharedDragSelect.setBrushSelection(null);
       sharedDragSelect.setSelectedLanes([]);
-      sharedDragSelect.getSelectedPoints().clear();
+      sharedDragSelect.setSelectedPoints([]);
       return;
     }
     let [[x0, y0], [x1, y1]] = event.selection;
@@ -49,16 +38,15 @@
 
       const xScale = sharedXScale.getZoomedXScale();
       let [startTime, endTime] = [xScale.invert(x0), xScale.invert(x1)];
-      let selectedPoints = flatten(
-        selectedLanes
-          .filter((l) => l.type === 'parameter')
-          .map((l) =>
-            automationPointsByParameterId[l.id].filter(
-              (p) => p.timePosition >= startTime && p.timePosition <= endTime,
-            ),
-          ),
-      );
-      sharedDragSelect.setSelectedPoints(new SvelteSet(selectedPoints));
+      let selectedParameterIds = selectedLanes
+        .filter((l) => l.type === 'parameter')
+        .map((l) => l.id);
+      let selectedPoints = await trackDb.get().automation.getAutomationPoints({
+        parameterIds: selectedParameterIds,
+        startTime,
+        endTime,
+      });
+      sharedDragSelect.setSelectedPoints(selectedPoints);
     }
 
     sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });

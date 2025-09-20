@@ -5,7 +5,7 @@ import type { LaneDisplay } from './gridDisplayState.svelte';
 const getSharedDragSelect = () => {
   let brushSelection: null | { x0: number; y0: number; x1: number; y1: number } = $state(null);
   let selectedLanes: null | LaneDisplay[] = $state(null);
-  let selectedPoints: SvelteSet<AutomationPoint> = $state(new SvelteSet());
+  let selectedPoints: AutomationPoint[] = $state([]);
   return {
     getBrushSelection: () => brushSelection,
     setBrushSelection: (
@@ -13,7 +13,7 @@ const getSharedDragSelect = () => {
     ) => {
       brushSelection = brushSelectionInner;
       if (!brushSelectionInner) {
-        selectedPoints.clear();
+        selectedPoints = [];
         return;
       }
     },
@@ -22,7 +22,7 @@ const getSharedDragSelect = () => {
       selectedLanes = selectedLanesInner;
     },
     getSelectedPoints: () => selectedPoints,
-    setSelectedPoints: (selectedPointsInner: SvelteSet<AutomationPoint>) => {
+    setSelectedPoints: (selectedPointsInner: AutomationPoint[]) => {
       selectedPoints = selectedPointsInner;
     },
   };

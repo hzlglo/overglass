@@ -171,8 +171,8 @@ export class AutomationService {
     `;
     const params: any[] = parameterId ? [parameterId] : [];
     if (parameterIds) {
-      sql += ' AND parameter_id IN (?)';
-      params.push(parameterIds.join(','));
+      sql += ` AND parameter_id IN (${Array(parameterIds.length).fill('?').join(',')})`;
+      params.push(...parameterIds);
     }
 
     if (startTime !== undefined) {
