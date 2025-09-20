@@ -1,5 +1,6 @@
 import type { AutomationPoint, ParameterStats } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
+import SQL, { join } from 'sql-template-tag';
 
 export class AutomationService {
   constructor(private db: AutomationDatabase) {}
@@ -164,29 +165,28 @@ export class AutomationService {
     startTime?: number;
     endTime?: number;
   }): Promise<AutomationPoint[]> {
-    let sql = `
-      SELECT id, parameter_id, time_position, value, curve_type, created_at, updated_at
-      FROM automation_points
-      WHERE ${parameterId ? 'parameter_id = ?' : '1'}
-    `;
-    const params: any[] = parameterId ? [parameterId] : [];
-    if (parameterIds) {
-      sql += ` AND parameter_id IN (${Array(parameterIds.length).fill('?').join(',')})`;
-      params.push(...parameterIds);
+    let filters = [];
+    let params: any[] = [];
+    if (parameterId) {
+      filters.push(SQL`parameter_id = ${parameterId}`);
     }
-
+    if (parameterIds) {
+      filters.push(SQL`parameter_id IN (${join(parameterIds)})`);
+    }
     if (startTime !== undefined) {
-      sql += ' AND time_position >= ?';
-      params.push(startTime);
+      filters.push(SQL`time_position >= ${startTime}`);
     }
     if (endTime !== undefined) {
-      sql += ' AND time_position <= ?';
-      params.push(endTime);
+      filters.push(SQL`time_position <= ${endTime}`);
     }
+    let sql = SQL`
+      SELECT id, parameter_id, time_position, value, curve_type, created_at, updated_at
+      FROM automation_points
+      WHERE ${join(filters, ' AND ')}
+      ORDER BY time_position
+    `;
 
-    sql += ' ORDER BY time_position';
-
-    return await this.db.run(sql, params);
+    return await this.db.run(sql.sql, sql.values);
   }
 
   /**
