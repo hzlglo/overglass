@@ -4,6 +4,7 @@ import type { DatabaseAdapter } from './interface';
 import { DeviceService } from './services/deviceService';
 import { AutomationService } from './services/automationService';
 import { TracksService } from './services/tracksService';
+import { MuteTransitionService } from './services/muteTransitionService';
 
 export class AutomationDatabase {
   private adapter: DatabaseAdapter;
@@ -13,6 +14,7 @@ export class AutomationDatabase {
   public readonly devices: DeviceService;
   public readonly tracks: TracksService;
   public readonly automation: AutomationService;
+  public readonly muteTransitions: MuteTransitionService;
 
   constructor(adapter: DatabaseAdapter) {
     this.adapter = adapter;
@@ -21,6 +23,7 @@ export class AutomationDatabase {
     this.devices = new DeviceService(this);
     this.tracks = new TracksService(this);
     this.automation = new AutomationService(this);
+    this.muteTransitions = new MuteTransitionService(this);
   }
 
   async initialize(): Promise<void> {

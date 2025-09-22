@@ -1,29 +1,29 @@
 <script lang="ts">
   import * as d3 from 'd3';
-  import type { AutomationPoint, Parameter, ParameterStats } from '../../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { clamp } from '$lib/utils/utils';
   import { sortBy, uniq } from 'lodash';
   import { trackDb } from '$lib/stores/trackDb.svelte';
+  import type { Track, MuteTransition } from '$lib/database/schema';
 
   interface AutomationMuteProps {
-    parameterId: string;
-    parameter: Parameter & ParameterStats;
+    trackId: string;
+    track: Track;
     height: number;
     width: number;
     yPosition: number;
-    automationPoints: AutomationPoint[];
+    muteTransitions: MuteTransition[];
     color: string | undefined;
   }
 
   let {
-    parameterId,
-    parameter,
+    trackId,
+    track,
     height,
     width,
     yPosition,
-    automationPoints,
+    muteTransitions,
     color: colorProp,
   }: AutomationMuteProps = $props();
 
@@ -47,49 +47,9 @@
       .range([0, 0 - innerHeight]),
   );
 
-  let areaFn = $derived(
-    d3
-      .area<AutomationPoint>()
-      .x((d) => xScale(d.timePosition))
-      .y0(innerHeight)
-      .y1((d) => yScale(d.value))
-      .curve(d3.curveLinear),
-  );
-
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
-
-  let { area } = $derived.by(() => {
-    if (!svgGroup) {
-      return { area: undefined };
-    }
-    svgGroup.selectAll('.area').remove();
-    // Draw area
-    const area = svgGroup
-      .append('path')
-      .attr('class', 'area')
-      .attr('fill', color)
-      .attr('fill-opacity', 0.6)
-      .style('pointer-events', 'none');
-    return { area: area };
-  });
-
-  $effect(() => {
-    if (area) {
-      // Ensure points are within the range of the xScale
-      const updatedAutomationPoints = sortBy(
-        automationPoints.map((point) => ({
-          ...point,
-          timePosition: point.timePosition < 0 ? 0 : point.timePosition,
-        })),
-        (p) => p.timePosition,
-      );
-      area.datum(updatedAutomationPoints).attr('d', areaFn);
-    }
-  });
-
-  let muteTransitions = $derived(uniq(automationPoints.map((p) => p.timePosition)));
 
   let muteDragHandles = $derived.by(() => {
     if (!svgGroup) {
@@ -97,14 +57,14 @@
     }
     const rects = svgGroup
       .selectAll('.mute-drag-handle')
-      .data(muteTransitions, (d) => d)
+      .data(muteTransitions, (d) => d.id)
       .join(
         (enter) => enter.append('rect'),
         (update) => update,
         (exit) => exit.remove(),
       );
     rects
-      ?.attr('x', (d) => xScale(d))
+      ?.attr('x', (d) => xScale(d.timePosition))
       .attr('y', (d) => 0)
       .attr('class', 'mute-drag-handle')
       .attr('width', 2)
@@ -118,9 +78,7 @@
   });
 
   let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
-  let thisParameterSelectedPoints = $derived(
-    selectedPoints.filter((p) => p.parameterId === parameterId),
-  );
+  let thisTrackSelectedPoints = $derived(selectedPoints.filter((p) => p.trackId === trackId));
 
   let drag = $derived(
     d3
@@ -128,8 +86,8 @@
       .on(
         'start',
         (
-          event: d3.D3DragEvent<SVGCircleElement, AutomationPoint, SVGElement>,
-          d: AutomationPoint,
+          event: d3.D3DragEvent<SVGCircleElement, MuteTransition, SVGElement>,
+          d: MuteTransition,
         ) => {
           if (!selectedPoints.find((p) => p.id === d.id)) {
             sharedDragSelect.setBrushSelection(null);
@@ -155,7 +113,7 @@
   //   // Add new points
   //   let circles = svgGroup
   //     ?.selectAll<SVGCircleElement, AutomationPoint>('.point.selected')
-  //     .data(thisParameterSelectedPoints, (p) => p.id)
+  //     .data(thisTrackSelectedPoints, (p) => p.id)
   //     .join(
   //       (enter) => enter.append('circle'),
   //       (update) => update,
@@ -179,7 +137,7 @@
 </script>
 
 <g
-  id={`${parameterId}-${parameter.parameterName}`}
+  id={`${trackId}-${track.trackName}`}
   bind:this={gElement}
   transform={`translate(0,${yPosition + margin.top})`}
   {color}

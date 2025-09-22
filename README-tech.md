@@ -48,6 +48,7 @@ This project bridges Ableton Live’s `.als` project format with a specialized i
 
 - **Database:** DuckDB (with TypeScript integration)
 - Services to read+write specific data from database, e.g. DeviceService, TracksService
+- database columns are snake_case. All typescript keys are camelCase. database.run takes care of converting any results from snake_case to camelCase
 
 ### Data Flow
 

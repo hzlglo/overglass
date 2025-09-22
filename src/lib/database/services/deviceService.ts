@@ -30,6 +30,10 @@ export class DeviceService {
     for (const automationPoint of entities.automationPoints) {
       await this.db.insertRecord('automation_points', automationPoint);
     }
+
+    for (const muteTransition of entities.muteTransitions) {
+      await this.db.insertRecord('mute_transitions', muteTransition);
+    }
   }
 
   /**

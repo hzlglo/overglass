@@ -10,13 +10,10 @@ let DEFAULT_PARAMETER_HEIGHT = 100;
 let DEFAULT_TRACK_HEIGHT = 50;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
-export type LaneDisplay =
-  | { top: number; bottom: number; type: 'parameter'; id: string }
-  | { top: number; bottom: number; type: 'track'; id: string; muteParameterId: string | null };
+export type LaneDisplay = { top: number; bottom: number; type: 'parameter' | 'track'; id: string };
 
 export type TrackLaneState = {
   expanded: boolean;
-  muteParameterId: string | null;
 };
 export type ParameterLaneState = {
   expanded: boolean;
@@ -43,7 +40,6 @@ const getGridDisplayState = () => {
         bottom: y + (laneHeights.get(trackId) ?? 0),
         type: 'track',
         id: trackId,
-        muteParameterId: trackLaneState.muteParameterId,
       });
       y += laneHeights.get(trackId) ?? 0;
       if (trackLaneState.expanded) {
@@ -77,11 +73,9 @@ const getGridDisplayState = () => {
       // Expand all parameters for each track
       for (const track of tracks) {
         const parameters = await db.tracks.getParametersForTrack(track.id);
-        const muteParameterId = parameters?.find((p) => p.isMute)?.id ?? null;
-        const nonMuteParameters = parameters?.filter((p) => p.id !== muteParameterId) ?? [];
-        trackLaneStates.set(track.id, { expanded: true, muteParameterId });
-        if (nonMuteParameters) {
-          nonMuteParameters.forEach((param) => {
+        trackLaneStates.set(track.id, { expanded: true });
+        if (parameters) {
+          parameters.forEach((param) => {
             parameterLaneStates.set(param.id, { expanded: true });
 
             laneHeights.set(param.id, DEFAULT_PARAMETER_HEIGHT);
@@ -89,7 +83,7 @@ const getGridDisplayState = () => {
         }
         parameterOrder.set(
           track.id,
-          nonMuteParameters.map((p) => p.id),
+          parameters.map((p) => p.id),
         );
       }
     }

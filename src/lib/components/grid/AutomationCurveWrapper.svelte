@@ -2,19 +2,17 @@
   import type { TrackCustomization } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '../../stores/trackDb.svelte';
   import AutomationCurve from './AutomationCurve.svelte';
-  import AutomationMute from './AutomationMute.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
 
-  interface AutomationCurveProps {
+  interface AutomationCurveWrapperProps {
     parameterId: string;
     height: number;
     width: number;
     yPosition: number;
     trackCustomizations: Record<string, TrackCustomization>;
-    isMute?: boolean;
   }
 
-  let { parameterId, height, width, yPosition, trackCustomizations, isMute }: AutomationCurveProps =
+  let { parameterId, height, width, yPosition, trackCustomizations }: AutomationCurveWrapperProps =
     $props();
   let parameterStore = useTrackDbQuery((db) => db.tracks.getParameterById(parameterId), null);
   let parameter = $derived(parameterStore.getResult());
@@ -30,16 +28,6 @@
 {#if parameter}
   {#if isExpanded}
     <AutomationCurve
-      {parameterId}
-      {parameter}
-      {height}
-      {width}
-      {yPosition}
-      {automationPoints}
-      color={trackCustomizations[parameter.trackId]?.color}
-    />
-  {:else if isMute}
-    <AutomationMute
       {parameterId}
       {parameter}
       {height}

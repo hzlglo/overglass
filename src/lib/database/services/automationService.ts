@@ -166,7 +166,6 @@ export class AutomationService {
     endTime?: number;
   }): Promise<AutomationPoint[]> {
     let filters = [];
-    let params: any[] = [];
     if (parameterId) {
       filters.push(SQL`parameter_id = ${parameterId}`);
     }

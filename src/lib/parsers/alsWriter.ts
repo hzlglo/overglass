@@ -1,6 +1,6 @@
 import type { ParsedALS } from '../types/automation';
 import type { AutomationDatabase } from '../database/duckdb';
-import type { Device, Track, Parameter, AutomationPoint } from '../database/schema';
+import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { gzipXmlHelpers } from '../utils/gzipXmlHelpers';
 import {
   extractAutomationEnvelopes,
@@ -96,6 +96,110 @@ export class ALSWriter {
             parameter,
             automationPoints
           });
+        }
+
+        // Separately handle mute transitions for this track
+        const muteTransitions = await this.db.muteTransitions.getMuteTransitionsForTrack(track.id);
+        if (muteTransitions.length > 0) {
+          console.log(`🔇 Converting ${muteTransitions.length} mute transitions to automation points for track "${track.trackName}"`);
+
+          // Group mute transitions by their mute parameter ID
+          const transitionsByParameter = new Map<string, MuteTransition[]>();
+          for (const transition of muteTransitions) {
+            if (!transitionsByParameter.has(transition.muteParameterId)) {
+              transitionsByParameter.set(transition.muteParameterId, []);
+            }
+            transitionsByParameter.get(transition.muteParameterId)!.push(transition);
+          }
+
+          // Convert each group of mute transitions to automation points
+          for (const [muteParameterId, transitions] of transitionsByParameter) {
+            const muteAutomationPoints: AutomationPoint[] = [];
+
+            // Sort transitions by time to ensure proper ordering
+            const sortedTransitions = transitions.sort((a, b) => a.timePosition - b.timePosition);
+
+            // The first transition represents the initial state
+            // We need to add automation points that represent the transitions between states
+            for (let i = 0; i < sortedTransitions.length; i++) {
+              const transition = sortedTransitions[i];
+
+              // For the initial state (usually at -63072000), add a single point
+              if (i === 0) {
+                const initialPoint = {
+                  id: `mute_${transition.id}`,
+                  parameterId: muteParameterId,
+                  timePosition: transition.timePosition,
+                  value: transition.isMuted ? 1 : 0,
+                  curveType: 'linear' as const,
+                  createdAt: transition.createdAt,
+                  updatedAt: transition.updatedAt
+                };
+                muteAutomationPoints.push(initialPoint);
+              } else {
+                // For subsequent transitions, we need to create the state change
+                // Add ending point for previous state at current time
+                const prevTransition = sortedTransitions[i - 1];
+                const endPrevPoint = {
+                  id: `mute_${transition.id}_prev`,
+                  parameterId: muteParameterId,
+                  timePosition: transition.timePosition,
+                  value: prevTransition.isMuted ? 1 : 0, // Previous state value
+                  curveType: 'linear' as const,
+                  createdAt: transition.createdAt,
+                  updatedAt: transition.updatedAt
+                };
+                muteAutomationPoints.push(endPrevPoint);
+
+                // Add starting point for new state at current time
+                const startNewPoint = {
+                  id: `mute_${transition.id}`,
+                  parameterId: muteParameterId,
+                  timePosition: transition.timePosition,
+                  value: transition.isMuted ? 1 : 0, // New state value
+                  curveType: 'linear' as const,
+                  createdAt: transition.createdAt,
+                  updatedAt: transition.updatedAt
+                };
+                muteAutomationPoints.push(startNewPoint);
+              }
+            }
+
+            // Sort by time position to maintain proper order
+            muteAutomationPoints.sort((a, b) => a.timePosition - b.timePosition);
+
+            // Create or update parameter data for mute parameter
+            if (parameterData.has(muteParameterId)) {
+              // If parameter already exists (shouldn't happen for mute params), add to existing points
+              const existingData = parameterData.get(muteParameterId)!;
+              const allPoints = [...existingData.automationPoints, ...muteAutomationPoints];
+              allPoints.sort((a, b) => a.timePosition - b.timePosition);
+              existingData.automationPoints = allPoints;
+            } else {
+              // Create a synthetic parameter entry for the mute parameter
+              // We need to find the parameter info for this muteParameterId
+              const muteParameter = await this.db.run(
+                'SELECT id, parameter_name, original_pointee_id FROM parameters WHERE id = ?',
+                [muteParameterId]
+              );
+
+              if (muteParameter.length > 0) {
+                const param = muteParameter[0];
+                parameterData.set(muteParameterId, {
+                  parameter: {
+                    id: param.id,
+                    trackId: track.id,
+                    parameterName: param.parameterName,
+                    originalPointeeId: param.originalPointeeId,
+                    isMute: true, // Keep for now until we clean it up
+                    createdAt: new Date()
+                  },
+                  automationPoints: muteAutomationPoints
+                });
+                console.log(`📝 Created synthetic parameter entry for mute parameter "${param.parameterName}" with ${muteAutomationPoints.length} automation points`);
+              }
+            }
+          }
         }
 
         trackData.set(track.id, {

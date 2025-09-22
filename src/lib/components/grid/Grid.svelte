@@ -14,6 +14,7 @@
   import GridTimelineBottom from './GridTimelineBottom.svelte';
   import GridTimelineTop from './GridTimelineTop.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
+  import MuteTransitionWrapper from './MuteTransitionWrapper.svelte';
 
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
@@ -130,14 +131,13 @@
         <GridBrush />
         <g bind:this={svgGroupElement}>
           {#each lanes as lane (lane.id)}
-            {#if lane.type === 'track' && lane.muteParameterId}
-              <AutomationCurveWrapper
-                parameterId={lane.muteParameterId}
+            {#if lane.type === 'track'}
+              <MuteTransitionWrapper
+                trackId={lane.id}
                 height={gridDisplayState.getLaneHeight(lane.id)}
                 width={gridWidth}
                 yPosition={lane.top}
                 {trackCustomizations}
-                isMute
               />
             {:else if lane.type === 'parameter'}
               <AutomationCurveWrapper

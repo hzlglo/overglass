@@ -267,4 +267,47 @@ describe('ALS Parser', () => {
       expect(typeof param.isMute).toBe('boolean');
     });
   });
+
+  it('should extract mute transitions from binary mute parameters instead of automation points', async () => {
+    const result = await parser.parseALSFile(testFile);
+    const entities = parser.extractDatabaseEntities(result);
+
+    console.log(`Found ${entities.muteTransitions.length} mute transitions`);
+    console.log(`Found ${entities.automationPoints.length} automation points`);
+    console.log(`Found ${entities.parameters.length} parameters total`);
+
+    // Check that we have mute transitions
+    expect(entities.muteTransitions.length).toBeGreaterThan(0);
+
+    // Find mute parameters
+    const muteParameters = entities.parameters.filter(param => param.isMute);
+    console.log(`Found ${muteParameters.length} mute parameters:`, muteParameters.map(p => p.parameterName));
+
+    // Verify mute transitions structure
+    entities.muteTransitions.forEach((transition, index) => {
+      console.log(`  Transition ${index + 1}: time=${transition.timePosition}, muted=${transition.isMuted}`);
+
+      expect(transition.id).toBeDefined();
+      expect(transition.trackId).toBeDefined();
+      expect(typeof transition.timePosition).toBe('number');
+      expect(typeof transition.isMuted).toBe('boolean');
+      expect(transition.muteParameterId).toBeDefined();
+      expect(transition.createdAt).toBeInstanceOf(Date);
+
+      // Verify the mute parameter reference exists
+      const muteParam = entities.parameters.find(p => p.id === transition.muteParameterId);
+      expect(muteParam).toBeDefined();
+      expect(muteParam?.isMute).toBe(true);
+    });
+
+    // Verify that mute parameters with binary values don't create automation points
+    const muteParameterIds = muteParameters.map(p => p.id);
+    const automationPointsForMuteParams = entities.automationPoints.filter(point =>
+      muteParameterIds.includes(point.parameterId)
+    );
+
+    console.log(`Automation points for mute parameters: ${automationPointsForMuteParams.length}`);
+    // For binary mute parameters, we should have mute transitions instead of automation points
+    expect(automationPointsForMuteParams.length).toBe(0);
+  });
 });

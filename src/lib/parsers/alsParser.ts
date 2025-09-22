@@ -1,6 +1,7 @@
 import { inflate } from 'pako';
+import { sortBy, reverse, uniqBy } from 'lodash';
 import type { ParsedALS } from '../types/automation';
-import type { Device, Track, Parameter, AutomationPoint } from '../database/schema';
+import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { RegexMatcher, createRegexConfig } from '../config/regex';
 
 export class ALSParser {
@@ -65,6 +66,7 @@ export class ALSParser {
     tracks: Track[];
     parameters: Parameter[];
     automationPoints: AutomationPoint[];
+    muteTransitions: MuteTransition[];
   } {
     if (!parsedALS.rawXML) {
       throw new Error('No XML document available for parsing');
@@ -74,11 +76,12 @@ export class ALSParser {
     const tracks: Track[] = [];
     const parameters: Parameter[] = [];
     const automationPoints: AutomationPoint[] = [];
+    const muteTransitions: MuteTransition[] = [];
 
     // Extract Elektron automation data directly to database entities
-    this.extractElektronEntities(parsedALS.rawXML, devices, tracks, parameters, automationPoints, trackIdMapping);
+    this.extractElektronEntities(parsedALS.rawXML, devices, tracks, parameters, automationPoints, muteTransitions, trackIdMapping);
 
-    return { devices, tracks, parameters, automationPoints };
+    return { devices, tracks, parameters, automationPoints, muteTransitions };
   }
 
   private extractBPM(xmlDoc: Document): number | undefined {
@@ -96,6 +99,7 @@ export class ALSParser {
     tracks: Track[],
     parameters: Parameter[],
     automationPoints: AutomationPoint[],
+    muteTransitions: MuteTransition[],
     trackIdMapping?: Record<string, string>
   ): void {
     // Find all tracks
@@ -124,7 +128,7 @@ export class ALSParser {
         }
 
         // Parse track data directly into database entities
-        this.parseElektronTrackToDB(trackElement, elektron_device, device, tracks, parameters, automationPoints, trackIdMapping);
+        this.parseElektronTrackToDB(trackElement, elektron_device, device, tracks, parameters, automationPoints, muteTransitions, trackIdMapping);
       }
     });
 
@@ -192,6 +196,7 @@ export class ALSParser {
     tracks: Track[],
     parameters: Parameter[],
     automationPoints: AutomationPoint[],
+    muteTransitions: MuteTransition[],
     trackIdMapping?: Record<string, string>
   ): void {
     const trackName = this.getTrackName(trackElement);
@@ -247,6 +252,10 @@ export class ALSParser {
 
       // Create parameter and automation point entities
       if (this.debug) console.log(`🎯 About to process ${trackParameters.length} trackParameters:`, trackParameters.map(p => ({ name: p.parameterName, hasOriginalPointeeId: !!p.originalPointeeId })));
+
+      // Track whether we've already created mute transitions for this track (only use first mute parameter)
+      let hasCreatedMuteTransitions = false;
+
       trackParameters.forEach(({ parameterName, originalPointeeId, points }) => {
         const parameterId = this.generateId();
 
@@ -271,17 +280,53 @@ export class ALSParser {
         if (this.debug) console.log(`🔍 Parameter object created with originalPointeeId: "${originalPointeeId}"`);
         parameters.push(parameter);
 
-        // Create automation points
-        points.forEach(point => {
-          const automationPoint: AutomationPoint = {
-            id: this.generateId(),
-            parameterId,
-            timePosition: point.timePosition,
-            value: point.value,
-            createdAt: new Date()
-          };
-          automationPoints.push(automationPoint);
-        });
+        // Check if this is a mute parameter with only 0/1 values - if so, create mute transitions instead of automation points
+        // But only use the first mute parameter per track for transitions, others become normal automation
+        if (isMute && !hasCreatedMuteTransitions && this.hasOnlyBinaryValues(points)) {
+          console.log(`🔇 Creating mute transitions for mute parameter "${parameterName}" (first mute param for track ${trackNumber})`);
+          // Dedupe by time, keeping the last value for each time position
+          const dedupedPoints = reverse(uniqBy(reverse(sortBy(points, 'timePosition')), 'timePosition'));
+
+          // Filter to only include actual state changes (alternating pattern)
+          const filteredPoints = [];
+          let lastState = null;
+          for (const point of dedupedPoints) {
+            const currentState = point.value === 1; // 1 = muted, 0 = unmuted
+            if (lastState === null || currentState !== lastState) {
+              filteredPoints.push(point);
+              lastState = currentState;
+            }
+          }
+
+          filteredPoints.forEach(point => {
+            const muteTransition: MuteTransition = {
+              id: this.generateId(),
+              trackId,
+              timePosition: point.timePosition,
+              isMuted: point.value === 1, // 1 = muted, 0 = unmuted
+              muteParameterId: parameterId,
+              createdAt: new Date()
+            };
+            muteTransitions.push(muteTransition);
+          });
+          console.log(`🔇 Created ${filteredPoints.length} mute transitions for track ${trackNumber} (filtered from ${dedupedPoints.length} deduped points)`);
+          hasCreatedMuteTransitions = true;
+        } else {
+          // Create automation points for non-mute parameters, mute parameters with non-binary values, or additional mute parameters
+          if (isMute && hasCreatedMuteTransitions) {
+            console.log(`📊 Creating automation points for additional mute parameter "${parameterName}" (already have mute transitions for track ${trackNumber})`);
+          }
+          points.forEach(point => {
+            const automationPoint: AutomationPoint = {
+              id: this.generateId(),
+              parameterId,
+              timePosition: point.timePosition,
+              value: point.value,
+              createdAt: new Date()
+            };
+            automationPoints.push(automationPoint);
+          });
+        }
       });
     });
   }
@@ -642,6 +687,13 @@ export class ALSParser {
     points.sort((a, b) => a.timePosition - b.timePosition);
 
     return points;
+  }
+
+  /**
+   * Check if automation points only contain binary values (0 or 1)
+   */
+  private hasOnlyBinaryValues(points: Pick<AutomationPoint, 'timePosition' | 'value'>[]): boolean {
+    return points.every(point => point.value === 0 || point.value === 1);
   }
 
 }

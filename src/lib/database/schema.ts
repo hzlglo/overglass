@@ -7,6 +7,7 @@ export interface DatabaseSchema {
   tracks: Track;
   parameters: Parameter;
   automationPoints: AutomationPoint;
+  muteTransitions: MuteTransition;
 }
 
 export interface Device {
@@ -42,6 +43,16 @@ export interface AutomationPoint {
   timePosition: number; // Time in beats/samples
   value: number; // Automation value (normalized 0-1)
   curveType?: string; // Linear, bezier, etc. (future)
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface MuteTransition {
+  id: string; // UUID for the transition
+  trackId: string; // Foreign key to tracks
+  timePosition: number; // Time when the transition occurs
+  isMuted: boolean; // true = mute track, false = unmute track
+  muteParameterId: string; // Reference to the original mute parameter for ALS writing
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -105,6 +116,20 @@ export const CREATE_TABLES = {
     )
   `,
 
+  mute_transitions: `
+    CREATE TABLE mute_transitions (
+      id VARCHAR PRIMARY KEY,
+      track_id VARCHAR NOT NULL,
+      time_position DOUBLE NOT NULL,
+      is_muted BOOLEAN NOT NULL,
+      mute_parameter_id VARCHAR NOT NULL,
+      created_at TIMESTAMP NOT NULL,
+      updated_at TIMESTAMP,
+      FOREIGN KEY (track_id) REFERENCES tracks(id),
+      FOREIGN KEY (mute_parameter_id) REFERENCES parameters(id)
+    )
+  `,
+
   edit_history: `
     CREATE TABLE edit_history (
       id VARCHAR PRIMARY KEY,
@@ -124,6 +149,9 @@ export const CREATE_INDEXES = [
   'CREATE INDEX idx_automation_parameter ON automation_points(parameter_id)',
   'CREATE INDEX idx_automation_time ON automation_points(time_position)',
   'CREATE INDEX idx_automation_param_time ON automation_points(parameter_id, time_position)',
+  'CREATE INDEX idx_mute_transitions_track ON mute_transitions(track_id)',
+  'CREATE INDEX idx_mute_transitions_time ON mute_transitions(time_position)',
+  'CREATE INDEX idx_mute_transitions_mute_parameter ON mute_transitions(mute_parameter_id)',
   'CREATE INDEX idx_edit_history_timestamp ON edit_history(edit_timestamp)',
   'CREATE INDEX idx_edit_history_type ON edit_history(edit_type)',
 ];
