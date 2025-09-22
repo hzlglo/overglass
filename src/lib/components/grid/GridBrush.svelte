@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { trackDb } from '$lib/stores/trackDb.svelte';
   import * as d3 from 'd3';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
@@ -56,12 +55,17 @@
       let selectedParameterIds = selectedLanes
         .filter((l) => l.type === 'parameter')
         .map((l) => l.id);
-      let selectedPoints = await trackDb.get().automation.getAutomationPoints({
-        parameterIds: selectedParameterIds,
-        startTime,
-        endTime,
-      });
+      let selectedPoints = selectedParameterIds.flatMap((parameterId) =>
+        automationPointsByParameterId[parameterId].filter(
+          (p) => p.timePosition >= startTime && p.timePosition <= endTime,
+        ),
+      );
       sharedDragSelect.setSelectedPoints(selectedPoints);
+      let selectedMuteTransitions = selectedLanes
+        .filter((l) => l.type === 'track')
+        .flatMap((l) => muteTransitionsByTrackId[l.id])
+        .filter((t) => t.timePosition >= startTime && t.timePosition <= endTime);
+      sharedDragSelect.setSelectedMuteTransitions(selectedMuteTransitions);
     }
 
     sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });
@@ -79,6 +83,11 @@
       })
       .on('start brush end', brushHandler),
   );
+  $effect(() => {
+    sharedDragSelect.setClearBrush(() => {
+      brushG?.call(brush.clear);
+    });
+  });
   $effect(() => {
     if (!brushG) {
       return;

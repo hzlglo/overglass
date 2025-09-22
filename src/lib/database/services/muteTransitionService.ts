@@ -75,67 +75,407 @@ export class MuteTransitionService {
     return createdTransitions;
   }
 
+  // ===== CLIP-BASED OPERATIONS =====
+
   /**
-   * Move mute transitions by a delta time, maintaining the alternating on/off pattern
-   * Prioritizes keeping the edited transitions and removes conflicting ones
+   * Derive clips (unmuted time spans) from mute transitions
+   * Based on the logic from MuteClips.svelte lines 54-86
    */
-  async moveMuteTransitions(transitionIds: string[], deltaTime: number): Promise<void> {
+  static deriveClipsFromTransitions(transitions: MuteTransition[]): Array<{
+    start: number;
+    end: number | null;
+    startTransition: MuteTransition;
+    endTransition?: MuteTransition;
+  }> {
+    const clips: Array<{
+      start: number;
+      end: number | null;
+      startTransition: MuteTransition;
+      endTransition?: MuteTransition;
+    }> = [];
+    const sortedTransitions = transitions.sort((a, b) => a.timePosition - b.timePosition);
+
+    let clipStart: MuteTransition | null = null;
+
+    for (const transition of sortedTransitions) {
+      if (!clipStart) {
+        if (!transition.isMuted) {
+          clipStart = transition;
+        }
+        continue;
+      } else {
+        if (transition.isMuted) {
+          clips.push({
+            start: clipStart.timePosition,
+            end: transition.timePosition,
+            startTransition: clipStart,
+            endTransition: transition,
+          });
+          clipStart = null;
+        }
+        continue;
+      }
+    }
+
+    // If we're unmuted at the end, there's an infinite clip
+    if (clipStart) {
+      clips.push({
+        start: clipStart.timePosition,
+        end: null, // null means infinite/end of track
+        startTransition: clipStart,
+        endTransition: undefined,
+      });
+    }
+
+    return clips;
+  }
+
+  /**
+   * Delete mute transitions using smart clip-based logic
+   */
+  async deleteMuteTransitions(transitionIds: string[]): Promise<void> {
     if (transitionIds.length === 0) return;
 
-    // Get all transitions to move
-    const transitionsToMove: MuteTransition[] = [];
+    // Get all transitions to delete and group by track
+    const transitionsByTrack = new Map<string, MuteTransition[]>();
+
     for (const id of transitionIds) {
       const transition = await this.getMuteTransition(id);
       if (transition) {
-        transitionsToMove.push(transition);
+        if (!transitionsByTrack.has(transition.trackId)) {
+          transitionsByTrack.set(transition.trackId, []);
+        }
+        transitionsByTrack.get(transition.trackId)!.push(transition);
       }
     }
 
-    if (transitionsToMove.length === 0) return;
+    // Process each track separately
+    for (const [trackId, transitionsToDelete] of transitionsByTrack) {
+      const allTransitions = await this.getMuteTransitionsForTrack(trackId);
+      const sortedAll = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
 
-    // Assume all transitions are from the same track (validate this)
-    const trackId = transitionsToMove[0].trackId;
-    if (!transitionsToMove.every((t) => t.trackId === trackId)) {
-      throw new Error('All transitions must be from the same track');
-    }
+      // Find negative-time transition (initial state)
+      const negativeTransition = sortedAll.find((t) => t.timePosition < 0);
+      const positiveTransitions = sortedAll.filter((t) => t.timePosition >= 0);
 
-    // Get all existing transitions for the track
-    const allTransitions = await this.getMuteTransitionsForTrack(trackId);
+      // Check special cases
+      const deletingIds = transitionsToDelete.map((t) => t.id);
+      const firstPositive = positiveTransitions[0];
+      const lastPositive = positiveTransitions[positiveTransitions.length - 1];
 
-    // Create the moved versions
-    const movedTransitions = transitionsToMove.map((t) => ({
-      ...t,
-      timePosition: t.timePosition + deltaTime,
-    }));
+      const deletingFirstPositive = firstPositive && deletingIds.includes(firstPositive.id);
+      const deletingLastPositive = lastPositive && deletingIds.includes(lastPositive.id);
+      const deletingOnlyLast = deletingLastPositive && deletingIds.length === 1;
 
-    // Get transitions that are NOT being moved
-    const staticTransitions = allTransitions.filter((t) => !transitionIds.includes(t.id));
+      if (deletingFirstPositive && negativeTransition) {
+        // Delete first positive transition and toggle initial state
+        await this.deleteMuteTransition(firstPositive.id);
+        await this.updateMuteTransitionValues(
+          negativeTransition.id,
+          negativeTransition.timePosition,
+          !negativeTransition.isMuted,
+        );
 
-    // Combine static and moved transitions, sort by time
-    const combinedTransitions = [...staticTransitions, ...movedTransitions].sort(
-      (a, b) => a.timePosition - b.timePosition,
-    );
+        // Delete other selected transitions (except the first positive one we already handled)
+        const remainingToDelete = transitionsToDelete.filter((t) => t.id !== firstPositive.id);
+        for (const transition of remainingToDelete) {
+          await this.deleteMuteTransition(transition.id);
+        }
+      } else if (deletingOnlyLast) {
+        // Delete only the last transition
+        await this.deleteMuteTransition(lastPositive.id);
+      } else {
+        // General case: delete entire clips
+        // Find all clips that contain any of the transitions to delete
+        const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
+        const affectedClips = clips.filter((clip) =>
+          transitionsToDelete.some(
+            (t) =>
+              t.timePosition >= clip.start && (clip.end === null || t.timePosition <= clip.end),
+          ),
+        );
 
-    // Deduplicate to maintain alternating pattern, prioritizing moved transitions
-    const deduplicatedTransitions = this.deduplicateTransitions(combinedTransitions, transitionIds);
+        // Collect all transitions to delete from affected clips
+        const transitionsToDeleteFromClips = new Set<string>();
+        for (const clip of affectedClips) {
+          transitionsToDeleteFromClips.add(clip.startTransition.id);
+          if (clip.endTransition) {
+            transitionsToDeleteFromClips.add(clip.endTransition.id);
+          }
+        }
 
-    // Find transitions that need to be deleted (were in original but not in deduplicated)
-    const transitionsToDelete = allTransitions.filter(
-      (t) => !deduplicatedTransitions.some((dt) => dt.id === t.id),
-    );
-
-    // Delete conflicting transitions
-    for (const transition of transitionsToDelete) {
-      await this.deleteMuteTransition(transition.id);
-    }
-
-    // Update moved transitions that survived deduplication
-    for (const transition of movedTransitions) {
-      if (deduplicatedTransitions.some((dt) => dt.id === transition.id)) {
-        await this.updateMuteTransitionTime(transition.id, transition.timePosition);
+        // Delete all transitions that are part of affected clips
+        for (const transitionId of transitionsToDeleteFromClips) {
+          await this.deleteMuteTransition(transitionId);
+        }
       }
     }
   }
+
+  /**
+   * Merge multiple clips into one by combining their mute transitions
+   */
+  async mergeMuteTransitionClips(transitionIds: string[]): Promise<void> {
+    if (transitionIds.length === 0) return;
+
+    // Group transitions by track
+    const transitionsByTrack = new Map<string, MuteTransition[]>();
+
+    for (const id of transitionIds) {
+      const transition = await this.getMuteTransition(id);
+      if (transition) {
+        if (!transitionsByTrack.has(transition.trackId)) {
+          transitionsByTrack.set(transition.trackId, []);
+        }
+        transitionsByTrack.get(transition.trackId)!.push(transition);
+      }
+    }
+
+    // Process each track separately
+    for (const [trackId, selectedTransitions] of transitionsByTrack) {
+      const allTransitions = await this.getMuteTransitionsForTrack(trackId);
+      const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
+
+      // Find all clips that contain any of the selected transitions
+      const affectedClips = clips.filter((clip) =>
+        selectedTransitions.some(
+          (t) => t.timePosition >= clip.start && (clip.end === null || t.timePosition <= clip.end),
+        ),
+      );
+
+      if (affectedClips.length <= 1) return; // Nothing to merge
+
+      // Find the earliest start and latest end from affected clips
+      const earliestStart = Math.min(...affectedClips.map((c) => c.start));
+      const latestEnd = Math.max(...affectedClips.map((c) => c.end || Infinity));
+      const hasInfiniteClip = affectedClips.some((c) => c.end === null);
+
+      // Find ALL clips that fall between the earliest start and latest end
+      // This includes clips that might be completely between the selected transitions
+      const clipsToMerge = clips.filter((clip) => {
+        if (clip.end === null) {
+          // Infinite clip: merge if it starts before or at the latest end
+          return clip.start <= latestEnd;
+        } else {
+          // Finite clip: merge if it overlaps or is between the range
+          return clip.start <= latestEnd && clip.end >= earliestStart;
+        }
+      });
+
+      // Delete all transitions from clips to merge
+      const transitionsToDelete = [];
+      for (const clip of clipsToMerge) {
+        transitionsToDelete.push(clip.startTransition);
+        if (clip.endTransition) {
+          transitionsToDelete.push(clip.endTransition);
+        }
+      }
+
+      for (const transition of transitionsToDelete) {
+        await this.deleteMuteTransition(transition.id);
+      }
+
+      // Create new merged clip
+      const muteParameterId = selectedTransitions[0].muteParameterId;
+
+      // Create start transition (unmuted)
+      await this.createMuteTransition(trackId, earliestStart, false, muteParameterId);
+
+      // Create end transition (muted) only if not infinite
+      if (!hasInfiniteClip && latestEnd !== Infinity) {
+        await this.createMuteTransition(trackId, latestEnd, true, muteParameterId);
+      }
+    }
+  }
+
+  /**
+   * Calculate moved positions for transitions with collision detection (pure function)
+   * Returns the transitions with updated times, but doesn't save them
+   */
+  static getMovedMuteTransitions(
+    selectedTransitions: MuteTransition[],
+    allTrackTransitions: MuteTransition[],
+    deltaTime: number,
+  ): MuteTransition[] {
+    if (selectedTransitions.length === 0) return [];
+
+    // If deltaTime is 0, return the original transitions unchanged
+    if (deltaTime === 0) {
+      return selectedTransitions.map((transition) => ({
+        ...transition,
+      }));
+    }
+
+    const sortedAll = allTrackTransitions.sort((a, b) => a.timePosition - b.timePosition);
+    const movingIds = selectedTransitions.map((t) => t.id);
+
+    let minAllowedDelta = deltaTime;
+
+    for (const transition of selectedTransitions) {
+      const newTime = transition.timePosition + deltaTime;
+
+      // Never move before 0
+      if (newTime < 0) {
+        const maxDelta = -transition.timePosition;
+        minAllowedDelta = Math.min(minAllowedDelta, maxDelta);
+        continue;
+      }
+
+      // Find neighbors that aren't also moving
+      const staticNeighbors = sortedAll.filter((t) => !movingIds.includes(t.id));
+
+      // Check collision with next neighbor
+      const nextNeighbor = staticNeighbors.find((t) => t.timePosition > transition.timePosition);
+      if (nextNeighbor && newTime >= nextNeighbor.timePosition) {
+        const maxDelta = nextNeighbor.timePosition - transition.timePosition - 0.001;
+        minAllowedDelta = Math.min(minAllowedDelta, maxDelta);
+      }
+
+      // Check collision with previous neighbor
+      const prevNeighbor = [...staticNeighbors]
+        .reverse()
+        .find((t) => t.timePosition < transition.timePosition);
+      if (prevNeighbor && newTime <= prevNeighbor.timePosition) {
+        const maxDelta = prevNeighbor.timePosition - transition.timePosition + 0.001;
+        minAllowedDelta = Math.max(minAllowedDelta, maxDelta);
+      }
+    }
+
+    // Apply the constrained delta to all transitions
+    const actualDelta = Math.max(
+      -Math.abs(minAllowedDelta),
+      Math.min(Math.abs(minAllowedDelta), deltaTime),
+    );
+
+    return selectedTransitions.map((transition) => ({
+      ...transition,
+      timePosition: Math.max(0, transition.timePosition + actualDelta),
+    }));
+  }
+
+  /**
+   * Update mute transitions with new time positions (simple update without logic)
+   */
+  async updateMuteTransitions(updates: Array<{ id: string; timePosition: number }>): Promise<void> {
+    for (const update of updates) {
+      await this.updateMuteTransitionTime(update.id, update.timePosition);
+    }
+  }
+
+  /**
+   * Add a new clip at the specified timestamp
+   * Logic depends on whether adding in muted or unmuted space
+   */
+  async addMuteTransitionClip(
+    trackId: string,
+    timePosition: number,
+    muteParameterId: string,
+  ): Promise<MuteTransition[]> {
+    const allTransitions = await this.getMuteTransitionsForTrack(trackId);
+    const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
+
+    // Check if we're adding inside an existing clip
+    const existingClip = clips.find(
+      (clip) => timePosition >= clip.start && (clip.end === null || timePosition <= clip.end),
+    );
+
+    const createdTransitions: MuteTransition[] = [];
+
+    if (existingClip) {
+      // Adding muted time inside an existing clip - split the clip
+      if (existingClip.end === null) {
+        // Adding at the end of an infinite clip
+        const endTransition = await this.createMuteTransition(
+          trackId,
+          timePosition,
+          true,
+          muteParameterId,
+        );
+        createdTransitions.push(endTransition);
+      } else {
+        // Adding in the middle of a finite clip - create end and start
+        const endCurrentClip = await this.createMuteTransition(
+          trackId,
+          timePosition,
+          true,
+          muteParameterId,
+        );
+        const startNewClip = await this.createMuteTransition(
+          trackId,
+          Math.min(timePosition + 2, existingClip.end - 0.001),
+          false,
+          muteParameterId,
+        );
+        createdTransitions.push(endCurrentClip, startNewClip);
+      }
+    } else {
+      // Adding unmuted time in muted space
+      const sortedTransitions = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
+      const positiveTransitions = sortedTransitions.filter((t) => t.timePosition >= 0);
+
+      if (positiveTransitions.length === 0 || timePosition < positiveTransitions[0].timePosition) {
+        // Adding at the beginning - toggle initial state and add transitions
+        const negativeTransition = sortedTransitions.find((t) => t.timePosition < 0);
+        if (negativeTransition) {
+          await this.updateMuteTransitionValues(
+            negativeTransition.id,
+            negativeTransition.timePosition,
+            !negativeTransition.isMuted,
+          );
+        }
+
+        // If there are no positive transitions, we need to create both start and end of clip
+        if (positiveTransitions.length === 0) {
+          const startTransition = await this.createMuteTransition(
+            trackId,
+            timePosition,
+            false,
+            muteParameterId,
+          );
+          const endTransition = await this.createMuteTransition(
+            trackId,
+            timePosition + 2,
+            true,
+            muteParameterId,
+          );
+          createdTransitions.push(startTransition, endTransition);
+        } else {
+          // If there are positive transitions, just add one transition that inverts from the initial state
+          const newTransition = await this.createMuteTransition(
+            trackId,
+            timePosition,
+            !negativeTransition?.isMuted || true,
+            muteParameterId,
+          );
+          createdTransitions.push(newTransition);
+        }
+      } else {
+        // Find next transition to ensure we don't overlap
+        const nextTransition = positiveTransitions.find((t) => t.timePosition > timePosition);
+        const maxEndTime = nextTransition ? nextTransition.timePosition - 0.001 : timePosition + 2;
+        const endTime = Math.min(timePosition + 2, maxEndTime);
+
+        // Create start and end of new clip
+        const startTransition = await this.createMuteTransition(
+          trackId,
+          timePosition,
+          false,
+          muteParameterId,
+        );
+        const endTransition = await this.createMuteTransition(
+          trackId,
+          endTime,
+          true,
+          muteParameterId,
+        );
+        createdTransitions.push(startTransition, endTransition);
+      }
+    }
+
+    return createdTransitions;
+  }
+
+  // ===== END CLIP-BASED OPERATIONS =====
 
   async getAll(): Promise<MuteTransition[]> {
     const sqlTemplate = SQL`
@@ -300,6 +640,26 @@ export class MuteTransitionService {
     const sqlTemplate = SQL`
       UPDATE mute_transitions
       SET time_position = ${newTimePosition}, updated_at = ${new Date()}
+      WHERE id = ${transitionId}
+    `;
+    const result = await this.db.run(sqlTemplate.sql, sqlTemplate.values);
+
+    if (result.changes === 0) {
+      throw new Error(`Mute transition with id ${transitionId} not found`);
+    }
+  }
+
+  /**
+   * Update a mute transition's time position and mute state (private)
+   */
+  private async updateMuteTransitionValues(
+    transitionId: string,
+    newTimePosition: number,
+    newIsMuted: boolean,
+  ): Promise<void> {
+    const sqlTemplate = SQL`
+      UPDATE mute_transitions
+      SET time_position = ${newTimePosition}, is_muted = ${newIsMuted}, updated_at = ${new Date()}
       WHERE id = ${transitionId}
     `;
     const result = await this.db.run(sqlTemplate.sql, sqlTemplate.values);

@@ -64,9 +64,6 @@
     error = null;
 
     try {
-      // Initialize database if not already done
-      await trackDb.init();
-
       // Parse the ALS file
       const parsedSet = await parser.parseALSFile(file);
 
@@ -82,7 +79,7 @@
         ]),
       );
       console.log('trackToName', trackToName);
-      await trackDb.loadALSData(parsedSet, trackToName);
+      await trackDb.init(parsedSet, trackToName);
       const tracks = await trackDb.get().tracks.getAllTracks();
       appConfigStore.initializeTrackCustomizations(tracks);
 

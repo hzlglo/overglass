@@ -131,13 +131,19 @@ describe('ALS Round-Trip Integration Test', () => {
             const parameter = await db.tracks.getParameterById(editableTransition.muteParameterId);
             const parameterName = parameter?.parameterName || 'Unknown';
 
-            // Move the mute transition by 1 second
-            const deltaTime = 1.0;
-            await db.muteTransitions.moveMuteTransitions([editableTransition.id], deltaTime);
+            // Move the mute transition by 1 second using the new API
+            const movedTransitions = await db.muteTransitions.getMovedMuteTransitions([editableTransition.id], 1.0);
+            if (movedTransitions.length > 0) {
+              const actualNewTime = movedTransitions[0].timePosition;
+              await db.muteTransitions.updateMuteTransitions([{
+                id: editableTransition.id,
+                timePosition: actualNewTime
+              }]);
 
-            console.log(
-              `✅ Edited mute transition: ${parameterName} at time ${originalTime.toFixed(3)} → ${newTime.toFixed(3)}`,
-            );
+              console.log(
+                `✅ Edited mute transition: ${parameterName} at time ${originalTime.toFixed(3)} → ${actualNewTime.toFixed(3)}`,
+              );
+            }
 
             editedTransition = true;
             break;

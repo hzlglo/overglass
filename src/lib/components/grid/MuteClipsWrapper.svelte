@@ -24,6 +24,7 @@
   }: MuteTransitionWrapperProps = $props();
   let trackStore = useTrackDbQuery((db) => db.tracks.getTrackById(trackId), null);
   let track = $derived(trackStore.getResult());
+  $inspect('muteclipswrapper', { trackId, track });
   let isExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
 </script>
 

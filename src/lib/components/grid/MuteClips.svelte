@@ -6,6 +6,7 @@
   import { sortBy, uniq } from 'lodash';
   import { trackDb } from '$lib/stores/trackDb.svelte';
   import type { Track, MuteTransition } from '$lib/database/schema';
+  import { MuteTransitionService } from '$lib/database/services/muteTransitionService';
 
   interface AutomationMuteProps {
     trackId: string;
@@ -51,6 +52,33 @@
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
 
+  let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
+
+  let rectYPadding = 4;
+  $effect(() => {
+    if (!svgGroup) {
+      return;
+    }
+    svgGroup
+      .selectAll('.clip')
+      .data(clips, (d) => d.id)
+      .join(
+        (enter) => enter.append('rect'),
+        (update) => update,
+        (exit) => exit.remove(),
+      )
+      .attr('class', 'clip')
+      .attr('x', (d) => xScale(d.start))
+      .attr('y', (d) => rectYPadding)
+      .attr('width', (d) => xScale(d.end) - xScale(d.start))
+      .attr('height', innerHeight - rectYPadding * 2)
+      .attr('fill', color)
+      .attr('fill-opacity', 0.6)
+      .attr('stroke', color)
+      .attr('stroke-width', 1)
+      .attr('rx', 2);
+  });
+
   let muteDragHandles = $derived.by(() => {
     if (!svgGroup) {
       return undefined;
@@ -64,21 +92,27 @@
         (exit) => exit.remove(),
       );
     rects
-      ?.attr('x', (d) => xScale(d.timePosition))
+      ?.attr('x', (d) => xScale(d.timePosition) - 2)
       .attr('y', (d) => 0)
       .attr('class', 'mute-drag-handle')
-      .attr('width', 2)
+      .attr('width', 4)
       .attr('height', innerHeight)
       .attr('fill', color)
       .attr('fill-opacity', 1)
       .attr('stroke', color)
       .attr('stroke-width', 1)
-      .attr('rx', 2);
+      .attr('rx', 2)
+      .style('cursor', 'grab');
     return rects;
   });
 
-  let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
-  let thisTrackSelectedPoints = $derived(selectedPoints.filter((p) => p.trackId === trackId));
+  $effect(() => {
+    sharedDragSelect.registerDragHandler(trackId, () => {
+      muteDragHandles?.attr('x', (d) => xScale(d.timePosition) - 2);
+    });
+  });
+
+  let selectedMuteTransitions = $derived(sharedDragSelect.getSelectedMuteTransitions());
 
   let drag = $derived(
     d3
@@ -89,51 +123,28 @@
           event: d3.D3DragEvent<SVGCircleElement, MuteTransition, SVGElement>,
           d: MuteTransition,
         ) => {
-          if (!selectedPoints.find((p) => p.id === d.id)) {
-            sharedDragSelect.setBrushSelection(null);
-            sharedDragSelect.setSelectedPoints([d]);
+          if (!selectedMuteTransitions.find((p) => p.id === d.id)) {
+            sharedDragSelect.clear();
+            sharedDragSelect.setSelectedMuteTransitions([d]);
           }
         },
       )
       .on('drag', (event, d) => {
-        sharedDragSelect.dragEvent(event, yDiffScale);
+        sharedDragSelect.dragEvent({
+          dx: event.dx,
+          // don't submit y transitions from mute drag
+          dy: 0,
+          yDiffScale,
+        });
       })
       .on('end', async (event, d) => {
-        await trackDb.get().automation.bulkSetAutomationPoints(selectedPoints);
-        await trackDb.refreshData();
+        sharedDragSelect.dragEnd();
       }),
   );
 
   $effect(() => {
     muteDragHandles?.call(drag, []);
   });
-
-  // // Draw selected points
-  // let selectedPointsCircles = $derived.by(() => {
-  //   // Add new points
-  //   let circles = svgGroup
-  //     ?.selectAll<SVGCircleElement, AutomationPoint>('.point.selected')
-  //     .data(thisTrackSelectedPoints, (p) => p.id)
-  //     .join(
-  //       (enter) => enter.append('circle'),
-  //       (update) => update,
-  //       (exit) => exit.remove(),
-  //     );
-
-  //   circles
-  //     ?.attr('cx', (d) => xScale(d.timePosition))
-  //     .attr('cy', (d) => yScale(d.value))
-  //     .attr('class', 'point selected')
-  //     .attr('r', 3)
-  //     .attr('fill', 'var(--color-base-content)')
-  //     .attr('fill-opacity', 0.4)
-  //     .attr('stroke', 'var(--color-base-content)')
-  //     .attr('stroke-width', 1);
-  //   return circles;
-  // });
-  // $effect(() => {
-  //   selectedPointsCircles?.call(drag, []);
-  // });
 </script>
 
 <g

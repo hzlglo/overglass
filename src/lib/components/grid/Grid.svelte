@@ -15,6 +15,7 @@
   import GridTimelineTop from './GridTimelineTop.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
   import MuteClipsWrapper from './MuteClipsWrapper.svelte';
+  import { sharedDragSelect } from './sharedDragSelect.svelte';
 
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
@@ -126,6 +127,9 @@
   let muteTransitionsStore = useTrackDbQuery((db) => db.muteTransitions.getAll(), []);
   let muteTransitions = $derived(muteTransitionsStore.getResult());
   let muteTransitionsByTrackId = $derived(groupBy(muteTransitions, (t) => t.trackId));
+  $effect(() => {
+    sharedDragSelect.setAllMuteTransitionsByTrackId(muteTransitionsByTrackId);
+  });
 </script>
 
 <SizeObserver bind:width bind:height>

@@ -103,18 +103,25 @@
     return { area: area, line: line };
   });
 
+  const drawLineAndArea = (points: AutomationPoint[]) => {
+    if (!area || !line) {
+      return;
+    }
+    // Ensure points are within the range of the xScale
+    const updatedAutomationPoints = sortBy(
+      automationPoints.map((point) => ({
+        ...point,
+        timePosition: point.timePosition < 0 ? 0 : point.timePosition,
+      })),
+      (p) => p.timePosition,
+    );
+    area.datum(updatedAutomationPoints).attr('d', areaFn);
+    line.datum(updatedAutomationPoints).attr('d', lineFn);
+  };
+
   $effect(() => {
     if (area && line) {
-      // Ensure points are within the range of the xScale
-      const updatedAutomationPoints = sortBy(
-        automationPoints.map((point) => ({
-          ...point,
-          timePosition: point.timePosition < 0 ? 0 : point.timePosition,
-        })),
-        (p) => p.timePosition,
-      );
-      area.datum(updatedAutomationPoints).attr('d', areaFn);
-      line.datum(updatedAutomationPoints).attr('d', lineFn);
+      drawLineAndArea(automationPoints);
     }
   });
 
@@ -131,7 +138,7 @@
       );
 
     circles
-      ?.attr('cx', (d) => xScale(d.timePosition))
+      .attr('cx', (d) => xScale(d.timePosition))
       .attr('cy', (d) => yScale(d.value))
       .attr('class', 'point')
       .attr('r', 3)
@@ -144,8 +151,7 @@
   });
 
   $effect(() => {
-    sharedDragSelect.registerDragHandler(parameterId, (params) => {
-      console.log('drag handler called');
+    sharedDragSelect.registerDragHandler(parameterId, () => {
       points?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
     });
   });
@@ -162,17 +168,20 @@
           d: AutomationPoint,
         ) => {
           if (!selectedPoints.find((p) => p.id === d.id)) {
-            sharedDragSelect.setBrushSelection(null);
+            sharedDragSelect.clear();
             sharedDragSelect.setSelectedPoints([d]);
           }
         },
       )
       .on('drag', (event, d) => {
-        sharedDragSelect.dragEvent(event, yDiffScale);
+        sharedDragSelect.dragEvent({
+          dx: event.dx,
+          dy: event.dy,
+          yDiffScale,
+        });
       })
       .on('end', async (event, d) => {
-        await trackDb.get().automation.bulkSetAutomationPoints(selectedPoints);
-        await trackDb.refreshData();
+        await sharedDragSelect.dragEnd();
       }),
   );
 

@@ -29,7 +29,6 @@ export function getTicksForBarSpan(minBar: number, maxBar: number) {
   return result;
 }
 
-
 const getSharedXScale = () => {
   // the max time across all automation points, i.e. the length of the song
   let maxTime = $state(60);

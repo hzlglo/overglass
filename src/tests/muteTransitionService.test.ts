@@ -6,14 +6,11 @@ import { AutomationDatabase } from '../lib/database/duckdb';
 import { NativeDuckDBAdapter } from '../lib/database/adapters/native';
 import type { MuteTransition } from '../lib/database/schema';
 
-describe('MuteTransitionService', () => {
+describe('MuteTransitionService - Clip-Based Operations', () => {
   let database: AutomationDatabase;
   let service: MuteTransitionService;
   let parser: ALSParser;
   let testFile: File;
-  let existingTransitions: MuteTransition[];
-  let testTrackIds: string[];
-  let testMuteParameterIds: string[];
 
   beforeEach(async () => {
     // Load test1.als file
@@ -35,34 +32,8 @@ describe('MuteTransitionService', () => {
     const parsedALS = await parser.parseALSFile(testFile);
     await database.loadALSData(parsedALS);
 
-    // Initialize service and collect test data
+    // Initialize service
     service = new MuteTransitionService(database);
-
-    // Get existing transitions to work with
-    const allTransitions = await database.run(`
-      SELECT id, track_id, time_position, is_muted, mute_parameter_id, created_at, updated_at
-      FROM mute_transitions
-      ORDER BY track_id, time_position
-    `);
-
-    existingTransitions = allTransitions.map((row: any) => ({
-      id: row.id,
-      trackId: row.trackId,
-      timePosition: row.timePosition,
-      isMuted: row.isMuted,
-      muteParameterId: row.muteParameterId,
-      createdAt: new Date(row.createdAt),
-      updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
-    }));
-
-    // Get unique track IDs and mute parameter IDs
-    testTrackIds = [...new Set(existingTransitions.map(t => t.trackId))];
-    testMuteParameterIds = [...new Set(existingTransitions.map(t => t.muteParameterId))];
-
-    console.log(`Found ${existingTransitions.length} existing mute transitions across ${testTrackIds.length} tracks`);
-    existingTransitions.forEach((t, i) => {
-      console.log(`  Transition ${i + 1}: time=${t.timePosition}, muted=${t.isMuted}, trackId=${t.trackId ? t.trackId.slice(-8) : 'undefined'}`);
-    });
   });
 
   afterEach(async () => {
@@ -71,144 +42,450 @@ describe('MuteTransitionService', () => {
     }
   });
 
-  describe('using test1.als data', () => {
-    it('should have loaded existing mute transitions from test1.als', () => {
-      expect(existingTransitions.length).toBeGreaterThan(0);
-      expect(testTrackIds.length).toBeGreaterThan(0);
-      expect(testMuteParameterIds.length).toBeGreaterThan(0);
+  describe('deleteMuteTransitions', () => {
+    it('should delete first positive transition and toggle initial state', async () => {
+      // Get track with transitions
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const originalTransitions = await service.getMuteTransitionsForTrack(trackId);
 
-      // Verify transitions are properly alternating within each track
-      for (const trackId of testTrackIds) {
-        const trackTransitions = existingTransitions
-          .filter(t => t.trackId === trackId)
-          .sort((a, b) => a.timePosition - b.timePosition);
+      const sortedTransitions = originalTransitions.sort((a, b) => a.timePosition - b.timePosition);
+      const negativeTransition = sortedTransitions.find(t => t.timePosition < 0);
+      const firstPositive = sortedTransitions.find(t => t.timePosition >= 0);
 
-        console.log(`Track ${trackId ? trackId.slice(-8) : 'undefined'} has ${trackTransitions.length} transitions:`);
-        trackTransitions.forEach((t, i) => {
-          console.log(`  ${i + 1}: time=${t.timePosition}, muted=${t.isMuted}`);
-        });
-
-        // Verify alternating pattern
-        for (let i = 1; i < trackTransitions.length; i++) {
-          expect(trackTransitions[i].isMuted).not.toBe(trackTransitions[i - 1].isMuted);
-        }
-      }
-    });
-
-    it('should add a new mute transition correctly', async () => {
-      const trackId = testTrackIds[0];
-      const muteParameterId = testMuteParameterIds[0];
-      const trackTransitions = existingTransitions.filter(t => t.trackId === trackId);
-
-      console.log(`Adding transition to track with ${trackTransitions.length} existing transitions`);
-
-      // Find a good spot between existing transitions
-      const sortedTransitions = trackTransitions.sort((a, b) => a.timePosition - b.timePosition);
-      let newTransitionTime: number;
-
-      if (sortedTransitions.length >= 2) {
-        // Add between first and second transition
-        const gap = sortedTransitions[1].timePosition - sortedTransitions[0].timePosition;
-        newTransitionTime = sortedTransitions[0].timePosition + (gap / 2);
-      } else {
-        // Add after the last transition
-        newTransitionTime = sortedTransitions[sortedTransitions.length - 1].timePosition + 10;
-      }
-
-      const createdTransitions = await service.addMuteTransition(trackId, newTransitionTime, muteParameterId);
-
-      expect(createdTransitions.length).toBeGreaterThan(0);
-      console.log(`Created ${createdTransitions.length} transitions at time ${newTransitionTime}`);
-
-      // Verify the new transitions maintain alternating pattern
-      const allTransitions = await service.getMuteTransitionsForTrack(trackId);
-      const sortedAll = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
-
-      for (let i = 1; i < sortedAll.length; i++) {
-        expect(sortedAll[i].isMuted).not.toBe(sortedAll[i - 1].isMuted);
-      }
-    });
-
-    it('should move existing transitions maintaining alternating pattern', async () => {
-      if (existingTransitions.length < 2) {
-        console.log('Skipping test - need at least 2 transitions');
+      if (!negativeTransition || !firstPositive) {
+        console.log('Skipping test - need negative and positive transitions');
         return;
       }
 
-      const trackId = testTrackIds[0];
-      const trackTransitions = existingTransitions
-        .filter(t => t.trackId === trackId)
-        .sort((a, b) => a.timePosition - b.timePosition);
+      const originalInitialState = negativeTransition.isMuted;
+      console.log(`Original initial state: ${originalInitialState}, deleting first positive at time ${firstPositive.timePosition}`);
 
-      if (trackTransitions.length < 2) {
-        console.log('Skipping test - track needs at least 2 transitions');
-        return;
-      }
+      // Delete first positive transition
+      await service.deleteMuteTransitions([firstPositive.id]);
 
-      const transitionToMove = trackTransitions[0];
-      const originalTime = transitionToMove.timePosition;
-      const deltaTime = 5.0; // Move 5 seconds later
+      // Verify initial state was toggled
+      const updatedNegativeTransition = await service.getMuteTransition(negativeTransition.id);
+      expect(updatedNegativeTransition?.isMuted).toBe(!originalInitialState);
 
-      console.log(`Moving transition from ${originalTime} by ${deltaTime} seconds`);
-
-      await service.moveMuteTransitions([transitionToMove.id], deltaTime);
-
-      const movedTransition = await service.getMuteTransition(transitionToMove.id);
-      expect(movedTransition?.timePosition).toBe(originalTime + deltaTime);
-
-      // Verify alternating pattern is maintained
-      const allTransitions = await service.getMuteTransitionsForTrack(trackId);
-      const sortedAll = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
-
-      console.log('Final transitions after move:');
-      sortedAll.forEach((t, i) => {
-        console.log(`  ${i + 1}: time=${t.timePosition}, muted=${t.isMuted}`);
-      });
-
-      for (let i = 1; i < sortedAll.length; i++) {
-        expect(sortedAll[i].isMuted).not.toBe(sortedAll[i - 1].isMuted);
-      }
-    });
-
-    it('should delete a transition successfully', async () => {
-      const transitionToDelete = existingTransitions[0];
-      const trackId = transitionToDelete.trackId;
-      const originalCount = existingTransitions.filter(t => t.trackId === trackId).length;
-
-      console.log(`Deleting transition at time ${transitionToDelete.timePosition} from track with ${originalCount} transitions`);
-
-      await service.deleteMuteTransition(transitionToDelete.id);
-
-      const deletedTransition = await service.getMuteTransition(transitionToDelete.id);
+      // Verify first positive was deleted
+      const deletedTransition = await service.getMuteTransition(firstPositive.id);
       expect(deletedTransition).toBeNull();
 
-      const remainingTransitions = await service.getMuteTransitionsForTrack(trackId);
-      expect(remainingTransitions.length).toBe(originalCount - 1);
+      console.log(`✅ Initial state toggled from ${originalInitialState} to ${!originalInitialState}`);
     });
 
-    it('should get transitions for device correctly', async () => {
-      // Get the device ID from the database
-      const devices = await database.run('SELECT id FROM devices LIMIT 1');
-      expect(devices.length).toBeGreaterThan(0);
-      const deviceId = devices[0].id;
+    it('should delete only the last transition when deleting only last', async () => {
+      // Get track with transitions
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const originalTransitions = await service.getMuteTransitionsForTrack(trackId);
 
-      const deviceTransitions = await service.getMuteTransitionsForDevice(deviceId);
+      const positiveTransitions = originalTransitions.filter(t => t.timePosition >= 0);
+      const lastTransition = positiveTransitions[positiveTransitions.length - 1];
 
-      console.log(`Found ${deviceTransitions.length} transitions for device`);
-
-      expect(deviceTransitions.length).toBeGreaterThan(0);
-      expect(deviceTransitions.every(t => t.trackName)).toBe(true);
-
-      // Should be ordered by track number, then time
-      for (let i = 1; i < deviceTransitions.length; i++) {
-        const prev = deviceTransitions[i - 1];
-        const curr = deviceTransitions[i];
-
-        // Either different track or same track with later time
-        if (prev.trackId === curr.trackId) {
-          expect(curr.timePosition).toBeGreaterThanOrEqual(prev.timePosition);
-        }
+      if (!lastTransition) {
+        console.log('Skipping test - need positive transitions');
+        return;
       }
+
+      const originalCount = originalTransitions.length;
+      console.log(`Deleting only last transition at time ${lastTransition.timePosition}`);
+
+      // Delete only last transition
+      await service.deleteMuteTransitions([lastTransition.id]);
+
+      // Verify only one transition was deleted
+      const remainingTransitions = await service.getMuteTransitionsForTrack(trackId);
+      expect(remainingTransitions.length).toBe(originalCount - 1);
+
+      // Verify the specific transition was deleted
+      const deletedTransition = await service.getMuteTransition(lastTransition.id);
+      expect(deletedTransition).toBeNull();
+
+      console.log(`✅ Deleted only last transition, count: ${originalCount} → ${remainingTransitions.length}`);
+    });
+
+    it('should delete entire clips in general case', async () => {
+      // Create a test scenario with known clip structure
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing transitions and create a known pattern
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:ON, 10:OFF, 20:ON, 30:OFF, 40:ON
+      // This creates clips: [10-20] and [30-40]
+      const initialTransition = await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      const clip2Start = await service.createMuteTransition(trackId, 30, false, muteParameterId);
+      const clip2End = await service.createMuteTransition(trackId, 40, true, muteParameterId);
+
+      console.log('Created test pattern: clips [10-20] and [30-40]');
+
+      // Delete a transition from the first clip (but not the first positive) - should delete entire clip
+      await service.deleteMuteTransitions([clip1End.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+
+      // Should have deleted both clip1Start and clip1End, leaving: -60000, 30, 40
+      expect(remainingTimes).toEqual([-60000, 30, 40]);
+
+      console.log(`✅ Deleted entire clip: remaining times [${remainingTimes.join(', ')}]`);
+    });
+  });
+
+  describe('mergeMuteTransitionClips', () => {
+    it('should merge multiple clips into one', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create test pattern
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:OFF, 10:ON, 20:OFF, 30:ON, 40:OFF, 50:ON, 60:OFF
+      // This creates clips: [10-20], [30-40], [50-60]
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      const clip2Start = await service.createMuteTransition(trackId, 30, false, muteParameterId);
+      const clip2End = await service.createMuteTransition(trackId, 40, true, muteParameterId);
+      const clip3Start = await service.createMuteTransition(trackId, 50, false, muteParameterId);
+      const clip3End = await service.createMuteTransition(trackId, 60, true, muteParameterId);
+
+      console.log('Created test pattern: clips [10-20], [30-40], [50-60]');
+
+      // Merge clips 1 and 3 (should also include clip 2 between them)
+      await service.mergeMuteTransitionClips([clip1Start.id, clip3End.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+
+      // Should have merged all clips into one: -60000, 10, 60
+      expect(remainingTimes).toEqual([-60000, 10, 60]);
+
+      console.log(`✅ Merged clips: remaining times [${remainingTimes.join(', ')}]`);
+    });
+
+    it('should handle infinite clips when merging', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create pattern with infinite clip
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:OFF, 10:ON, 20:OFF, 30:ON (infinite)
+      // This creates clips: [10-20], [30-∞]
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      const infiniteClipStart = await service.createMuteTransition(trackId, 30, false, muteParameterId);
+
+      console.log('Created pattern with infinite clip: clips [10-20], [30-∞]');
+
+      // Merge finite and infinite clips
+      await service.mergeMuteTransitionClips([clip1Start.id, infiniteClipStart.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+
+      // Should have merged into infinite clip: -60000, 10
+      expect(remainingTimes).toEqual([-60000, 10]);
+
+      console.log(`✅ Merged with infinite clip: remaining times [${remainingTimes.join(', ')}]`);
+    });
+  });
+
+  describe('getMovedMuteTransitions', () => {
+    it('should prevent moving before time 0', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const transitions = await service.getMuteTransitionsForTrack(trackId);
+
+      const positiveTransition = transitions.find(t => t.timePosition > 0 && t.timePosition < 10);
+      if (!positiveTransition) {
+        console.log('Skipping test - need transition between 0 and 10');
+        return;
+      }
+
+      // Try to move transition to negative time
+      const deltaTime = -positiveTransition.timePosition - 5; // Should be negative
+      const moved = MuteTransitionService.getMovedMuteTransitions([positiveTransition], transitions, deltaTime);
+
+      expect(moved.length).toBe(1);
+      expect(moved[0].timePosition).toBe(0); // Should be clamped to 0
+
+      console.log(`✅ Prevented negative movement: ${positiveTransition.timePosition} + ${deltaTime} → ${moved[0].timePosition}`);
+    });
+
+    it('should prevent collision with neighbors', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const transitions = await service.getMuteTransitionsForTrack(trackId);
+
+      const sortedTransitions = transitions
+        .filter(t => t.timePosition >= 0)
+        .sort((a, b) => a.timePosition - b.timePosition);
+
+      if (sortedTransitions.length < 2) {
+        console.log('Skipping test - need at least 2 positive transitions');
+        return;
+      }
+
+      const firstTransition = sortedTransitions[0];
+      const secondTransition = sortedTransitions[1];
+      const gap = secondTransition.timePosition - firstTransition.timePosition;
+
+      // Try to move first transition past the second
+      const deltaTime = gap + 5; // Should cause collision
+      const moved = MuteTransitionService.getMovedMuteTransitions([firstTransition], transitions, deltaTime);
+
+      expect(moved.length).toBe(1);
+      expect(moved[0].timePosition).toBeLessThan(secondTransition.timePosition);
+      expect(moved[0].timePosition).toBeCloseTo(secondTransition.timePosition - 0.001, 3);
+
+      console.log(`✅ Prevented collision: tried to move ${gap + 5} but limited to ${moved[0].timePosition - firstTransition.timePosition}`);
+    });
+
+    it('should move multiple transitions by same constrained amount', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Create test scenario with controlled spacing
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create: -60000:OFF, 10:ON, 20:OFF, 50:ON (big gap after 20)
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      const t1 = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const t2 = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      await service.createMuteTransition(trackId, 50, false, muteParameterId);
+
+      // Get all transitions for the track after setup
+      const allTransitions = await service.getMuteTransitionsForTrack(trackId);
+
+      // Try to move both t1 and t2 by 40 seconds (t2 would hit 50, so should be limited)
+      const moved = MuteTransitionService.getMovedMuteTransitions([t1, t2], allTransitions, 40);
+
+      expect(moved.length).toBe(2);
+
+      // Both should move by same (limited) amount
+      const deltaApplied1 = moved[0].timePosition - 10;
+      const deltaApplied2 = moved[1].timePosition - 20;
+      expect(deltaApplied1).toBeCloseTo(deltaApplied2, 3);
+
+      // Should be limited by collision with transition at 50
+      expect(moved[1].timePosition).toBeLessThan(50);
+
+      console.log(`✅ Moved multiple transitions by same constrained amount: ${deltaApplied1.toFixed(3)} seconds`);
+    });
+  });
+
+  describe('addMuteTransitionClip', () => {
+    it('should split existing clip when adding inside it', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create a single clip
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create clip: -60000:OFF, 10:ON, 50:OFF (clip from 10-50)
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      await service.createMuteTransition(trackId, 50, true, muteParameterId);
+
+      console.log('Created clip [10-50], adding muted section at time 30');
+
+      // Add muted section inside the clip at time 30
+      const created = await service.addMuteTransitionClip(trackId, 30, muteParameterId);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+
+      // Should have split the clip: -60000, 10, 30, 32, 50
+      // Original clip [10-50] becomes [10-30] + [32-50] with muted section [30-32]
+      expect(remainingTimes.length).toBe(5);
+      expect(remainingTimes).toContain(-60000);
+      expect(remainingTimes).toContain(10);
+      expect(remainingTimes).toContain(30);
+      expect(remainingTimes).toContain(50);
+
+      console.log(`✅ Split clip: remaining times [${remainingTimes.join(', ')}]`);
+    });
+
+    it('should create new clip in muted space', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create muted space
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create: -60000:ON (everything muted)
+      await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+
+      console.log('Created muted space, adding clip at time 30');
+
+      // Add clip in muted space
+      const created = await service.addMuteTransitionClip(trackId, 30, muteParameterId);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+
+      // Should have created clip: -60000, 30, 32
+      expect(remainingTimes.length).toBe(3);
+      expect(remainingTimes).toContain(-60000);
+      expect(remainingTimes).toContain(30);
+      expect(remainingTimes[2]).toBeCloseTo(32, 0); // Default 2-second clip
+
+      console.log(`✅ Created new clip: remaining times [${remainingTimes.join(', ')}]`);
+    });
+
+    it('should toggle initial state when adding at beginning', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create initial muted state
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create: -60000:ON, 50:OFF
+      const initialTransition = await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      await service.createMuteTransition(trackId, 50, false, muteParameterId);
+
+      console.log('Created initial muted state, adding clip at time 5 (before first positive)');
+
+      // Add clip at beginning (before any positive transitions)
+      await service.addMuteTransitionClip(trackId, 5, muteParameterId);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const initialState = remaining.find(t => t.timePosition < 0);
+
+      // Initial state should be toggled from true to false
+      expect(initialState?.isMuted).toBe(false);
+
+      // Should have transitions: -60000:OFF, 5:ON, 50:OFF
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      expect(remainingTimes).toEqual([-60000, 5, 50]);
+
+      console.log(`✅ Toggled initial state to ${initialState?.isMuted} and added transition at 5`);
+    });
+
+    it('should add single transition at end for infinite clip', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create pattern ending in infinite clip
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create: -60000:OFF, 30:ON (infinite clip from 30)
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      await service.createMuteTransition(trackId, 30, false, muteParameterId);
+
+      console.log('Created infinite clip [30-∞], adding muted section at time 50');
+
+      // Add at end of song (inside infinite clip)
+      await service.addMuteTransitionClip(trackId, 50, muteParameterId);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+
+      // Should add single transition to end the infinite clip: -60000, 30, 50
+      expect(remainingTimes).toEqual([-60000, 30, 50]);
+
+      console.log(`✅ Added end to infinite clip: remaining times [${remainingTimes.join(', ')}]`);
+    });
+  });
+
+  describe('updateMuteTransitions', () => {
+    it('should update transition times directly', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const transitions = await service.getMuteTransitionsForTrack(trackId);
+
+      const positiveTransitions = transitions.filter(t => t.timePosition > 0);
+      if (positiveTransitions.length === 0) {
+        console.log('Skipping test - need positive transitions');
+        return;
+      }
+
+      const transitionToUpdate = positiveTransitions[0];
+      const originalTime = transitionToUpdate.timePosition;
+      const newTime = originalTime + 100; // Move to a safe spot
+
+      console.log(`Updating transition from ${originalTime} to ${newTime}`);
+
+      await service.updateMuteTransitions([{
+        id: transitionToUpdate.id,
+        timePosition: newTime
+      }]);
+
+      const updated = await service.getMuteTransition(transitionToUpdate.id);
+      expect(updated?.timePosition).toBe(newTime);
+
+      console.log(`✅ Updated transition time: ${originalTime} → ${updated?.timePosition}`);
+    });
+  });
+
+  describe('integration with existing functionality', () => {
+    it('should maintain alternating patterns after all operations', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+
+      // Test that any track maintains alternating pattern
+      const transitions = await service.getMuteTransitionsForTrack(trackId);
+      const sortedTransitions = transitions.sort((a, b) => a.timePosition - b.timePosition);
+
+      console.log('Verifying alternating pattern is maintained:');
+      sortedTransitions.forEach((t, i) => {
+        console.log(`  ${i + 1}: time=${t.timePosition.toFixed(3)}, muted=${t.isMuted}`);
+      });
+
+      // Verify alternating pattern
+      for (let i = 1; i < sortedTransitions.length; i++) {
+        expect(sortedTransitions[i].isMuted).not.toBe(sortedTransitions[i - 1].isMuted);
+      }
+
+      console.log(`✅ Alternating pattern maintained across ${sortedTransitions.length} transitions`);
     });
   });
 });

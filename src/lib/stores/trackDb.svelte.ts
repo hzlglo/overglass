@@ -32,7 +32,7 @@ const createTrackDbStore = () => {
     isRecalculating = false;
   };
 
-  const init = async () => {
+  const init = async (parsedALS: ParsedALS, trackToName: Record<string, string>) => {
     if (database) {
       console.error('Cannot init - database already initialized');
       return;
@@ -48,17 +48,13 @@ const createTrackDbStore = () => {
 
       database = new AutomationDatabase(adapter);
       await database.initialize();
+
+      await database.loadALSData(parsedALS, trackToName);
+      await refreshData();
+      return;
     } finally {
       creatingDb = false;
     }
-  };
-
-  const loadALSData = async (parsedALS: ParsedALS, trackToName: Record<string, string>) => {
-    if (!database) {
-      throw new Error('Database not initialized');
-    }
-    await database.loadALSData(parsedALS, trackToName);
-    await refreshData();
   };
 
   const updateDb = async (editSql: string, params: any[] = []) => {
@@ -76,9 +72,8 @@ const createTrackDbStore = () => {
       }
     },
     refreshData,
-    loadALSData,
     updateDb,
-    isInitialized: () => database !== null,
+    isInitialized: () => database !== null && !creatingDb,
     get: (): AutomationDatabase => {
       if (!database) {
         throw new Error('database not initialized');
@@ -97,6 +92,9 @@ export const useTrackDbQuery = <T>(
 ): { getResult: () => T } => {
   let result = $state<T>(initialValue);
   $effect(() => {
+    if (!trackDb.isInitialized()) {
+      return;
+    }
     query(trackDb.get()).then((r) => {
       if (isEqual(result, r)) {
         return;
