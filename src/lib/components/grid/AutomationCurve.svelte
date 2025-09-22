@@ -143,11 +143,14 @@
     return circles;
   });
 
+  $effect(() => {
+    sharedDragSelect.registerDragHandler(parameterId, (params) => {
+      console.log('drag handler called');
+      points?.attr('cx', (d) => xScale(d.timePosition)).attr('cy', (d) => yScale(d.value));
+    });
+  });
+
   let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
-  $inspect('selectedPoints', selectedPoints);
-  let thisParameterSelectedPoints = $derived(
-    selectedPoints.filter((p) => p.parameterId === parameterId),
-  );
 
   let drag = $derived(
     d3
@@ -175,33 +178,6 @@
 
   $effect(() => {
     points?.call(drag, []);
-  });
-
-  // Draw selected points
-  let selectedPointsCircles = $derived.by(() => {
-    // Add new points
-    let circles = svgGroup
-      ?.selectAll<SVGCircleElement, AutomationPoint>('.point.selected')
-      .data(thisParameterSelectedPoints, (p) => p.id)
-      .join(
-        (enter) => enter.append('circle'),
-        (update) => update,
-        (exit) => exit.remove(),
-      );
-
-    circles
-      ?.attr('cx', (d) => xScale(d.timePosition))
-      .attr('cy', (d) => yScale(d.value))
-      .attr('class', 'point selected')
-      .attr('r', 3)
-      .attr('fill', 'var(--color-base-content)')
-      .attr('fill-opacity', 0.4)
-      .attr('stroke', 'var(--color-base-content)')
-      .attr('stroke-width', 1);
-    return circles;
-  });
-  $effect(() => {
-    selectedPointsCircles?.call(drag, []);
   });
 </script>
 

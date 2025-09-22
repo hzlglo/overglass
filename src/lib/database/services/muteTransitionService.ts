@@ -18,8 +18,9 @@ export class MuteTransitionService {
     const existingTransitions = await this.getMuteTransitionsForTrack(trackId);
 
     // Find the state we should be at this time position
-    const transitionsBefore = existingTransitions.filter(t => t.timePosition < timePosition);
-    const lastBefore = transitionsBefore.length > 0 ? transitionsBefore[transitionsBefore.length - 1] : null;
+    const transitionsBefore = existingTransitions.filter((t) => t.timePosition < timePosition);
+    const lastBefore =
+      transitionsBefore.length > 0 ? transitionsBefore[transitionsBefore.length - 1] : null;
 
     // Determine what state we should transition to (opposite of current state)
     let currentState = false; // Default to unmuted if no previous transitions
@@ -28,13 +29,18 @@ export class MuteTransitionService {
     }
     const newState = !currentState;
 
-    const transitionsAfter = existingTransitions.filter(t => t.timePosition > timePosition);
+    const transitionsAfter = existingTransitions.filter((t) => t.timePosition > timePosition);
     const nextAfter = transitionsAfter.length > 0 ? transitionsAfter[0] : null;
 
     const createdTransitions: MuteTransition[] = [];
 
     // Create the primary transition
-    const primaryTransition = await this.createMuteTransition(trackId, timePosition, newState, muteParameterId);
+    const primaryTransition = await this.createMuteTransition(
+      trackId,
+      timePosition,
+      newState,
+      muteParameterId,
+    );
     createdTransitions.push(primaryTransition);
 
     // Check if we need to add a second transition to maintain the alternating pattern
@@ -61,7 +67,7 @@ export class MuteTransitionService {
         trackId,
         secondTransitionTime,
         !newState, // Opposite of the primary transition
-        muteParameterId
+        muteParameterId,
       );
       createdTransitions.push(secondTransition);
     }
@@ -89,7 +95,7 @@ export class MuteTransitionService {
 
     // Assume all transitions are from the same track (validate this)
     const trackId = transitionsToMove[0].trackId;
-    if (!transitionsToMove.every(t => t.trackId === trackId)) {
+    if (!transitionsToMove.every((t) => t.trackId === trackId)) {
       throw new Error('All transitions must be from the same track');
     }
 
@@ -97,24 +103,25 @@ export class MuteTransitionService {
     const allTransitions = await this.getMuteTransitionsForTrack(trackId);
 
     // Create the moved versions
-    const movedTransitions = transitionsToMove.map(t => ({
+    const movedTransitions = transitionsToMove.map((t) => ({
       ...t,
       timePosition: t.timePosition + deltaTime,
     }));
 
     // Get transitions that are NOT being moved
-    const staticTransitions = allTransitions.filter(t => !transitionIds.includes(t.id));
+    const staticTransitions = allTransitions.filter((t) => !transitionIds.includes(t.id));
 
     // Combine static and moved transitions, sort by time
-    const combinedTransitions = [...staticTransitions, ...movedTransitions]
-      .sort((a, b) => a.timePosition - b.timePosition);
+    const combinedTransitions = [...staticTransitions, ...movedTransitions].sort(
+      (a, b) => a.timePosition - b.timePosition,
+    );
 
     // Deduplicate to maintain alternating pattern, prioritizing moved transitions
     const deduplicatedTransitions = this.deduplicateTransitions(combinedTransitions, transitionIds);
 
     // Find transitions that need to be deleted (were in original but not in deduplicated)
-    const transitionsToDelete = allTransitions.filter(t =>
-      !deduplicatedTransitions.some(dt => dt.id === t.id)
+    const transitionsToDelete = allTransitions.filter(
+      (t) => !deduplicatedTransitions.some((dt) => dt.id === t.id),
     );
 
     // Delete conflicting transitions
@@ -124,10 +131,19 @@ export class MuteTransitionService {
 
     // Update moved transitions that survived deduplication
     for (const transition of movedTransitions) {
-      if (deduplicatedTransitions.some(dt => dt.id === transition.id)) {
+      if (deduplicatedTransitions.some((dt) => dt.id === transition.id)) {
         await this.updateMuteTransitionTime(transition.id, transition.timePosition);
       }
     }
+  }
+
+  async getAll(): Promise<MuteTransition[]> {
+    const sqlTemplate = SQL`
+      SELECT id, track_id, time_position, is_muted, mute_parameter_id, created_at, updated_at
+      FROM mute_transitions
+      ORDER BY time_position ASC
+    `;
+    return await this.db.run(sqlTemplate.sql, sqlTemplate.values);
   }
 
   /**
@@ -197,7 +213,9 @@ export class MuteTransitionService {
   /**
    * Get all mute transitions for a device
    */
-  async getMuteTransitionsForDevice(deviceId: string): Promise<(MuteTransition & { trackName: string })[]> {
+  async getMuteTransitionsForDevice(
+    deviceId: string,
+  ): Promise<(MuteTransition & { trackName: string })[]> {
     const sqlTemplate = SQL`
       SELECT
         mt.id,
@@ -245,9 +263,10 @@ export class MuteTransitionService {
     }
 
     // Check if mute parameter exists
-    const parameter = await this.db.run('SELECT id FROM parameters WHERE id = ? AND is_mute = true', [
-      muteParameterId,
-    ]);
+    const parameter = await this.db.run(
+      'SELECT id FROM parameters WHERE id = ? AND is_mute = true',
+      [muteParameterId],
+    );
     if (parameter.length === 0) {
       throw new Error(`Mute parameter with id ${muteParameterId} not found`);
     }
@@ -274,7 +293,10 @@ export class MuteTransitionService {
   /**
    * Update a mute transition's time position (private)
    */
-  private async updateMuteTransitionTime(transitionId: string, newTimePosition: number): Promise<void> {
+  private async updateMuteTransitionTime(
+    transitionId: string,
+    newTimePosition: number,
+  ): Promise<void> {
     const sqlTemplate = SQL`
       UPDATE mute_transitions
       SET time_position = ${newTimePosition}, updated_at = ${new Date()}
@@ -292,7 +314,7 @@ export class MuteTransitionService {
    */
   private deduplicateTransitions(
     transitions: MuteTransition[],
-    priorityIds: string[]
+    priorityIds: string[],
   ): MuteTransition[] {
     const result: MuteTransition[] = [];
     let lastState: boolean | null = null;

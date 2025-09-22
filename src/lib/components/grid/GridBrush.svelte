@@ -4,6 +4,15 @@
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
+  import type { AutomationPoint, MuteTransition } from '$lib/database/schema';
+
+  let {
+    muteTransitionsByTrackId,
+    automationPointsByParameterId,
+  }: {
+    muteTransitionsByTrackId: Record<string, MuteTransition[]>;
+    automationPointsByParameterId: Record<string, AutomationPoint[]>;
+  } = $props();
 
   let lanes = $derived(gridDisplayState.getLanes());
 

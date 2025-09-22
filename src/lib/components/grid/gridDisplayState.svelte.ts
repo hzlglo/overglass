@@ -73,9 +73,10 @@ const getGridDisplayState = () => {
       // Expand all parameters for each track
       for (const track of tracks) {
         const parameters = await db.tracks.getParametersForTrack(track.id);
+        const nonMuteParameters = parameters.filter((p) => !p.isMute);
         trackLaneStates.set(track.id, { expanded: true });
-        if (parameters) {
-          parameters.forEach((param) => {
+        if (nonMuteParameters) {
+          nonMuteParameters.forEach((param) => {
             parameterLaneStates.set(param.id, { expanded: true });
 
             laneHeights.set(param.id, DEFAULT_PARAMETER_HEIGHT);
@@ -83,7 +84,7 @@ const getGridDisplayState = () => {
         }
         parameterOrder.set(
           track.id,
-          parameters.map((p) => p.id),
+          nonMuteParameters.map((p) => p.id),
         );
       }
     }

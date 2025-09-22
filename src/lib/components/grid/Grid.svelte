@@ -2,7 +2,7 @@
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import * as d3 from 'd3';
-  import { isEqual } from 'lodash';
+  import { groupBy, isEqual } from 'lodash';
   import SizeObserver from '../core/SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
   import GridBrush from './GridBrush.svelte';
@@ -14,7 +14,7 @@
   import GridTimelineBottom from './GridTimelineBottom.svelte';
   import GridTimelineTop from './GridTimelineTop.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
-  import MuteTransitionWrapper from './MuteTransitionWrapper.svelte';
+  import MuteClipsWrapper from './MuteClipsWrapper.svelte';
 
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
@@ -75,7 +75,6 @@
 
     const pan = (event: WheelEvent) => {
       zoom.translateBy(svg.transition().duration(50), event.wheelDeltaX, 0);
-      console.log(event.wheelDeltaX, event.wheelDeltaY);
       if (Math.abs(event.wheelDeltaX) > Math.abs(event.wheelDeltaY)) {
         event.preventDefault();
       }
@@ -119,8 +118,14 @@
       }
     }
   });
-  $inspect('gridwidth', gridWidth);
-  $inspect('gridheight', gridHeight);
+
+  let automationPointsStore = useTrackDbQuery((db) => db.automation.getAutomationPoints({}), []);
+  let automationPoints = $derived(automationPointsStore.getResult());
+  let automationPointsByParameterId = $derived(groupBy(automationPoints, (p) => p.parameterId));
+
+  let muteTransitionsStore = useTrackDbQuery((db) => db.muteTransitions.getAll(), []);
+  let muteTransitions = $derived(muteTransitionsStore.getResult());
+  let muteTransitionsByTrackId = $derived(groupBy(muteTransitions, (t) => t.trackId));
 </script>
 
 <SizeObserver bind:width bind:height>
@@ -128,16 +133,17 @@
     <GridTimelineTop height={TOP_TIMELINE_HEIGHT} width={gridWidth} />
     <div class="no-scrollbar flex flex-1 flex-col overflow-y-auto" bind:this={gridContainer}>
       <svg class="shrink-0" height={gridHeight} width={gridWidth} bind:this={svgElement}>
-        <GridBrush />
+        <GridBrush {muteTransitionsByTrackId} {automationPointsByParameterId} />
         <g bind:this={svgGroupElement}>
           {#each lanes as lane (lane.id)}
             {#if lane.type === 'track'}
-              <MuteTransitionWrapper
+              <MuteClipsWrapper
                 trackId={lane.id}
                 height={gridDisplayState.getLaneHeight(lane.id)}
                 width={gridWidth}
                 yPosition={lane.top}
                 {trackCustomizations}
+                muteTransitions={muteTransitionsByTrackId[lane.id]}
               />
             {:else if lane.type === 'parameter'}
               <AutomationCurveWrapper
@@ -146,6 +152,7 @@
                 width={gridWidth}
                 yPosition={lane.top}
                 {trackCustomizations}
+                automationPoints={automationPointsByParameterId[lane.id]}
               />
             {/if}
           {/each}
