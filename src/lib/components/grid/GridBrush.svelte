@@ -18,6 +18,7 @@
   let brushGElement = $state<SVGGElement>();
   let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);
   let brushHandler = async (event: unknown) => {
+    console.log('brushHandler', event);
     if (!event.selection) {
       sharedDragSelect.setBrushSelection(null);
       sharedDragSelect.setSelectedLanes([]);
@@ -93,6 +94,15 @@
       return;
     }
     brushG.call(brush);
+  });
+  $effect(() => {
+    if (!brushG) {
+      return;
+    }
+    brushG.on('contextmenu', (event) => {
+      event.preventDefault();
+      console.log('contextmenu', event);
+    });
   });
 </script>
 

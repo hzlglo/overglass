@@ -154,25 +154,33 @@ describe('Automation Edit API', () => {
   });
 
 
-  describe('removeAutomationPoint', () => {
-    it('should remove an existing automation point', async () => {
-      const timePosition = 32.0;
-      
-      // First create a point
-      await db.automation.createAutomationPoint(testParameterId, timePosition, 0.8);
-      
-      // Then remove it
-      const wasRemoved = await db.automation.removeAutomationPoint(testParameterId, timePosition);
-      expect(wasRemoved).toBe(true);
-      
-      // Verify it's gone
-      const pointsInRange = await db.automation.getAutomationPointsInRange(testParameterId, 31.9, 32.1);
-      expect(pointsInRange).toHaveLength(0);
+
+  describe('deleteAutomationPoints', () => {
+    it('should delete multiple automation points by ID', async () => {
+      // Create test points
+      const point1 = await db.automation.createAutomationPoint(testParameterId, 100.0, 0.1);
+      const point2 = await db.automation.createAutomationPoint(testParameterId, 101.0, 0.2);
+      const point3 = await db.automation.createAutomationPoint(testParameterId, 102.0, 0.3);
+
+      // Delete two of them
+      const deletedCount = await db.automation.deleteAutomationPoints([point1.id, point3.id]);
+      expect(deletedCount).toBe(2);
+
+      // Verify they're gone and the middle one remains
+      const remainingPoints = await db.automation.getAutomationPointsInRange(testParameterId, 99.0, 103.0);
+      expect(remainingPoints).toHaveLength(1);
+      expect(remainingPoints[0].id).toBe(point2.id);
+      expect(remainingPoints[0].timePosition).toBe(101.0);
     });
 
-    it('should return false when removing non-existent point', async () => {
-      const wasRemoved = await db.automation.removeAutomationPoint(testParameterId, 999.0);
-      expect(wasRemoved).toBe(false);
+    it('should return 0 when deleting empty array', async () => {
+      const deletedCount = await db.automation.deleteAutomationPoints([]);
+      expect(deletedCount).toBe(0);
+    });
+
+    it('should handle deletion of non-existent IDs gracefully', async () => {
+      const deletedCount = await db.automation.deleteAutomationPoints(['non-existent-1', 'non-existent-2']);
+      expect(deletedCount).toBe(2); // Still reports the count attempted to delete
     });
   });
 

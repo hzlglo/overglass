@@ -115,36 +115,6 @@ export class AutomationService {
     };
   }
 
-  /**
-   * Remove an automation point at a specific time
-   * @param parameterId - The parameter to edit
-   * @param timePosition - Time position to remove point from
-   * @returns true if a point was removed
-   */
-  async removeAutomationPoint(parameterId: string, timePosition: number): Promise<boolean> {
-    // First check if the point exists
-    const existingPoints = await this.db.run(
-      'SELECT COUNT(*) as count FROM automation_points WHERE parameter_id = ? AND time_position = ?',
-      [parameterId, timePosition],
-    );
-
-    const pointExisted = existingPoints[0].count > 0;
-
-    if (pointExisted) {
-      // Delete the point
-      await this.db.run(
-        'DELETE FROM automation_points WHERE parameter_id = ? AND time_position = ?',
-        [parameterId, timePosition],
-      );
-
-      console.log(
-        `✅ Removed automation point at time ${timePosition} for parameter ${parameterId}`,
-      );
-      return true;
-    } else {
-      return false;
-    }
-  }
 
   /**
    * Get automation points for a parameter with optional time filtering
@@ -364,6 +334,27 @@ export class AutomationService {
       `    📋 Copied ${pointsInRange.length} automation points for parameter ${parameterId}`,
     );
     return pointsInRange.length;
+  }
+
+  /**
+   * Delete automation points by their IDs
+   * @param pointIds - Array of automation point IDs to delete
+   * @returns Number of points deleted
+   */
+  async deleteAutomationPoints(pointIds: string[]): Promise<number> {
+    if (pointIds.length === 0) {
+      return 0;
+    }
+
+    // Use parameterized query for safety
+    const placeholders = pointIds.map(() => '?').join(',');
+    const result = await this.db.run(
+      `DELETE FROM automation_points WHERE id IN (${placeholders})`,
+      pointIds,
+    );
+
+    console.log(`✅ Deleted ${pointIds.length} automation points`);
+    return pointIds.length;
   }
 
   async getMaxTime(): Promise<number> {

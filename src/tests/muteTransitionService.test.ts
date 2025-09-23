@@ -50,8 +50,8 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const originalTransitions = await service.getMuteTransitionsForTrack(trackId);
 
       const sortedTransitions = originalTransitions.sort((a, b) => a.timePosition - b.timePosition);
-      const negativeTransition = sortedTransitions.find(t => t.timePosition < 0);
-      const firstPositive = sortedTransitions.find(t => t.timePosition >= 0);
+      const negativeTransition = sortedTransitions.find((t) => t.timePosition < 0);
+      const firstPositive = sortedTransitions.find((t) => t.timePosition >= 0);
 
       if (!negativeTransition || !firstPositive) {
         console.log('Skipping test - need negative and positive transitions');
@@ -59,7 +59,9 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       }
 
       const originalInitialState = negativeTransition.isMuted;
-      console.log(`Original initial state: ${originalInitialState}, deleting first positive at time ${firstPositive.timePosition}`);
+      console.log(
+        `Original initial state: ${originalInitialState}, deleting first positive at time ${firstPositive.timePosition}`,
+      );
 
       // Delete first positive transition
       await service.deleteMuteTransitions([firstPositive.id]);
@@ -72,7 +74,9 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const deletedTransition = await service.getMuteTransition(firstPositive.id);
       expect(deletedTransition).toBeNull();
 
-      console.log(`✅ Initial state toggled from ${originalInitialState} to ${!originalInitialState}`);
+      console.log(
+        `✅ Initial state toggled from ${originalInitialState} to ${!originalInitialState}`,
+      );
     });
 
     it('should delete only the last transition when deleting only last', async () => {
@@ -81,7 +85,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const trackId = tracks[0].id;
       const originalTransitions = await service.getMuteTransitionsForTrack(trackId);
 
-      const positiveTransitions = originalTransitions.filter(t => t.timePosition >= 0);
+      const positiveTransitions = originalTransitions.filter((t) => t.timePosition >= 0);
       const lastTransition = positiveTransitions[positiveTransitions.length - 1];
 
       if (!lastTransition) {
@@ -103,7 +107,9 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const deletedTransition = await service.getMuteTransition(lastTransition.id);
       expect(deletedTransition).toBeNull();
 
-      console.log(`✅ Deleted only last transition, count: ${originalCount} → ${remainingTransitions.length}`);
+      console.log(
+        `✅ Deleted only last transition, count: ${originalCount} → ${remainingTransitions.length}`,
+      );
     });
 
     it('should delete entire clips in general case', async () => {
@@ -121,7 +127,12 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       // Create pattern: -60000:ON, 10:OFF, 20:ON, 30:OFF, 40:ON
       // This creates clips: [10-20] and [30-40]
-      const initialTransition = await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const initialTransition = await service.createMuteTransition(
+        trackId,
+        -60000,
+        true,
+        muteParameterId,
+      );
       const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
       const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
       const clip2Start = await service.createMuteTransition(trackId, 30, false, muteParameterId);
@@ -133,7 +144,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       await service.deleteMuteTransitions([clip1End.id]);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
 
       // Should have deleted both clip1Start and clip1End, leaving: -60000, 30, 40
       expect(remainingTimes).toEqual([-60000, 30, 40]);
@@ -171,7 +182,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       await service.mergeMuteTransitionClips([clip1Start.id, clip3End.id]);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
 
       // Should have merged all clips into one: -60000, 10, 60
       expect(remainingTimes).toEqual([-60000, 10, 60]);
@@ -196,7 +207,12 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       await service.createMuteTransition(trackId, -60000, false, muteParameterId);
       const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
       const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
-      const infiniteClipStart = await service.createMuteTransition(trackId, 30, false, muteParameterId);
+      const infiniteClipStart = await service.createMuteTransition(
+        trackId,
+        30,
+        false,
+        muteParameterId,
+      );
 
       console.log('Created pattern with infinite clip: clips [10-20], [30-∞]');
 
@@ -204,7 +220,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       await service.mergeMuteTransitionClips([clip1Start.id, infiniteClipStart.id]);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
 
       // Should have merged into infinite clip: -60000, 10
       expect(remainingTimes).toEqual([-60000, 10]);
@@ -219,7 +235,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const trackId = tracks[0].id;
       const transitions = await service.getMuteTransitionsForTrack(trackId);
 
-      const positiveTransition = transitions.find(t => t.timePosition > 0 && t.timePosition < 10);
+      const positiveTransition = transitions.find((t) => t.timePosition > 0 && t.timePosition < 10);
       if (!positiveTransition) {
         console.log('Skipping test - need transition between 0 and 10');
         return;
@@ -227,12 +243,18 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       // Try to move transition to negative time
       const deltaTime = -positiveTransition.timePosition - 5; // Should be negative
-      const moved = MuteTransitionService.getMovedMuteTransitions([positiveTransition], transitions, deltaTime);
+      const moved = MuteTransitionService.getMovedMuteTransitions(
+        [positiveTransition],
+        transitions,
+        deltaTime,
+      );
 
       expect(moved.length).toBe(1);
       expect(moved[0].timePosition).toBe(0); // Should be clamped to 0
 
-      console.log(`✅ Prevented negative movement: ${positiveTransition.timePosition} + ${deltaTime} → ${moved[0].timePosition}`);
+      console.log(
+        `✅ Prevented negative movement: ${positiveTransition.timePosition} + ${deltaTime} → ${moved[0].timePosition}`,
+      );
     });
 
     it('should prevent collision with neighbors', async () => {
@@ -241,7 +263,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const transitions = await service.getMuteTransitionsForTrack(trackId);
 
       const sortedTransitions = transitions
-        .filter(t => t.timePosition >= 0)
+        .filter((t) => t.timePosition >= 0)
         .sort((a, b) => a.timePosition - b.timePosition);
 
       if (sortedTransitions.length < 2) {
@@ -255,13 +277,19 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       // Try to move first transition past the second
       const deltaTime = gap + 5; // Should cause collision
-      const moved = MuteTransitionService.getMovedMuteTransitions([firstTransition], transitions, deltaTime);
+      const moved = MuteTransitionService.getMovedMuteTransitions(
+        [firstTransition],
+        transitions,
+        deltaTime,
+      );
 
       expect(moved.length).toBe(1);
       expect(moved[0].timePosition).toBeLessThan(secondTransition.timePosition);
       expect(moved[0].timePosition).toBeCloseTo(secondTransition.timePosition - 0.001, 3);
 
-      console.log(`✅ Prevented collision: tried to move ${gap + 5} but limited to ${moved[0].timePosition - firstTransition.timePosition}`);
+      console.log(
+        `✅ Prevented collision: tried to move ${gap + 5} but limited to ${moved[0].timePosition - firstTransition.timePosition}`,
+      );
     });
 
     it('should move multiple transitions by same constrained amount', async () => {
@@ -298,7 +326,9 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       // Should be limited by collision with transition at 50
       expect(moved[1].timePosition).toBeLessThan(50);
 
-      console.log(`✅ Moved multiple transitions by same constrained amount: ${deltaApplied1.toFixed(3)} seconds`);
+      console.log(
+        `✅ Moved multiple transitions by same constrained amount: ${deltaApplied1.toFixed(3)} seconds`,
+      );
     });
   });
 
@@ -323,10 +353,10 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       console.log('Created clip [10-50], adding muted section at time 30');
 
       // Add muted section inside the clip at time 30
-      const created = await service.addMuteTransitionClip(trackId, 30, muteParameterId);
+      const created = await service.addMuteTransitionClip(trackId, 30);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
 
       // Should have split the clip: -60000, 10, 30, 32, 50
       // Original clip [10-50] becomes [10-30] + [32-50] with muted section [30-32]
@@ -357,10 +387,10 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       console.log('Created muted space, adding clip at time 30');
 
       // Add clip in muted space
-      const created = await service.addMuteTransitionClip(trackId, 30, muteParameterId);
+      const created = await service.addMuteTransitionClip(trackId, 30);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
 
       // Should have created clip: -60000, 30, 32
       expect(remainingTimes.length).toBe(3);
@@ -384,22 +414,27 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       }
 
       // Create: -60000:ON, 50:OFF
-      const initialTransition = await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const initialTransition = await service.createMuteTransition(
+        trackId,
+        -60000,
+        true,
+        muteParameterId,
+      );
       await service.createMuteTransition(trackId, 50, false, muteParameterId);
 
       console.log('Created initial muted state, adding clip at time 5 (before first positive)');
 
       // Add clip at beginning (before any positive transitions)
-      await service.addMuteTransitionClip(trackId, 5, muteParameterId);
+      await service.addMuteTransitionClip(trackId, 5);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const initialState = remaining.find(t => t.timePosition < 0);
+      const initialState = remaining.find((t) => t.timePosition < 0);
 
       // Initial state should be toggled from true to false
       expect(initialState?.isMuted).toBe(false);
 
       // Should have transitions: -60000:OFF, 5:ON, 50:OFF
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
       expect(remainingTimes).toEqual([-60000, 5, 50]);
 
       console.log(`✅ Toggled initial state to ${initialState?.isMuted} and added transition at 5`);
@@ -424,10 +459,10 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       console.log('Created infinite clip [30-∞], adding muted section at time 50');
 
       // Add at end of song (inside infinite clip)
-      await service.addMuteTransitionClip(trackId, 50, muteParameterId);
+      await service.addMuteTransitionClip(trackId, 50);
 
       const remaining = await service.getMuteTransitionsForTrack(trackId);
-      const remainingTimes = remaining.map(t => t.timePosition).sort((a, b) => a - b);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
 
       // Should add single transition to end the infinite clip: -60000, 30, 50
       expect(remainingTimes).toEqual([-60000, 30, 50]);
@@ -442,7 +477,7 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
       const trackId = tracks[0].id;
       const transitions = await service.getMuteTransitionsForTrack(trackId);
 
-      const positiveTransitions = transitions.filter(t => t.timePosition > 0);
+      const positiveTransitions = transitions.filter((t) => t.timePosition > 0);
       if (positiveTransitions.length === 0) {
         console.log('Skipping test - need positive transitions');
         return;
@@ -454,10 +489,12 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       console.log(`Updating transition from ${originalTime} to ${newTime}`);
 
-      await service.updateMuteTransitions([{
-        id: transitionToUpdate.id,
-        timePosition: newTime
-      }]);
+      await service.updateMuteTransitions([
+        {
+          id: transitionToUpdate.id,
+          timePosition: newTime,
+        },
+      ]);
 
       const updated = await service.getMuteTransition(transitionToUpdate.id);
       expect(updated?.timePosition).toBe(newTime);
@@ -485,7 +522,9 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
         expect(sortedTransitions[i].isMuted).not.toBe(sortedTransitions[i - 1].isMuted);
       }
 
-      console.log(`✅ Alternating pattern maintained across ${sortedTransitions.length} transitions`);
+      console.log(
+        `✅ Alternating pattern maintained across ${sortedTransitions.length} transitions`,
+      );
     });
   });
 });

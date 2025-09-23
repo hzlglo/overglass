@@ -7,6 +7,7 @@
   import { trackDb } from '$lib/stores/trackDb.svelte';
   import type { Track, MuteTransition } from '$lib/database/schema';
   import { MuteTransitionService } from '$lib/database/services/muteTransitionService';
+  import { actionsDispatcher } from './actionsDispatcher.svelte';
 
   interface AutomationMuteProps {
     trackId: string;
@@ -33,13 +34,11 @@
 
   // Derived values
   const margin = { top: 10, right: 0, bottom: 10, left: 0 };
-  let innerWidth = $derived(width - margin.left - margin.right);
 
   let innerHeight = $derived(height - margin.top - margin.bottom);
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
-  let yScale = $derived(d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]));
   // scale used for dragging points
   let yDiffScale = $derived(
     d3
@@ -54,12 +53,55 @@
 
   let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
 
-  let rectYPadding = 4;
+  // Background rectangle to capture events
+  let backgroundRect = $derived.by(() => {
+    if (!svgGroup) return undefined;
+
+    svgGroup.selectAll('.background-rect').remove();
+    return svgGroup
+      .append('rect')
+      .attr('class', 'background-rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', innerWidth)
+      .attr('height', innerHeight)
+      .attr('fill', 'transparent')
+      .style('cursor', 'pointer');
+  });
+
+  // Add event listeners for track area (for adding clips)
   $effect(() => {
+    if (!backgroundRect) return;
+
+    backgroundRect
+      .on('dblclick', (event) => {
+        const [mouseX] = d3.pointer(event);
+        const timePosition = xScale.invert(mouseX);
+
+        actionsDispatcher.handleDoubleClick(event, 'track', {
+          trackId,
+          timePosition,
+          selectedMuteTransitions: selectedMuteTransitions,
+        });
+      })
+      .on('contextmenu', (event) => {
+        const [mouseX] = d3.pointer(event);
+        const timePosition = xScale.invert(mouseX);
+
+        actionsDispatcher.handleRightClick(event, 'track', {
+          trackId,
+          timePosition,
+          selectedMuteTransitions: selectedMuteTransitions,
+        });
+      });
+  });
+
+  let rectYPadding = 4;
+  let clipRects = $derived.by(() => {
     if (!svgGroup) {
-      return;
+      return undefined;
     }
-    svgGroup
+    return svgGroup
       .selectAll('.clip')
       .data(clips, (d) => d.id)
       .join(
@@ -145,11 +187,46 @@
   $effect(() => {
     muteDragHandles?.call(drag, []);
   });
+
+  // Add event listeners for interactive actions on clip rectangles
+  $effect(() => {
+    if (!clipRects) return;
+
+    // Add listeners to clip rectangles
+    clipRects
+      .on('dblclick', (event, d) => {
+        event.stopPropagation();
+        // Double-click on clip deletes it
+        const clipTransitions = [d.startTransition, d.endTransition].filter(Boolean);
+        actionsDispatcher.handleDoubleClick(event, 'track', {
+          trackId,
+          selectedMuteTransitions: clipTransitions,
+        });
+      })
+      .on('contextmenu', (event, d) => {
+        event.stopPropagation();
+        const clipTransitions = [d.startTransition, d.endTransition].filter(Boolean);
+        actionsDispatcher.handleRightClick(event, 'track', {
+          trackId,
+          selectedMuteTransitions: clipTransitions,
+        });
+      });
+
+    // Add listeners to mute drag handles
+    muteDragHandles?.on('contextmenu', (event, d) => {
+      event.stopPropagation();
+      actionsDispatcher.handleRightClick(event, 'track', {
+        trackId,
+        selectedMuteTransitions: selectedMuteTransitions.length > 0 ? selectedMuteTransitions : [d],
+      });
+    });
+  });
 </script>
 
 <g
   id={`${trackId}-${track.trackName}`}
   bind:this={gElement}
   transform={`translate(0,${yPosition + margin.top})`}
+  {width}
   {color}
 ></g>

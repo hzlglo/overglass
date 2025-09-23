@@ -16,6 +16,7 @@
   import { sharedXScale } from './sharedXScale.svelte';
   import MuteClipsWrapper from './MuteClipsWrapper.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
+  import GridContextMenu from './GridContextMenu.svelte';
 
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
@@ -166,6 +167,8 @@
     <GridTimelineBottom height={BOTTOM_TIMELINE_HEIGHT} width={gridWidth} />
   </div>
 </SizeObserver>
+
+<GridContextMenu />
 
 <style>
   /* Hide scrollbar for Chrome, Safari and Opera */

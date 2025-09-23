@@ -6,6 +6,7 @@
   import { clamp } from '$lib/utils/utils';
   import { sortBy } from 'lodash';
   import { trackDb } from '$lib/stores/trackDb.svelte';
+  import { actionsDispatcher } from './actionsDispatcher.svelte';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -77,6 +78,22 @@
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
+
+  // Background rectangle to capture events
+  // let backgroundRect = $derived.by(() => {
+  //   if (!svgGroup) return undefined;
+
+  //   svgGroup.selectAll('.background-rect').remove();
+  //   return svgGroup
+  //     .append('rect')
+  //     .attr('class', 'background-rect')
+  //     .attr('x', 0)
+  //     .attr('y', 0)
+  //     .attr('width', innerWidth)
+  //     .attr('height', innerHeight)
+  //     .attr('fill', 'transparent')
+  //     .style('cursor', 'crosshair');
+  // });
 
   let { area, line } = $derived.by(() => {
     if (!svgGroup) {
@@ -188,6 +205,60 @@
   $effect(() => {
     points?.call(drag, []);
   });
+
+  // Add event listeners for interactive actions
+  $effect(() => {
+    if (!points) return;
+
+    // Add double-click and right-click event listeners to points
+    points
+      .on('dblclick', (event, d) => {
+        event.stopPropagation();
+        actionsDispatcher.handleDoubleClick(event, 'automationPoint', {
+          parameterId,
+          selectedAutomationPoints: selectedPoints.length > 0 ? selectedPoints : [d],
+        });
+      })
+      .on('contextmenu', (event, d) => {
+        console.log('point contextmenu', event, d);
+        event.stopPropagation();
+        actionsDispatcher.handleRightClick(event, 'parameter', {
+          parameterId,
+          selectedAutomationPoints: selectedPoints.length > 0 ? selectedPoints : [d],
+        });
+      });
+  });
+
+  // Add event listeners for parameter area (for adding points)
+  // $effect(() => {
+  //   if (!backgroundRect) return;
+
+  //   backgroundRect
+  //     .on('dblclick', (event) => {
+  //       const [mouseX, mouseY] = d3.pointer(event);
+  //       const timePosition = xScale.invert(mouseX);
+  //       const value = yScale.invert(mouseY);
+
+  //       actionsDispatcher.handleDoubleClick(event, 'parameter', {
+  //         parameterId,
+  //         timePosition,
+  //         value: clamp(value, 0, 1),
+  //         selectedAutomationPoints: selectedPoints,
+  //       });
+  //     })
+  //     .on('contextmenu', (event) => {
+  //       const [mouseX, mouseY] = d3.pointer(event);
+  //       const timePosition = xScale.invert(mouseX);
+  //       const value = yScale.invert(mouseY);
+
+  //       actionsDispatcher.handleRightClick(event, 'parameter', {
+  //         parameterId,
+  //         timePosition,
+  //         value: clamp(value, 0, 1),
+  //         selectedAutomationPoints: selectedPoints,
+  //       });
+  //     });
+  // });
 </script>
 
 <g

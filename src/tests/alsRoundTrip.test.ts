@@ -27,7 +27,7 @@ describe('ALS Round-Trip Integration Test', () => {
       for (let i = 0; i < Math.min(2, parametersWithPoints.length); i++) {
         const { parameter, points } = parametersWithPoints[i];
         if (points.length > 0) {
-          await db.automation.removeAutomationPoint(parameter.id, points[0].timePosition);
+          await db.automation.deleteAutomationPoints([points[0].id]);
           console.log(`✅ Removed automation point from parameter ${parameter.parameterName}`);
         }
       }

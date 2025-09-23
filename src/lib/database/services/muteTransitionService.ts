@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { MuteTransition } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
 import SQL, { join } from 'sql-template-tag';
+import { first, isEmpty } from 'lodash';
 
 export class MuteTransitionService {
   constructor(private db: AutomationDatabase) {}
@@ -366,12 +367,12 @@ export class MuteTransitionService {
    * Add a new clip at the specified timestamp
    * Logic depends on whether adding in muted or unmuted space
    */
-  async addMuteTransitionClip(
-    trackId: string,
-    timePosition: number,
-    muteParameterId: string,
-  ): Promise<MuteTransition[]> {
+  async addMuteTransitionClip(trackId: string, timePosition: number): Promise<MuteTransition[]> {
     const allTransitions = await this.getMuteTransitionsForTrack(trackId);
+    if (isEmpty(allTransitions)) {
+      throw new Error('cannot make a clip without any existing transitions');
+    }
+    const muteParameterId = allTransitions[0].muteParameterId;
     const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
 
     // Check if we're adding inside an existing clip
