@@ -127,6 +127,7 @@ export class MuteTransitionService {
         endTransition: undefined,
       });
     }
+    console.log('clips', clips);
 
     return clips;
   }
@@ -382,6 +383,8 @@ export class MuteTransitionService {
 
     const createdTransitions: MuteTransition[] = [];
 
+    console.log('existingClip', existingClip);
+
     if (existingClip) {
       // Adding muted time inside an existing clip - split the clip
       if (existingClip.end === null) {
@@ -453,23 +456,35 @@ export class MuteTransitionService {
       } else {
         // Find next transition to ensure we don't overlap
         const nextTransition = positiveTransitions.find((t) => t.timePosition > timePosition);
-        const maxEndTime = nextTransition ? nextTransition.timePosition - 0.001 : timePosition + 2;
-        const endTime = Math.min(timePosition + 2, maxEndTime);
 
-        // Create start and end of new clip
-        const startTransition = await this.createMuteTransition(
-          trackId,
-          timePosition,
-          false,
-          muteParameterId,
-        );
-        const endTransition = await this.createMuteTransition(
-          trackId,
-          endTime,
-          true,
-          muteParameterId,
-        );
-        createdTransitions.push(startTransition, endTransition);
+        if (nextTransition) {
+          // Adding in middle of muted space - create start and end of new clip
+          const maxEndTime = nextTransition.timePosition - 0.001;
+          const endTime = Math.min(timePosition + 2, maxEndTime);
+
+          const startTransition = await this.createMuteTransition(
+            trackId,
+            timePosition,
+            false,
+            muteParameterId,
+          );
+          const endTransition = await this.createMuteTransition(
+            trackId,
+            endTime,
+            true,
+            muteParameterId,
+          );
+          createdTransitions.push(startTransition, endTransition);
+        } else {
+          // Adding at end of song - only create start transition to invert ending state
+          const startTransition = await this.createMuteTransition(
+            trackId,
+            timePosition,
+            false,
+            muteParameterId,
+          );
+          createdTransitions.push(startTransition);
+        }
       }
     }
 

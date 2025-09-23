@@ -28,6 +28,15 @@ type ContextMenuState = {
   menuItems: ContextMenuItem[];
 } | null;
 
+export type GridEventContext = {
+  trackId?: string;
+  parameterId?: string;
+  timePosition?: number;
+  value?: number;
+  selectedAutomationPoints?: AutomationPoint[];
+  selectedMuteTransitions?: MuteTransition[];
+};
+
 const getActionsDispatcher = () => {
   let contextMenuState = $state<ContextMenuState>(null);
 
@@ -45,6 +54,7 @@ const getActionsDispatcher = () => {
   };
 
   const dispatchAction = async (action: GridAction) => {
+    console.log('dispatchAction', action);
     switch (action.type) {
       case 'mergeClips':
         if (action.muteTransitions.length < 2) return;
@@ -95,11 +105,9 @@ const getActionsDispatcher = () => {
         break;
 
       case 'addPoint':
-        await trackDb.get().automation.createAutomationPoint(
-          action.parameterId,
-          action.timePosition,
-          action.value,
-        );
+        await trackDb
+          .get()
+          .automation.createAutomationPoint(action.parameterId, action.timePosition, action.value);
         await trackDb.refreshData();
         break;
 
@@ -144,14 +152,7 @@ const getActionsDispatcher = () => {
   const handleRightClick = (
     event: MouseEvent,
     elementType: 'track' | 'parameter' | 'brush',
-    context: {
-      trackId?: string;
-      parameterId?: string;
-      timePosition?: number;
-      value?: number;
-      selectedAutomationPoints?: AutomationPoint[];
-      selectedMuteTransitions?: MuteTransition[];
-    },
+    context: GridEventContext,
   ) => {
     event.preventDefault();
 
@@ -162,14 +163,7 @@ const getActionsDispatcher = () => {
   const handleDoubleClick = (
     event: MouseEvent,
     elementType: 'track' | 'parameter' | 'automationPoint',
-    context: {
-      trackId?: string;
-      parameterId?: string;
-      timePosition?: number;
-      value?: number;
-      selectedAutomationPoints?: AutomationPoint[];
-      selectedMuteTransitions?: MuteTransition[];
-    },
+    context: GridEventContext,
   ) => {
     // Double-click performs default action
     switch (elementType) {
@@ -209,14 +203,7 @@ const getActionsDispatcher = () => {
 
   const createMenuItems = (
     elementType: 'track' | 'parameter' | 'brush',
-    context: {
-      trackId?: string;
-      parameterId?: string;
-      timePosition?: number;
-      value?: number;
-      selectedAutomationPoints?: AutomationPoint[];
-      selectedMuteTransitions?: MuteTransition[];
-    },
+    context: GridEventContext,
   ): ContextMenuItem[] => {
     const menuItems: ContextMenuItem[] = [];
 

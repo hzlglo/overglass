@@ -2,12 +2,10 @@
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
-  import { clamp } from '$lib/utils/utils';
-  import { sortBy, uniq } from 'lodash';
-  import { trackDb } from '$lib/stores/trackDb.svelte';
   import type { Track, MuteTransition } from '$lib/database/schema';
   import { MuteTransitionService } from '$lib/database/services/muteTransitionService';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
+  import { compact } from 'lodash';
 
   interface AutomationMuteProps {
     trackId: string;
@@ -53,48 +51,48 @@
 
   let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
 
-  // Background rectangle to capture events
-  let backgroundRect = $derived.by(() => {
-    if (!svgGroup) return undefined;
+  // // Background rectangle to capture events
+  // let backgroundRect = $derived.by(() => {
+  //   if (!svgGroup) return undefined;
 
-    svgGroup.selectAll('.background-rect').remove();
-    return svgGroup
-      .append('rect')
-      .attr('class', 'background-rect')
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('width', innerWidth)
-      .attr('height', innerHeight)
-      .attr('fill', 'transparent')
-      .style('cursor', 'pointer');
-  });
+  //   svgGroup.selectAll('.background-rect').remove();
+  //   return svgGroup
+  //     .append('rect')
+  //     .attr('class', 'background-rect')
+  //     .attr('x', 0)
+  //     .attr('y', 0)
+  //     .attr('width', innerWidth)
+  //     .attr('height', innerHeight)
+  //     .attr('fill', 'transparent')
+  //     .style('cursor', 'pointer');
+  // });
 
-  // Add event listeners for track area (for adding clips)
-  $effect(() => {
-    if (!backgroundRect) return;
+  // // Add event listeners for track area (for adding clips)
+  // $effect(() => {
+  //   if (!backgroundRect) return;
 
-    backgroundRect
-      .on('dblclick', (event) => {
-        const [mouseX] = d3.pointer(event);
-        const timePosition = xScale.invert(mouseX);
+  //   backgroundRect
+  //     .on('dblclick', (event) => {
+  //       const [mouseX] = d3.pointer(event);
+  //       const timePosition = xScale.invert(mouseX);
 
-        actionsDispatcher.handleDoubleClick(event, 'track', {
-          trackId,
-          timePosition,
-          selectedMuteTransitions: selectedMuteTransitions,
-        });
-      })
-      .on('contextmenu', (event) => {
-        const [mouseX] = d3.pointer(event);
-        const timePosition = xScale.invert(mouseX);
+  //       actionsDispatcher.handleDoubleClick(event, 'track', {
+  //         trackId,
+  //         timePosition,
+  //         selectedMuteTransitions: selectedMuteTransitions,
+  //       });
+  //     })
+  //     .on('contextmenu', (event) => {
+  //       const [mouseX] = d3.pointer(event);
+  //       const timePosition = xScale.invert(mouseX);
 
-        actionsDispatcher.handleRightClick(event, 'track', {
-          trackId,
-          timePosition,
-          selectedMuteTransitions: selectedMuteTransitions,
-        });
-      });
-  });
+  //       actionsDispatcher.handleRightClick(event, 'track', {
+  //         trackId,
+  //         timePosition,
+  //         selectedMuteTransitions: selectedMuteTransitions,
+  //       });
+  //     });
+  // });
 
   let rectYPadding = 4;
   let clipRects = $derived.by(() => {
@@ -112,7 +110,7 @@
       .attr('class', 'clip')
       .attr('x', (d) => xScale(d.start))
       .attr('y', (d) => rectYPadding)
-      .attr('width', (d) => xScale(d.end) - xScale(d.start))
+      .attr('width', (d) => xScale(d.end ?? xScale.domain()[1]) - xScale(d.start))
       .attr('height', innerHeight - rectYPadding * 2)
       .attr('fill', color)
       .attr('fill-opacity', 0.6)
@@ -135,7 +133,7 @@
       );
     rects
       ?.attr('x', (d) => xScale(d.timePosition) - 2)
-      .attr('y', (d) => 0)
+      .attr('y', 0)
       .attr('class', 'mute-drag-handle')
       .attr('width', 4)
       .attr('height', innerHeight)
@@ -171,7 +169,7 @@
           }
         },
       )
-      .on('drag', (event, d) => {
+      .on('drag', (event) => {
         sharedDragSelect.dragEvent({
           dx: event.dx,
           // don't submit y transitions from mute drag
@@ -179,7 +177,7 @@
           yDiffScale,
         });
       })
-      .on('end', async (event, d) => {
+      .on('end', async () => {
         sharedDragSelect.dragEnd();
       }),
   );
@@ -195,20 +193,21 @@
     // Add listeners to clip rectangles
     clipRects
       .on('dblclick', (event, d) => {
-        event.stopPropagation();
+        console.log('clip dblclick', event, d);
         // Double-click on clip deletes it
-        const clipTransitions = [d.startTransition, d.endTransition].filter(Boolean);
+        const clipTransitions = compact([d.startTransition, d.endTransition]);
         actionsDispatcher.handleDoubleClick(event, 'track', {
           trackId,
           selectedMuteTransitions: clipTransitions,
+          timePosition: xScale.invert(event.x),
         });
       })
       .on('contextmenu', (event, d) => {
-        event.stopPropagation();
-        const clipTransitions = [d.startTransition, d.endTransition].filter(Boolean);
+        const clipTransitions = compact([d.startTransition, d.endTransition]);
         actionsDispatcher.handleRightClick(event, 'track', {
           trackId,
           selectedMuteTransitions: clipTransitions,
+          timePosition: xScale.invert(event.x),
         });
       });
 

@@ -3,10 +3,9 @@
   import type { AutomationPoint, Parameter, ParameterStats } from '../../types/automation';
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
-  import { clamp } from '$lib/utils/utils';
   import { sortBy } from 'lodash';
-  import { trackDb } from '$lib/stores/trackDb.svelte';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
+  import { getAutomationLaneYAxis } from './laneConstants';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -42,14 +41,9 @@
   let gElement = $state<SVGElement>();
 
   // Derived values
-  const margin = { top: 1, right: 0, bottom: 1, left: 0 };
-  let innerWidth = $derived(width - margin.left - margin.right);
-
-  let innerHeight = $derived(height - margin.top - margin.bottom);
-
+  let { innerHeight, yScale, margin } = $derived(getAutomationLaneYAxis(height));
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
-  let yScale = $derived(d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]));
   // scale used for dragging points
   let yDiffScale = $derived(
     d3
@@ -79,22 +73,6 @@
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
 
-  // Background rectangle to capture events
-  // let backgroundRect = $derived.by(() => {
-  //   if (!svgGroup) return undefined;
-
-  //   svgGroup.selectAll('.background-rect').remove();
-  //   return svgGroup
-  //     .append('rect')
-  //     .attr('class', 'background-rect')
-  //     .attr('x', 0)
-  //     .attr('y', 0)
-  //     .attr('width', innerWidth)
-  //     .attr('height', innerHeight)
-  //     .attr('fill', 'transparent')
-  //     .style('cursor', 'crosshair');
-  // });
-
   let { area, line } = $derived.by(() => {
     if (!svgGroup) {
       return { area: undefined, line: undefined };
@@ -120,7 +98,7 @@
     return { area: area, line: line };
   });
 
-  const drawLineAndArea = (points: AutomationPoint[]) => {
+  const drawLineAndArea = (automationPoints: AutomationPoint[]) => {
     if (!area || !line) {
       return;
     }
@@ -143,18 +121,15 @@
   });
 
   // Draw points
-  let points = $derived.by(() => {
-    // Add new points
-    let circles = svgGroup
+  let points = $derived(
+    svgGroup
       ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
       .data(automationPoints, (p) => p.id)
       .join(
         (enter) => enter.append('circle'),
         (update) => update,
         (exit) => exit.remove(),
-      );
-
-    circles
+      )
       .attr('cx', (d) => xScale(d.timePosition))
       .attr('cy', (d) => yScale(d.value))
       .attr('class', 'point')
@@ -162,10 +137,8 @@
       .attr('fill', color)
       .attr('fill-opacity', 0.4)
       .attr('stroke', color)
-      .attr('stroke-width', 1);
-
-    return circles;
-  });
+      .attr('stroke-width', 1),
+  );
 
   $effect(() => {
     sharedDragSelect.registerDragHandler(parameterId, () => {
@@ -228,37 +201,6 @@
         });
       });
   });
-
-  // Add event listeners for parameter area (for adding points)
-  // $effect(() => {
-  //   if (!backgroundRect) return;
-
-  //   backgroundRect
-  //     .on('dblclick', (event) => {
-  //       const [mouseX, mouseY] = d3.pointer(event);
-  //       const timePosition = xScale.invert(mouseX);
-  //       const value = yScale.invert(mouseY);
-
-  //       actionsDispatcher.handleDoubleClick(event, 'parameter', {
-  //         parameterId,
-  //         timePosition,
-  //         value: clamp(value, 0, 1),
-  //         selectedAutomationPoints: selectedPoints,
-  //       });
-  //     })
-  //     .on('contextmenu', (event) => {
-  //       const [mouseX, mouseY] = d3.pointer(event);
-  //       const timePosition = xScale.invert(mouseX);
-  //       const value = yScale.invert(mouseY);
-
-  //       actionsDispatcher.handleRightClick(event, 'parameter', {
-  //         parameterId,
-  //         timePosition,
-  //         value: clamp(value, 0, 1),
-  //         selectedAutomationPoints: selectedPoints,
-  //       });
-  //     });
-  // });
 </script>
 
 <g

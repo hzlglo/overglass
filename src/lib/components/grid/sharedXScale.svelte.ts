@@ -75,7 +75,11 @@ const getSharedXScale = () => {
       ])
       .filter((event) => {
         // prevent zooming with the scroll wheel, and prevent panning via drag
-        return !(!event.ctrlKey && event.type === 'wheel') && event.type !== 'mousedown';
+        const result =
+          !(!event.ctrlKey && event.type === 'wheel') &&
+          event.type !== 'mousedown' &&
+          event.type !== 'dblclick';
+        return result;
       })
       .on('zoom', (event) => {
         lastZoomEvent = event;

@@ -469,6 +469,42 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       console.log(`✅ Added end to infinite clip: remaining times [${remainingTimes.join(', ')}]`);
     });
+
+    it('should add single transition at end of song in muted space', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create pattern that ends in muted space
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create: -60000:OFF, 30:ON, 40:OFF (track ends muted after 40)
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      await service.createMuteTransition(trackId, 30, false, muteParameterId);
+      await service.createMuteTransition(trackId, 40, true, muteParameterId);
+
+      console.log('Created pattern ending in muted space, adding clip at time 50 (end of song)');
+
+      // Add at end of song (after last transition, in muted space)
+      const created = await service.addMuteTransitionClip(trackId, 50);
+
+      // Should only create 1 transition (to unmute for rest of song)
+      expect(created.length).toBe(1);
+      expect(created[0].timePosition).toBe(50);
+      expect(created[0].isMuted).toBe(false); // Should unmute for rest of song
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const remainingTimes = remaining.map((t) => t.timePosition).sort((a, b) => a - b);
+
+      // Should have added single transition: -60000, 30, 40, 50
+      expect(remainingTimes).toEqual([-60000, 30, 40, 50]);
+
+      console.log(`✅ Added single transition at end of song: remaining times [${remainingTimes.join(', ')}]`);
+    });
   });
 
   describe('updateMuteTransitions', () => {

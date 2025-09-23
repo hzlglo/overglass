@@ -4,6 +4,9 @@
   import { sharedXScale } from './sharedXScale.svelte';
   import { gridDisplayState } from './gridDisplayState.svelte';
   import type { AutomationPoint, MuteTransition } from '$lib/database/schema';
+  import { actionsDispatcher, type GridEventContext } from './actionsDispatcher.svelte';
+  import { clamp } from 'lodash';
+  import { getAutomationLaneYAxis } from './laneConstants';
 
   let {
     muteTransitionsByTrackId,
@@ -18,7 +21,6 @@
   let brushGElement = $state<SVGGElement>();
   let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);
   let brushHandler = async (event: unknown) => {
-    console.log('brushHandler', event);
     if (!event.selection) {
       sharedDragSelect.setBrushSelection(null);
       sharedDragSelect.setSelectedLanes([]);
@@ -95,14 +97,51 @@
     }
     brushG.call(brush);
   });
-  $effect(() => {
-    if (!brushG) {
-      return;
+
+  const getLaneForY = (y: number) => {
+    return lanes.find((l) => l.top <= y && l.bottom > y);
+  };
+  const xScale = $derived(sharedXScale.getZoomedXScale());
+  let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
+  let selectedMuteTransitions = $derived(sharedDragSelect.getSelectedMuteTransitions());
+
+  const getContextForEvent = (event: MouseEvent): ['parameter' | 'track', GridEventContext] => {
+    const [mouseX, mouseY] = d3.pointer(event);
+
+    const lane = getLaneForY(mouseY);
+    if (!lane) {
+      throw new Error(`No lane found for event: ${event}`);
     }
-    brushG.on('contextmenu', (event) => {
-      event.preventDefault();
-      console.log('contextmenu', event);
-    });
+
+    const timePosition = xScale.invert(mouseX);
+    let value = undefined;
+    if (lane.type === 'parameter') {
+      let { yScale } = getAutomationLaneYAxis(lane.bottom - lane.top, lane.top);
+      value = yScale.invert(mouseY);
+    }
+    return [
+      lane.type,
+      {
+        parameterId: lane.type === 'parameter' ? lane.id : undefined,
+        trackId: lane.type === 'track' ? lane.id : undefined,
+        timePosition,
+        value: value !== undefined ? clamp(value, 0, 1) : undefined,
+        selectedAutomationPoints: selectedPoints,
+        selectedMuteTransitions: selectedMuteTransitions,
+      },
+    ];
+  };
+
+  $effect(() => {
+    if (!brushG) return;
+
+    brushG
+      .on('dblclick', (event) => {
+        actionsDispatcher.handleDoubleClick(event, ...getContextForEvent(event));
+      })
+      .on('contextmenu', (event) => {
+        actionsDispatcher.handleRightClick(event, ...getContextForEvent(event));
+      });
   });
 </script>
 
