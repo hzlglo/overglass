@@ -36,9 +36,7 @@ export type GridEventContext = {
   selectedMuteTransitions?: MuteTransition[];
 };
 
-const pluralize = (count: number, singular: string, plural?: string) => {
-  return count <= 1 ? singular : (plural ?? singular + 's');
-};
+export type keydownEvent = 'delete';
 
 const getActionsDispatcher = () => {
   let contextMenuState = $state<ContextMenuState>(null);
@@ -108,6 +106,19 @@ const getActionsDispatcher = () => {
             automationPoints: context.selectedAutomationPoints,
           });
         }
+        break;
+    }
+  };
+
+  const handleKeyDown = (event: keydownEvent) => {
+    const context = updateContextWithSharedSelection({});
+    switch (event) {
+      case 'delete':
+        dispatchAction({
+          type: 'delete',
+          automationPoints: context.selectedAutomationPoints,
+          muteTransitions: context.selectedMuteTransitions,
+        });
         break;
     }
   };
@@ -285,6 +296,7 @@ const getActionsDispatcher = () => {
     dispatchAction,
     handleRightClick,
     handleDoubleClick,
+    handleKeyDown,
   };
 };
 

@@ -194,7 +194,6 @@
     // Add listeners to clip rectangles
     clipRects
       .on('dblclick', (event, d) => {
-        console.log('clip dblclick', event, d);
         // Double-click on clip deletes it
         const clipTransitions = compact([d.startTransition, d.endTransition]);
         actionsDispatcher.handleDoubleClick(event, 'track', {

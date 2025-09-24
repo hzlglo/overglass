@@ -11,9 +11,11 @@
   let {
     muteTransitionsByTrackId,
     automationPointsByParameterId,
+    brush = $bindable(),
   }: {
     muteTransitionsByTrackId: Record<string, MuteTransition[]>;
     automationPointsByParameterId: Record<string, AutomationPoint[]>;
+    brush: d3.BrushBehavior<unknown>;
   } = $props();
 
   let lanes = $derived(gridDisplayState.getLanes());
@@ -33,23 +35,29 @@
     if (y0 > y1) [y0, y1] = [y1, y0];
     if (x0 > x1) [x0, x1] = [x1, x0];
 
-    let { sourceEvent } = event;
-    if (sourceEvent && brushG) {
+    if (brushG) {
       // Snap y0 and y1 to allowed values
-      const firstLaneIndex = lanes.findIndex((l) => l.top < y0 && l.bottom > y0);
-      const lastLaneIndex = lanes.findIndex((l) => l.top < y1 && l.bottom > y1);
+      // note that top is inclusive and bottom is exclusive to avoid adding new lanes during incremental brush calls
+      const firstLaneIndex = lanes.findIndex((l) => l.top <= y0 && l.bottom > y0);
+      const lastLaneIndex = lanes.findIndex((l) => l.top <= y1 && l.bottom > y1);
+
       if (firstLaneIndex === -1 || lastLaneIndex === -1) {
         return;
       }
 
       y0 = lanes[firstLaneIndex].top;
-      y1 = lanes[lastLaneIndex].bottom;
+      // subtract 1 since bottom is exclusive
+      y1 = lanes[lastLaneIndex].bottom - 1;
 
-      // Update the brush rectangle visually
-      brushG.call(brush.move, [
-        [x0, y0],
-        [x1, y1],
-      ]);
+      // If the event was triggered by a user action,
+      // update the brush rectangle visually to snap to lanes
+      // don't do this for programmatic events to avoid infinite loop
+      if (event.sourceEvent) {
+        brushG.call(brush.move, [
+          [x0, y0],
+          [x1, y1],
+        ]);
+      }
       let selectedLanes = lanes.slice(firstLaneIndex, lastLaneIndex + 1);
       sharedDragSelect.setSelectedLanes(selectedLanes);
 
@@ -70,11 +78,10 @@
         .filter((t) => t.timePosition >= startTime && t.timePosition <= endTime);
       sharedDragSelect.setSelectedMuteTransitions(selectedMuteTransitions);
     }
-
     sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });
   };
-  const brush = $derived(
-    d3
+  $effect(() => {
+    brush = d3
       .brush()
       .extent([
         [0, 0],
@@ -84,8 +91,8 @@
         // Only allow brushing for left-clicks **without dragging a point**
         return !event.target.classList.contains('draggable') && event.button === 0;
       })
-      .on('start brush end', brushHandler),
-  );
+      .on('start brush end', brushHandler);
+  });
   $effect(() => {
     sharedDragSelect.setClearBrush(() => {
       brushG?.call(brush.clear);
@@ -140,7 +147,6 @@
         actionsDispatcher.handleDoubleClick(event, ...getContextForEvent(event));
       })
       .on('contextmenu', (event) => {
-        console.log('brush contextmenu', event, getContextForEvent(event));
         actionsDispatcher.handleRightClick(event, ...getContextForEvent(event));
       });
   });

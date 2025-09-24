@@ -12,8 +12,6 @@
 
   let { parameterId, trackConfig }: AutomationParameterProps = $props();
 
-  $inspect('trackparamcontrol', { parameterId, trackConfig });
-
   let parameterStore = useTrackDbQuery(
     (trackDb) => trackDb.tracks.getParameterById(parameterId),
     null,

@@ -17,6 +17,7 @@
   import MuteClipsWrapper from './MuteClipsWrapper.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import GridContextMenu from './GridContextMenu.svelte';
+  import { actionsDispatcher } from './actionsDispatcher.svelte';
 
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
@@ -61,7 +62,6 @@
   let innerHeight = $derived(gridHeight - margin.top - margin.bottom);
 
   let lanes = $derived(gridDisplayState.getLanes());
-  $inspect('lanes', lanes);
 
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
@@ -82,6 +82,31 @@
       }
     };
     svg.call(zoom).on('wheel', pan);
+  });
+
+  let brush = $state<d3.BrushBehavior<unknown>>();
+  $effect(() => {
+    if (!svg) return;
+    svg.on('keydown', (event) => {
+      console.log('svg keydown', event);
+
+      // Mac: event.metaKey, Windows/Linux: event.ctrlKey
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault(); // stops browser select-all
+        d3.select('.brush-group').call(brush?.move, [
+          [0, 0],
+          [
+            innerWidth,
+            // subtract 1 to ensure we don't outside grid boundary
+            innerHeight - 1,
+          ],
+        ]);
+      }
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault();
+        actionsDispatcher.handleKeyDown('delete');
+      }
+    });
   });
 
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
@@ -137,8 +162,15 @@
   <div class="flex min-h-0 flex-col" style={`width: ${gridWidth}px`}>
     <GridTimelineTop height={TOP_TIMELINE_HEIGHT} width={gridWidth} />
     <div class="no-scrollbar flex flex-1 flex-col overflow-y-auto" bind:this={gridContainer}>
-      <svg class="shrink-0" height={gridHeight} width={gridWidth} bind:this={svgElement}>
-        <GridBrush {muteTransitionsByTrackId} {automationPointsByParameterId} />
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <svg
+        class="shrink-0 focus:outline-none"
+        height={gridHeight}
+        width={gridWidth}
+        bind:this={svgElement}
+        tabindex="0"
+      >
+        <GridBrush {muteTransitionsByTrackId} {automationPointsByParameterId} bind:brush />
         <g bind:this={svgGroupElement}>
           {#each lanes as lane (lane.id)}
             {#if lane.type === 'track'}

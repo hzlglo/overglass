@@ -21,21 +21,10 @@
     parameterId,
     parameter,
     height,
-    width,
     yPosition,
     automationPoints,
     color: colorProp,
   }: AutomationCurveProps = $props();
-
-  $inspect('automationcurve', {
-    parameterId,
-    parameter,
-    height,
-    width,
-    yPosition,
-    automationPoints,
-    color: colorProp,
-  });
 
   // State
   let gElement = $state<SVGElement>();

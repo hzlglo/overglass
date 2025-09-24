@@ -7,7 +7,6 @@ export const toHex = formatHex;
 
 // Generate palette: 8 categories × 6 shades
 function generatePalette(baseHex: string) {
-  console.log('generating palette for', baseHex);
   const base = toOklch(baseHex);
 
   const numCategories = 8;

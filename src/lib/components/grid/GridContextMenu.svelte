@@ -2,7 +2,6 @@
   import { actionsDispatcher } from './actionsDispatcher.svelte';
 
   let contextMenuState = $derived(actionsDispatcher.getContextMenuState());
-  console.log('contextMenuState', contextMenuState);
 
   // Convert menu items to format expected by Menu component
   let menuOptions = $derived(

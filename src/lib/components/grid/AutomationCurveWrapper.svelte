@@ -26,15 +26,6 @@
   let parameterStore = useTrackDbQuery((db) => db.tracks.getParameterById(parameterId), null);
   let parameter = $derived(parameterStore.getResult());
   let isExpanded = $derived(gridDisplayState.getParameterExpanded(parameterId));
-
-  $inspect('AutomationCurveWrapper', {
-    parameterId,
-    height,
-    width,
-    yPosition,
-    trackCustomizations,
-    automationPoints,
-  });
 </script>
 
 {#if parameter}

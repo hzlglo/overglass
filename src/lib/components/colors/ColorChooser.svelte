@@ -28,7 +28,6 @@
               class="btn btn-sm btn-square"
               style="background-color: {color}"
               onclick={() => {
-                console.log('clicked', color);
                 onValueChange(color);
                 isOpen = false;
               }}
