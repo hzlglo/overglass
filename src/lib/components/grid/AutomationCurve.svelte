@@ -186,15 +186,13 @@
     // Add double-click and right-click event listeners to points
     points
       .on('dblclick', (event, d) => {
-        event.stopPropagation();
+        // event.stopPropagation();
         actionsDispatcher.handleDoubleClick(event, 'automationPoint', {
           parameterId,
           selectedAutomationPoints: selectedPoints.length > 0 ? selectedPoints : [d],
         });
       })
       .on('contextmenu', (event, d) => {
-        console.log('point contextmenu', event, d);
-        event.stopPropagation();
         actionsDispatcher.handleRightClick(event, 'parameter', {
           parameterId,
           selectedAutomationPoints: selectedPoints.length > 0 ? selectedPoints : [d],

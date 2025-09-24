@@ -31,3 +31,7 @@ export function clamp(val: number, min: number, max: number) {
 export function transpose<T>(array: T[][]) {
   return array[0].map((_, i) => array.map((row) => row[i]));
 }
+
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${value}`);
+}

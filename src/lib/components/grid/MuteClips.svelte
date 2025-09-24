@@ -5,7 +5,7 @@
   import type { Track, MuteTransition } from '$lib/database/schema';
   import { MuteTransitionService } from '$lib/database/services/muteTransitionService';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
-  import { compact } from 'lodash';
+  import { compact, max } from 'lodash';
 
   interface AutomationMuteProps {
     trackId: string;
@@ -99,6 +99,7 @@
     if (!svgGroup) {
       return undefined;
     }
+    const getClipStart = (dStart: number): number => max([xScale(dStart), 0]) ?? 0;
     return svgGroup
       .selectAll('.clip')
       .data(clips, (d) => d.id)
@@ -108,9 +109,9 @@
         (exit) => exit.remove(),
       )
       .attr('class', 'clip')
-      .attr('x', (d) => xScale(d.start))
+      .attr('x', (d) => getClipStart(d.start))
       .attr('y', (d) => rectYPadding)
-      .attr('width', (d) => xScale(d.end ?? xScale.domain()[1]) - xScale(d.start))
+      .attr('width', (d) => xScale(d.end ?? xScale.domain()[1]) - getClipStart(d.start))
       .attr('height', innerHeight - rectYPadding * 2)
       .attr('fill', color)
       .attr('fill-opacity', 0.6)

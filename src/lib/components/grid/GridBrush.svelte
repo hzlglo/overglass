@@ -140,6 +140,7 @@
         actionsDispatcher.handleDoubleClick(event, ...getContextForEvent(event));
       })
       .on('contextmenu', (event) => {
+        console.log('brush contextmenu', event, getContextForEvent(event));
         actionsDispatcher.handleRightClick(event, ...getContextForEvent(event));
       });
   });
