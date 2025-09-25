@@ -29,13 +29,31 @@
   </div>
   <div class="flex flex-col gap-2">
     <p>Enter SQL</p>
-    <textarea bind:value class="textarea textarea-bordered"> </textarea>
+    <textarea bind:value class="textarea textarea-bordered w-full"> </textarea>
   </div>
   {#await res}
     running query...
   {:then resolved}
-    <pre>
-  {JSON.stringify(resolved, null, 4)}
-</pre>
+    {#if resolved.length > 0}
+      {@const columns = Object.keys(resolved[0])}
+      <table class="table-pin-rows table border">
+        <thead>
+          <tr>
+            {#each columns as column}
+              <th>{column}</th>
+            {/each}
+          </tr>
+        </thead>
+        <tbody>
+          {#each resolved as row}
+            <tr>
+              {#each columns as column}
+                <td>{row[column]}</td>
+              {/each}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
   {/await}
 </div>

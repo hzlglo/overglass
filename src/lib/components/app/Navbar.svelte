@@ -12,7 +12,6 @@
   }
 
   let { projectName = 'Untitled Project', bpm = 120 }: NavbarProps = $props();
-
   let timeSignature = $state({ numerator: 4, denominator: 4 });
   let timeSignatureToString = (timeSignature: { numerator: number; denominator: number }) => {
     return `${timeSignature.numerator}/${timeSignature.denominator}`;
@@ -63,7 +62,17 @@
       <Menu
         options={[
           { label: 'Settings', onSelect: () => {} },
-          { label: 'Debugger', onSelect: () => goto('/debugger') },
+          {
+            label: 'Debugger',
+            onSelect: () => {
+              console.log('window.location.pathname', window.location.pathname);
+              if (window.location.pathname.endsWith('/debugger')) {
+                goto('/');
+                return;
+              }
+              goto('/debugger');
+            },
+          },
         ]}
         triggerClass="btn btn-ghost btn-sm"
       >

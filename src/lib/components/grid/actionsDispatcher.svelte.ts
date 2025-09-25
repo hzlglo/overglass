@@ -278,9 +278,9 @@ const getActionsDispatcher = () => {
         break;
 
       case 'simplify':
-        // TODO: Implement automation curve simplification algorithm
-        // For now, this is a placeholder
-        console.log('Simplify not yet implemented', action.automationPoints);
+        await trackDb
+          .get()
+          .automation.simplifyAutomationPoints(action.automationPoints.map((p) => p.id));
         break;
       default:
         assertNever(action);

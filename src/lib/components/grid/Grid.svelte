@@ -149,6 +149,7 @@
   let automationPointsStore = useTrackDbQuery((db) => db.automation.getAutomationPoints({}), []);
   let automationPoints = $derived(automationPointsStore.getResult());
   let automationPointsByParameterId = $derived(groupBy(automationPoints, (p) => p.parameterId));
+  $inspect('automationPointsByParameterId', automationPointsByParameterId);
 
   let muteTransitionsStore = useTrackDbQuery((db) => db.muteTransitions.getAll(), []);
   let muteTransitions = $derived(muteTransitionsStore.getResult());

@@ -115,7 +115,6 @@ export class AutomationService {
     };
   }
 
-
   /**
    * Get automation points for a parameter with optional time filtering
    * @param parameterId - The parameter to query
@@ -362,5 +361,65 @@ export class AutomationService {
       'SELECT MAX(time_position) as max_time FROM automation_points',
     );
     return result[0].maxTime + 5 * 60; // add 5 minutes to the max time
+  }
+  async simplifyAutomationPointsWithTolerance(
+    pointIds: string[],
+    tolerance: number,
+  ): Promise<number> {
+    const sql = SQL`
+      WITH neighbors AS (
+        SELECT
+          id,
+          parameter_id,
+          time_position as ts,
+          value as y,
+          LAG(time_position) OVER parameter_timeseries AS ts_prev,
+          LAG(value)  OVER parameter_timeseries AS y_prev,
+          LEAD(time_position) OVER parameter_timeseries AS ts_next,
+          LEAD(value) OVER parameter_timeseries AS y_next
+        FROM automation_points
+        WHERE id IN (${join(pointIds)})
+        WINDOW
+        parameter_timeseries AS (
+            PARTITION BY parameter_id
+            ORDER BY time_position ASC
+        )
+      ),
+
+      distances AS (
+        SELECT
+          id,
+          parameter_id,
+          ts,
+          y,
+          CASE 
+            WHEN ts_prev IS NULL OR ts_next IS NULL THEN NULL -- endpoints
+            WHEN ts_next = ts_prev THEN 0
+            -- perpendicular distance from point to line connecting the previous and next points
+            ELSE
+              ABS( (y_next - y_prev) * (ts - ts_prev)
+                - (ts_next - ts_prev) * (y - y_prev) )
+              / SQRT( (y_next - y_prev)*(y_next - y_prev)
+                    + (ts_next - ts_prev)*(ts_next - ts_prev) )
+          END AS deviation
+        FROM neighbors
+      )
+      DELETE FROM automation_points where id IN (SELECT id FROM distances WHERE deviation < ${tolerance}) RETURNING id;
+    `;
+    const result = await this.db.run(sql.sql, sql.values);
+    return result.length;
+  }
+  async simplifyAutomationPoints(pointIds: string[]): Promise<number> {
+    let tolerance = 0.005;
+    let deletedPoints = 0;
+    for (let i = 0; i < 3; i++) {
+      deletedPoints = await this.simplifyAutomationPointsWithTolerance(pointIds, tolerance);
+      if (deletedPoints > 0) {
+        break;
+      }
+      tolerance *= 2;
+    }
+    console.log(`✅ Simplified ${deletedPoints} automation points with tolerance ${tolerance}`);
+    return deletedPoints;
   }
 }
