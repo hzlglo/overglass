@@ -5,6 +5,7 @@
   import Menu from '../core/Menu.svelte';
   import { goto } from '$app/navigation';
   import { trackDb } from '$lib/stores/trackDb.svelte';
+  import { sharedXScale } from '../grid/sharedXScale.svelte';
 
   interface NavbarProps {
     projectName?: string;
@@ -16,6 +17,7 @@
   let timeSignatureToString = (timeSignature: { numerator: number; denominator: number }) => {
     return `${timeSignature.numerator}/${timeSignature.denominator}`;
   };
+  let loopLength = $derived(sharedXScale.getLoopLength());
 </script>
 
 <div class="navbar border-base-100 border-b">
@@ -41,6 +43,9 @@
         </h1>
         <span class="text-base-content/60 text-sm">
           {bpm} BPM
+        </span>
+        <span class="text-base-content/60 text-sm">
+          {loopLength} bars per loop
         </span>
         <span class="text-base-content/60 text-sm">
           {timeSignatureToString(timeSignature)}

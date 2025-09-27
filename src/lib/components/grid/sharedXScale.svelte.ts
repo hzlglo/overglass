@@ -28,6 +28,14 @@ export function getTicksForBarSpan(minBar: number, maxBar: number) {
   }
   return result;
 }
+function getTicksForLoops(minLoop: number, maxLoop: number, loopLength: number) {
+  const result = [];
+  const firstTick = Math.ceil(minLoop / loopLength) * loopLength;
+  for (let i = firstTick; i <= maxLoop; i += loopLength) {
+    result.push(i);
+  }
+  return result;
+}
 
 const getSharedXScale = () => {
   // the max time across all automation points, i.e. the length of the song
@@ -53,6 +61,11 @@ const getSharedXScale = () => {
   );
   let zoomedXScale = $state(xScale);
   let zoomedXScaleBars = $state(xScaleBars);
+
+  let loopLength = $state(4);
+  let loopTicks = $derived(
+    getTicksForLoops(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1], loopLength),
+  );
 
   let xAxisBars = $state(d3.axisTop(xScaleBars).tickFormat((d) => `${d}`));
   let recalculateXAxisBars = () => {
@@ -104,6 +117,11 @@ const getSharedXScale = () => {
     getLastZoomEvent: () => lastZoomEvent,
     getZoomedXScaleBars: () => zoomedXScaleBars,
     getXAxisBars: () => xAxisBars,
+    getLoopTicks: () => loopTicks,
+    getLoopLength: () => loopLength,
+    setLoopLength: (loopLengthInner: number) => {
+      loopLength = loopLengthInner;
+    },
     setMaxTime: (maxTimeInner: number) => {
       maxTime = maxTimeInner;
       zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, width]);

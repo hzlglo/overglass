@@ -76,10 +76,12 @@
     }
 
     const pan = (event: WheelEvent) => {
-      zoom.translateBy(svg.transition().duration(50), event.wheelDeltaX, 0);
-      if (Math.abs(event.wheelDeltaX) > Math.abs(event.wheelDeltaY)) {
-        event.preventDefault();
+      zoom.translateBy(svg.transition().duration(50), -event.deltaX, 0);
+      if (gridContainer) {
+        console.log('panning', event, gridContainer.scrollTop);
+        gridContainer.scrollTo(0, gridContainer.scrollTop + event.deltaY);
       }
+      event.preventDefault();
     };
     svg.call(zoom).on('wheel', pan);
   });
@@ -144,12 +146,29 @@
           .style('opacity', 0.5);
       }
     }
+    $effect(() => {
+      if (!svgGroup) return;
+      svgGroup
+        .selectAll('.loop-marker')
+        .data(sharedXScale.getLoopTicks())
+        .join(
+          (enter) => enter.append('line'),
+          (update) => update,
+          (exit) => exit.remove(),
+        )
+        .attr('class', 'loop-marker')
+        .attr('x1', (d) => sharedXScale.getZoomedXScaleBars()(d))
+        .attr('x2', (d) => sharedXScale.getZoomedXScaleBars()(d))
+        .attr('y1', 0)
+        .attr('y2', innerHeight)
+        .attr('stroke', 'currentColor')
+        .style('opacity', 0.3);
+    });
   });
 
   let automationPointsStore = useTrackDbQuery((db) => db.automation.getAutomationPoints({}), []);
   let automationPoints = $derived(automationPointsStore.getResult());
   let automationPointsByParameterId = $derived(groupBy(automationPoints, (p) => p.parameterId));
-  $inspect('automationPointsByParameterId', automationPointsByParameterId);
 
   let muteTransitionsStore = useTrackDbQuery((db) => db.muteTransitions.getAll(), []);
   let muteTransitions = $derived(muteTransitionsStore.getResult());

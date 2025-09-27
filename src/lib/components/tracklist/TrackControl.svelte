@@ -56,19 +56,16 @@
       />
     {/snippet}
     <div
-      class="flex flex-col gap-1"
+      class="flex flex-col"
       use:dndzone={{
         items: parameters,
         flipDurationMs: 150,
         dropFromOthersDisabled: true,
-        // centreDraggedOnCursor: true,
       }}
       onconsider={(e) => {
-        console.log('TrackList: consider', e.detail.items, e);
         parameters = e.detail.items;
       }}
       onfinalize={(e) => {
-        console.log('TrackList: finalize', e.detail.items, e);
         gridDisplayState.setParameterOrder(trackId, uniq(e.detail.items.map((t) => t.id)));
       }}
     >
