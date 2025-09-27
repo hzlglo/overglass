@@ -5,9 +5,10 @@
     gridDisplayState,
     TOP_TIMELINE_HEIGHT,
   } from '../grid/gridDisplayState.svelte';
-  import { dndzone } from 'svelte-dnd-action';
+  import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
   import SizeObserver from '../core/SizeObserver.svelte';
   import { flip } from 'svelte/animate';
+  import { uniq } from 'lodash';
 
   let tracks: { id: string; name: string }[] = $state([]);
   $effect(() => {
@@ -43,18 +44,27 @@
         class="overflow-y-scroll"
         style="height: {height}px"
         bind:this={trackListContainer}
-        use:dndzone={{ items: tracks, flipDurationMs: 150 }}
+        use:dndzone={{
+          items: tracks,
+          flipDurationMs: 150,
+          dropFromOthersDisabled: true,
+          // centreDraggedOnCursor: true,
+        }}
         onconsider={(e) => {
           console.log('TrackList: consider', e.detail.items, e);
           tracks = e.detail.items;
         }}
         onfinalize={(e) => {
           console.log('TrackList: finalize', e.detail.items, e);
-          gridDisplayState.setTrackOrder(e.detail.items.map((t) => t.id));
+          gridDisplayState.setTrackOrder(uniq(e.detail.items.map((t) => t.id)));
         }}
       >
         {#each tracks as track (track.id)}
-          <div class="min-h-0" animate:flip={{ duration: 150 }}>
+          <div
+            class="min-h-0"
+            data-is-dnd-shadow-item-hint={track[SHADOW_ITEM_MARKER_PROPERTY_NAME]}
+            animate:flip={{ duration: 150 }}
+          >
             <TrackControl trackId={track.id} />
           </div>
         {/each}

@@ -6,6 +6,9 @@
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import ColorChooser from '../colors/ColorChooser.svelte';
   import { getThemeColor } from '$lib/utils/utils';
+  import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
+  import { uniq } from 'lodash';
+  import { flip } from 'svelte/animate';
 
   interface TrackProps {
     trackId: string;
@@ -22,7 +25,17 @@
 
   let deviceStore = useTrackDbQuery((trackDb) => trackDb.devices.getTrackDevice(trackId), null);
   let device = $derived(deviceStore.getResult());
-  let parameterIds = $derived(gridDisplayState.getParameterOrder().get(trackId) ?? []);
+  let parameters: { id: string }[] = $state([]);
+  $effect(() => {
+    console.log('TrackControl: parameters');
+    parameters =
+      gridDisplayState
+        .getParameterOrder()
+        .get(trackId)
+        ?.map((p) => ({
+          id: p,
+        })) ?? [];
+  });
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
 </script>
 
@@ -42,10 +55,33 @@
         onValueChange={(color) => appConfigStore.setTrackColor(trackId, color)}
       />
     {/snippet}
-    {#each parameterIds as parameterId}
-      <TrackParamControl {parameterId} {trackConfig} />
-    {/each}
+    <div
+      class="flex flex-col gap-1"
+      use:dndzone={{
+        items: parameters,
+        flipDurationMs: 150,
+        dropFromOthersDisabled: true,
+        // centreDraggedOnCursor: true,
+      }}
+      onconsider={(e) => {
+        console.log('TrackList: consider', e.detail.items, e);
+        parameters = e.detail.items;
+      }}
+      onfinalize={(e) => {
+        console.log('TrackList: finalize', e.detail.items, e);
+        gridDisplayState.setParameterOrder(trackId, uniq(e.detail.items.map((t) => t.id)));
+      }}
+    >
+      {#each parameters as parameter (parameter.id)}
+        <div
+          animate:flip={{ duration: 150 }}
+          data-is-dnd-shadow-item-hint={parameter[SHADOW_ITEM_MARKER_PROPERTY_NAME]}
+        >
+          <TrackParamControl parameterId={parameter.id} {trackConfig}></TrackParamControl>
+        </div>
+      {/each}
+    </div>
   </LaneControl>
 {:else}
-  <div class="text-error">Track not found</div>
+  <div class="text-error">Track {trackId} not found</div>
 {/if}

@@ -12,10 +12,14 @@
     muteTransitionsByTrackId,
     automationPointsByParameterId,
     brush = $bindable(),
+    height,
+    width,
   }: {
     muteTransitionsByTrackId: Record<string, MuteTransition[]>;
     automationPointsByParameterId: Record<string, AutomationPoint[]>;
     brush: d3.BrushBehavior<unknown>;
+    height: number;
+    width: number;
   } = $props();
 
   let lanes = $derived(gridDisplayState.getLanes());
@@ -85,7 +89,7 @@
       .brush()
       .extent([
         [0, 0],
-        [innerWidth, innerHeight],
+        [width, height],
       ])
       .filter((event) => {
         // Only allow brushing for left-clicks **without dragging a point**
@@ -103,6 +107,13 @@
       return;
     }
     brushG.call(brush);
+  });
+  $effect(() => {
+    if (!brush) return;
+    brush.extent([
+      [0, 0],
+      [width, height],
+    ]);
   });
 
   const getLaneForY = (y: number) => {

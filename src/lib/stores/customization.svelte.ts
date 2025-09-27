@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { fromPairs } from 'lodash';
 import type { Track } from '$lib/database/schema';
+import { colorOptions } from '$lib/components/colors/colorOptions';
 
 /**
  * Display settings that are persisted to localStorage
@@ -71,10 +72,16 @@ const createCustomizationStore = () => {
       if (!currentFile) {
         throw new Error('No file is currently loaded. Call initializeFile() first.');
       }
+      const getRandomColor = () => {
+        return colorOptions[Math.floor(Math.random() * colorOptions.length)][
+          Math.floor(Math.random() * colorOptions[0].length)
+        ];
+      };
       for (const track of tracks) {
         if (!state.fileCustomizations[currentFile].trackCustomizations[track.id]) {
           state.fileCustomizations[currentFile].trackCustomizations[track.id] = {
             rawTrackName: track.trackName,
+            color: getRandomColor(),
           };
         }
       }

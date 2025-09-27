@@ -10,6 +10,8 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
+  const DEVELOPMENT = true;
+
   const parser = new ALSParser();
 
   function handleFileSelect(event: Event) {
@@ -100,36 +102,37 @@
   <div class="card bg-base-100 border-base-content/20 border p-10">
     <div class="card-header text-center text-lg font-bold">Please choose a .als file</div>
     <div class="card-body">
-      <!-- Development quick load -->
-      <div class="mb-6 text-center">
-        <p class="text-base-content/70 mb-4 text-sm">
-          For development purposes, load the hardcoded test file:
-        </p>
+      {#if DEVELOPMENT}
+        <!-- Development quick load -->
+        <div class="mb-6 text-center">
+          <p class="text-base-content/70 mb-4 text-sm">
+            For development purposes, load the hardcoded test file:
+          </p>
 
-        <button
-          class="btn btn-primary btn-lg"
-          class:loading
-          disabled={loading}
-          onclick={loadHardcodedFile}
-        >
-          {#if loading}
-            Loading Project...
-          {:else}
-            <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-              />
-            </svg>
-            Load Test Project
-          {/if}
-        </button>
-      </div>
+          <button
+            class="btn btn-primary btn-lg"
+            class:loading
+            disabled={loading}
+            onclick={loadHardcodedFile}
+          >
+            {#if loading}
+              Loading Project...
+            {:else}
+              <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                />
+              </svg>
+              Load Test Project
+            {/if}
+          </button>
+        </div>
 
-      <div class="divider">Or browse for a file</div>
-
+        <div class="divider">Or browse for a file</div>
+      {/if}
       <!-- File selection -->
       <div class="form-control">
         <label class="label">

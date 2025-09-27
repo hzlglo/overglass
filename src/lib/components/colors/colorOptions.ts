@@ -31,4 +31,4 @@ function generatePalette(baseHex: string) {
   return shades; // 2D array: [category][shade]
 }
 
-export const colorOptions = generatePalette(getThemeColor('primary'));
+export const colorOptions = generatePalette(getThemeColor('success'));

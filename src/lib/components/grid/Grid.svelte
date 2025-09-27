@@ -171,7 +171,13 @@
         bind:this={svgElement}
         tabindex="0"
       >
-        <GridBrush {muteTransitionsByTrackId} {automationPointsByParameterId} bind:brush />
+        <GridBrush
+          {muteTransitionsByTrackId}
+          {automationPointsByParameterId}
+          bind:brush
+          height={gridHeight}
+          width={gridWidth}
+        />
         <g bind:this={svgGroupElement}>
           {#each lanes as lane (lane.id)}
             {#if lane.type === 'track'}
