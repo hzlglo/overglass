@@ -5,8 +5,14 @@
     gridDisplayState,
     TOP_TIMELINE_HEIGHT,
   } from '../grid/gridDisplayState.svelte';
+  import { dndzone } from 'svelte-dnd-action';
+  import SizeObserver from '../core/SizeObserver.svelte';
+  import { flip } from 'svelte/animate';
 
-  let trackIds = $derived(gridDisplayState.getTrackOrder());
+  let tracks: { id: string; name: string }[] = $state([]);
+  $effect(() => {
+    tracks = gridDisplayState.getTrackOrder().map((id) => ({ id, name: id }));
+  });
 
   let trackListContainer = $state<HTMLDivElement>();
   $effect(() => {
@@ -25,14 +31,35 @@
       trackListContainer?.removeEventListener('scroll', syncScroll);
     };
   });
+  let height = $state(0);
+  let width = $state(0);
 </script>
 
 <div class="flex min-h-0 flex-col">
   <div style="height: {TOP_TIMELINE_HEIGHT}px"></div>
-  <div class="flex-1 overflow-y-auto" bind:this={trackListContainer}>
-    {#each trackIds as trackId}
-      <TrackControl {trackId} />
-    {/each}
-  </div>
+  <SizeObserver bind:height bind:width>
+    <div class="flex-1">
+      <div
+        class="overflow-y-scroll"
+        style="height: {height}px"
+        bind:this={trackListContainer}
+        use:dndzone={{ items: tracks, flipDurationMs: 150 }}
+        onconsider={(e) => {
+          console.log('TrackList: consider', e.detail.items, e);
+          tracks = e.detail.items;
+        }}
+        onfinalize={(e) => {
+          console.log('TrackList: finalize', e.detail.items, e);
+          gridDisplayState.setTrackOrder(e.detail.items.map((t) => t.id));
+        }}
+      >
+        {#each tracks as track (track.id)}
+          <div class="min-h-0" animate:flip={{ duration: 150 }}>
+            <TrackControl trackId={track.id} />
+          </div>
+        {/each}
+      </div>
+    </div>
+  </SizeObserver>
   <div style="height: {BOTTOM_TIMELINE_HEIGHT}px"></div>
 </div>

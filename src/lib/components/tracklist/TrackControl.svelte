@@ -12,8 +12,11 @@
   }
 
   let { trackId }: TrackProps = $props();
-  let trackStore = useTrackDbQuery((trackDb) => trackDb.tracks.getTrackById(trackId), null);
+
+  let trackStore = useTrackDbQuery((trackDb) => trackDb.tracks.getTrackById(trackId), 'abc');
   let track = $derived(trackStore.getResult());
+
+  $inspect('TrackControl', trackId, track, trackStore);
 
   let isTrackExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
 

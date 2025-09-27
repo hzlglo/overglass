@@ -36,9 +36,9 @@
   let newTitle = $state(title || '');
 </script>
 
-<div class="border-base-content/20 mr-2 box-border min-w-0 border-b">
-  <div class="box-border w-[300px] border-l-2" style="height: {height}px; border-color: {color}">
-    <div class="flex flex-row">
+<div class="mr-2 min-w-0">
+  <div class="box-border w-[300px] border-l-4" style="height: {height}px; border-color: {color}">
+    <div class="flex flex-row border-t-[0.5px]">
       {#if onToggleExpanded}
         <button class="btn btn-xs btn-ghost" onclick={onToggleExpanded}>
           {isExpanded ? '▼' : '▶'}
