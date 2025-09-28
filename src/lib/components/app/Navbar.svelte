@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { EllipsisVerticalIcon } from '@lucide/svelte';
+  import { SettingsIcon } from '@lucide/svelte';
   import { appStore } from '../../stores/app.svelte';
   import ExportButton from './ExportButton.svelte';
-  import Menu from '../core/Menu.svelte';
   import { goto } from '$app/navigation';
   import { trackDb } from '$lib/stores/trackDb.svelte';
   import { sharedXScale } from '../grid/sharedXScale.svelte';
+  import PlayButtons from '../play/PlayButtons.svelte';
 
   interface NavbarProps {
     projectName?: string;
@@ -22,41 +22,41 @@
 
 <div class="navbar border-base-100 border-b">
   <!-- Left side - Project info -->
-  <div class="navbar-start">
-    <div class="flex items-center gap-4">
-      <button
-        class="btn btn-ghost btn-sm"
-        onclick={() => {
-          appStore.resetApp();
-          trackDb.destroy();
-          goto('/');
-        }}
-      >
-        ← Back to Files
-      </button>
+  <div class="navbar-start flex items-center gap-2">
+    <button
+      class="btn btn-ghost btn-sm"
+      onclick={() => {
+        appStore.resetApp();
+        trackDb.destroy();
+        goto('/');
+      }}
+    >
+      ← Back to Files
+    </button>
 
-      <div class="divider divider-horizontal"></div>
+    <div class="divider divider-horizontal"></div>
 
-      <div class="flex flex-row items-center gap-3">
-        <h1 class="text-base-content text-lg font-semibold">
-          {projectName}
-        </h1>
-        <span class="text-base-content/60 text-sm">
-          {bpm} BPM
-        </span>
-        <span class="text-base-content/60 text-sm">
-          {loopLength} bars per loop
-        </span>
-        <span class="text-base-content/60 text-sm">
-          {timeSignatureToString(timeSignature)}
-        </span>
-      </div>
+    <h1 class="text-base-content text-lg font-semibold">
+      {projectName}
+    </h1>
+
+    <div class="divider divider-horizontal"></div>
+    <div class="ml-3 flex flex-row items-center gap-3">
+      <span class="text-base-content/60 text-sm">
+        {bpm} BPM
+      </span>
+      <span class="text-base-content/60 text-sm">
+        {timeSignatureToString(timeSignature)}
+      </span>
+
+      <span class="text-base-content/60 text-sm">
+        {loopLength} bars per loop
+      </span>
     </div>
   </div>
 
-  <!-- Center - App title -->
   <div class="navbar-center">
-    <span class="text-primary text-xl font-bold">Overglass</span>
+    <PlayButtons />
   </div>
 
   <!-- Right side - Controls -->
@@ -64,27 +64,18 @@
     <div class="flex items-center gap-2">
       <ExportButton />
 
-      <Menu
-        options={[
-          { label: 'Settings', onSelect: () => {} },
-          {
-            label: 'Debugger',
-            onSelect: () => {
-              console.log('window.location.pathname', window.location.pathname);
-              if (window.location.pathname.endsWith('/debugger')) {
-                goto('/');
-                return;
-              }
-              goto('/debugger');
-            },
-          },
-        ]}
-        triggerClass="btn btn-ghost btn-sm"
+      <button
+        class="btn btn-ghost btn-sm"
+        onclick={() => {
+          if (window.location.pathname.endsWith('/settings')) {
+            goto('/');
+            return;
+          }
+          goto('/settings');
+        }}
       >
-        {#snippet trigger()}
-          <EllipsisVerticalIcon />
-        {/snippet}
-      </Menu>
+        <SettingsIcon />
+      </button>
     </div>
   </div>
 </div>

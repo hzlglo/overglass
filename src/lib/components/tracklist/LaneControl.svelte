@@ -6,6 +6,7 @@
 
   interface TrackLaneProps {
     title?: string;
+    subtitle?: string;
     onRename?: (newTitle: string) => void;
     isExpanded?: boolean;
     onToggleExpanded?: () => void;
@@ -13,11 +14,13 @@
     laneId: string;
     class?: string;
     actions?: Snippet;
+    inlineActions?: Snippet;
     color?: string;
   }
 
   let {
     title,
+    subtitle,
     onRename,
     isExpanded: isExpandedProp,
     onToggleExpanded,
@@ -25,6 +28,7 @@
     laneId,
     class: className,
     actions,
+    inlineActions,
     color,
   }: TrackLaneProps = $props();
 
@@ -49,7 +53,16 @@
           class={classNames(!isExpanded ? 'text-base-content/60' : 'text-base-content', className)}
         >
           {#if isRenaming}
-            <input type="text" bind:value={newTitle} />
+            <input
+              type="text"
+              bind:value={newTitle}
+              onkeydown={(e) => {
+                if (e.key === 'Enter') {
+                  onRename?.(newTitle);
+                  isRenaming = false;
+                }
+              }}
+            />
           {:else}
             {title}
           {/if}
@@ -75,9 +88,18 @@
               </button>
             {/if}
           {/if}
-          {@render actions?.()}
+          {@render inlineActions?.()}
         </div>
       </div>
+    </div>
+
+    <div class="ml-7 flex flex-col">
+      {#if subtitle && isExpanded}
+        <div class="text-base-content/60 text-sm">
+          {subtitle}
+        </div>
+      {/if}
+      {@render actions?.()}
     </div>
   </div>
   {#if isExpanded && children}

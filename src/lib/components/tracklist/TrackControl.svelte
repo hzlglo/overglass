@@ -39,9 +39,10 @@
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
 </script>
 
-{#if track}
+{#if track && device}
   <LaneControl
     title={trackConfig?.userEnteredName || track.trackName}
+    subtitle={trackConfig.userEnteredName ? track.trackName : undefined}
     onRename={(newTitle) => appConfigStore.setTrackName(track.id, newTitle)}
     class="font-bold"
     isExpanded={isTrackExpanded}
@@ -49,7 +50,7 @@
     laneId={trackId}
     color={trackConfig?.color}
   >
-    {#snippet actions()}
+    {#snippet inlineActions()}
       <ColorChooser
         value={trackConfig?.color || getThemeColor('primary')}
         onValueChange={(color) => appConfigStore.setTrackColor(trackId, color)}
@@ -74,7 +75,7 @@
           animate:flip={{ duration: 150 }}
           data-is-dnd-shadow-item-hint={parameter[SHADOW_ITEM_MARKER_PROPERTY_NAME]}
         >
-          <TrackParamControl parameterId={parameter.id} {trackConfig}></TrackParamControl>
+          <TrackParamControl parameterId={parameter.id} {trackConfig} {device}></TrackParamControl>
         </div>
       {/each}
     </div>

@@ -1630,6 +1630,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/papaparse@npm:^5":
+  version: 5.3.16
+  resolution: "@types/papaparse@npm:5.3.16"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/0009d3dcdc20cd37f171db77307844a575b89435a3398d1437173a1e5feb13a88e61fed7756f264555743a9510693ae1c9e20c4558c066085fd0bd881abf5497
+  languageName: node
+  linkType: hard
+
 "@types/puppeteer@npm:^7.0.4":
   version: 7.0.4
   resolution: "@types/puppeteer@npm:7.0.4"
@@ -1935,6 +1944,29 @@ __metadata:
   bin:
     acorn: bin/acorn
   checksum: 10c0/dec73ff59b7d6628a01eebaece7f2bdb8bb62b9b5926dcad0f8931f2b8b79c2be21f6c68ac095592adb5adb15831a3635d9343e6a91d028bbe85d564875ec3ec
+  languageName: node
+  linkType: hard
+
+"ag-charts-types@npm:12.2.0":
+  version: 12.2.0
+  resolution: "ag-charts-types@npm:12.2.0"
+  checksum: 10c0/6fad0c096482411f670b7084f009a6c9687048b3f2ca3ce1a5f790f724a9b7170f7a14f249ed6c8d4f590bc39c43b7effcdd88000e22dea2ed21c129777350a1
+  languageName: node
+  linkType: hard
+
+"ag-grid-community@npm:^34.2.0":
+  version: 34.2.0
+  resolution: "ag-grid-community@npm:34.2.0"
+  dependencies:
+    ag-charts-types: "npm:12.2.0"
+  checksum: 10c0/a5b92c9c701ffe0b7b2855ea2ff9189060efde62fe033a0fc2bc77d924fcc3899c74256c54ac86b18cebed8fff6929ef630e801e562ef0172ed28ca3865a6454
+  languageName: node
+  linkType: hard
+
+"ag-grid@npm:^18.1.2":
+  version: 18.1.2
+  resolution: "ag-grid@npm:18.1.2"
+  checksum: 10c0/1171747f6be45da41a07e437fb9475fb1d2596778e54f7ec47fd1c6bd59d49eca069940ae3f597f50417fcbffeae98900471860ea2b2b7162d59f7b3ee239ab1
   languageName: node
   linkType: hard
 
@@ -4856,6 +4888,7 @@ __metadata:
     "@types/jszip": "npm:^3.4.1"
     "@types/lodash": "npm:^4.17.20"
     "@types/pako": "npm:^2.0.4"
+    "@types/papaparse": "npm:^5"
     "@types/puppeteer": "npm:^7.0.4"
     "@types/uuid": "npm:^10.0.0"
     "@types/xmldom": "npm:^0.1.34"
@@ -4863,6 +4896,8 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.43.0"
     "@vitest/ui": "npm:^3.2.4"
     "@xmldom/xmldom": "npm:^0.8.11"
+    ag-grid: "npm:^18.1.2"
+    ag-grid-community: "npm:^34.2.0"
     bits-ui: "npm:^2.9.9"
     classnames: "npm:^2.5.1"
     culori: "npm:^4.0.2"
@@ -4878,6 +4913,7 @@ __metadata:
     jszip: "npm:^3.10.1"
     lodash: "npm:^4.17.21"
     pako: "npm:^2.1.0"
+    papaparse: "npm:^5.5.3"
     prettier: "npm:^3.5.3"
     prettier-plugin-svelte: "npm:^3.4.0"
     prettier-plugin-tailwindcss: "npm:^0.6.11"
@@ -4975,6 +5011,13 @@ __metadata:
   version: 1.0.11
   resolution: "pako@npm:1.0.11"
   checksum: 10c0/86dd99d8b34c3930345b8bbeb5e1cd8a05f608eeb40967b293f72fe469d0e9c88b783a8777e4cc7dc7c91ce54c5e93d88ff4b4f060e6ff18408fd21030d9ffbe
+  languageName: node
+  linkType: hard
+
+"papaparse@npm:^5.5.3":
+  version: 5.5.3
+  resolution: "papaparse@npm:5.5.3"
+  checksum: 10c0/623aae6a35703308fd5a39d616fb3837231ebc70697346355ea508154d3f24df75b6554b736afc1924192205518a5db14e75f5e1cf35d154326050a37cdd9447
   languageName: node
   linkType: hard
 
