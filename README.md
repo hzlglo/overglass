@@ -12,3 +12,7 @@ It's intended to solve the following problem: Overbridge records automation as m
 ### Contributing
 
 Please see README-tech for technical details on the architecture and invariants of this project
+
+### Disclaimer
+
+- This project is not affiliated with or endorsed by Ableton or Elektron.
