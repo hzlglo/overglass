@@ -18,6 +18,7 @@
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import GridContextMenu from './GridContextMenu.svelte';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
+  import PlayLine from './PlayLine.svelte';
 
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
@@ -197,6 +198,7 @@
           height={gridHeight}
           width={gridWidth}
         />
+        <PlayLine height={gridHeight} />
         <g bind:this={svgGroupElement}>
           {#each lanes as lane (lane.id)}
             {#if lane.type === 'track'}

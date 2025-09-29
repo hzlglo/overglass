@@ -1,34 +1,82 @@
 import { getThemeColor } from '$lib/utils/utils';
-import { formatHex, converter } from 'culori';
+import { formatHex, converter, interpolate } from 'culori';
 
 // Use OKLCh (perceptually uniform color space)
 export const toOklch = converter('oklch');
 export const toHex = formatHex;
+// import { toOklch, toHex, interpolate } from 'culori';
 
-// Generate palette: 8 categories × 6 shades
-function generatePalette(baseHex: string) {
-  const base = toOklch(baseHex);
+type PaletteOptions = {
+  backgroundHex: string; // light or dark background
+  contentHex: string; // opposite of background
+  themePrimaryHex: string; // anchor point
+  numCategories?: number;
+  numShades?: number;
+};
 
-  const numCategories = 8;
-  const numShades = 6;
+export function generatePalette({
+  backgroundHex,
+  contentHex,
+  themePrimaryHex,
+  numCategories = 12,
+  numShades = 6,
+}: PaletteOptions) {
+  const background = toOklch(backgroundHex)!;
+  const content = toOklch(contentHex)!;
+  const themePrimary = toOklch(themePrimaryHex)!;
 
-  // Spread hues evenly around the circle
-  const step = 360 / numCategories;
+  // Sweep hues from warm (20° ~ red-orange) to cool (240° ~ blue)
+  const startHue = 20;
+  const endHue = 320;
+  const hueStep = (endHue - startHue) / (numCategories - 1);
 
   const categories = Array.from({ length: numCategories }, (_, i) => {
-    let h = (base.h + i * step) % 360; // rotate hue
-    return { l: base.l, c: base.c, h };
+    const h = startHue + i * hueStep;
+    return { l: themePrimary.l, c: themePrimary.c, h };
   });
 
-  // For each category, make 6 shades by varying lightness
   const shades = categories.map((cat) => {
     return Array.from({ length: numShades }, (_, j) => {
-      const lightness = 0.9 - (j * (0.9 - 0.3)) / (numShades - 1);
-      return toHex({ mode: 'oklch', l: lightness, c: cat.c, h: cat.h });
+      // Position relative to midpoint
+      const t = j / (numShades - 1); // 0 → light side, 1 → dark side
+
+      // Interpolate lightness around themePrimary
+      const lightness =
+        t < 0.5
+          ? themePrimary.l + (0.9 - themePrimary.l) * (1 - 2 * t) // lighter
+          : themePrimary.l - (themePrimary.l - 0.2) * (2 * t - 1); // darker
+
+      // Blend slightly toward content but never fully
+      const towardContent = interpolate([cat, content], 'oklch');
+      const target = towardContent(0.2); // pull 30% toward content color
+
+      const adjusted = {
+        ...cat,
+        l: lightness,
+        h: target?.h ?? cat.h,
+      };
+
+      // Ensure contrast from background
+      if (Math.abs(adjusted.l - background.l) < 0.1) {
+        adjusted.l = background.l > 0.5 ? adjusted.l - 0.1 : adjusted.l + 0.1; // push away from background
+      }
+
+      return toHex({ mode: 'oklch', ...adjusted });
     });
   });
-
-  return shades; // 2D array: [category][shade]
+  return shades;
 }
 
-export const colorOptions = generatePalette(getThemeColor('success'));
+export let colorOptions: string[][] = [];
+export const regenerateColorOptions = () => {
+  if (getThemeColor('base-100') === '') {
+    console.log('failed to regenerate color options...');
+    return;
+  }
+  colorOptions = generatePalette({
+    backgroundHex: getThemeColor('base-100'),
+    contentHex: getThemeColor('base-content'),
+    themePrimaryHex: getThemeColor('primary'),
+  });
+};
+regenerateColorOptions();

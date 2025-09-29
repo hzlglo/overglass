@@ -1,14 +1,7 @@
 import { browser } from '$app/environment';
 import { has, omit } from 'lodash';
 import Papa from 'papaparse';
-
-/**
- * MIDI device and channel mapping settings that are persisted to localStorage
- */
-type DeviceMidiMapping = Record<string, Record<string, any>>; // parameterName -> midi mapping data
-export type MidiMappingState = {
-  deviceMappings: Record<string, DeviceMidiMapping>; // deviceName -> parameterName -> midi mapping data
-};
+import type { DeviceMidiMapping, MidiMappingState } from './midiMapping';
 
 const STORAGE_KEY = 'overglass-midi-mappings';
 

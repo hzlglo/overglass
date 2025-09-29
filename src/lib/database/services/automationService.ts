@@ -1,6 +1,7 @@
 import type { AutomationPoint, ParameterStats } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
-import SQL, { join } from 'sql-template-tag';
+import SQL, { join, raw } from 'sql-template-tag';
+import { max, min } from 'lodash';
 
 export class AutomationService {
   constructor(private db: AutomationDatabase) {}
@@ -128,11 +129,15 @@ export class AutomationService {
     parameterIds,
     startTime,
     endTime,
+    direction = 'asc',
+    limit,
   }: {
     parameterId?: string;
     parameterIds?: string[];
     startTime?: number;
     endTime?: number;
+    direction?: 'asc' | 'desc';
+    limit?: number;
   }): Promise<AutomationPoint[]> {
     let filters = [SQL`1 = 1`];
     if (parameterId) {
@@ -151,25 +156,26 @@ export class AutomationService {
       SELECT id, parameter_id, time_position, value, curve_type, created_at, updated_at
       FROM automation_points
       WHERE ${join(filters, ' AND ')}
-      ORDER BY time_position
+      ORDER BY time_position ${raw(direction)}
+      ${limit ? SQL`LIMIT ${limit}` : SQL``}
     `;
 
-    return await this.db.run(sql.sql, sql.values);
+    return this.db.run(sql.sql, sql.values);
   }
 
   /**
-   * Get automation points for a parameter within a time range (alias for backwards compatibility)
+   * Get automation points for a parameter within a time range
    */
   async getAutomationPointsInRange(
     parameterId: string,
     startTime: number,
     endTime: number,
   ): Promise<AutomationPoint[]> {
-    return (await this.getAutomationPoints({
+    return this.getAutomationPoints({
       parameterId,
       startTime,
       endTime,
-    })) as AutomationPoint[];
+    });
   }
 
   /**

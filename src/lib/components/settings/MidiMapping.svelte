@@ -105,6 +105,12 @@
       <button class="btn btn-ghost" onclick={downloadCSV}>Download</button>
     {/if}
   </div>
+  <pre>
+    Notes:
+    - Data must include a 'parameter_name' column
+    - Data must include a 'cc_msb' column
+    - The parameter named 'Track: Mute' will be used to mute/unmute the track
+  </pre>
 
   {#if selectedDevice}
     <div class="h-[50vh] w-full">

@@ -4,6 +4,7 @@
   import { appStore } from '../../stores/app.svelte';
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import { fromPairs, toPairs } from 'lodash';
+  import ThemeController from './ThemeController.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
@@ -99,6 +100,7 @@
 <!-- File chooser card -->
 <div class="m-20 flex flex-col justify-center gap-10">
   <h1 class="text-primary text-center text-4xl font-bold">Overglass</h1>
+  <ThemeController />
   <div class="card bg-base-100 border-base-content/20 border p-10">
     <div class="card-header text-center text-lg font-bold">Please choose a .als file</div>
     <div class="card-body">

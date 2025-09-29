@@ -1,11 +1,37 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { MuteTransition } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
-import SQL, { join } from 'sql-template-tag';
+import SQL, { join, raw } from 'sql-template-tag';
 import { first, isEmpty } from 'lodash';
 
 export class MuteTransitionService {
   constructor(private db: AutomationDatabase) {}
+
+  async getMuteTransitions({
+    trackId,
+    startTime,
+    endTime,
+    direction = 'asc',
+    limit,
+  }: {
+    trackId: string;
+    startTime?: number;
+    endTime?: number;
+    direction?: 'asc' | 'desc';
+    limit?: number;
+  }): Promise<MuteTransition[]> {
+    const sqlTemplate = SQL`
+      SELECT *
+      FROM mute_transitions
+      WHERE track_id = ${trackId}
+      ${startTime !== undefined ? SQL` AND time_position >= ${startTime} ` : SQL``}
+      ${endTime !== undefined ? SQL` AND time_position <= ${endTime} ` : SQL``}
+      ORDER BY time_position ${raw(direction)}
+      ${limit ? SQL`LIMIT ${limit}` : SQL``}
+    `;
+    const result = await this.db.run(sqlTemplate.sql, sqlTemplate.values);
+    return result;
+  }
 
   /**
    * Add a mute transition, automatically determining state and maintaining the on/off pattern
@@ -606,7 +632,7 @@ export class MuteTransitionService {
   /**
    * Create a new mute transition for a track (private - use addMuteTransition instead)
    */
-  private async createMuteTransition(
+  async createMuteTransition(
     trackId: string,
     timePosition: number,
     isMuted: boolean,
@@ -683,37 +709,5 @@ export class MuteTransitionService {
     if (result.changes === 0) {
       throw new Error(`Mute transition with id ${transitionId} not found`);
     }
-  }
-
-  /**
-   * Deduplicate transitions to maintain alternating pattern, prioritizing edited transitions
-   */
-  private deduplicateTransitions(
-    transitions: MuteTransition[],
-    priorityIds: string[],
-  ): MuteTransition[] {
-    const result: MuteTransition[] = [];
-    let lastState: boolean | null = null;
-
-    for (const transition of transitions) {
-      const isPriority = priorityIds.includes(transition.id);
-
-      if (lastState === null || transition.isMuted !== lastState) {
-        // This transition is valid (alternates state)
-        result.push(transition);
-        lastState = transition.isMuted;
-      } else if (isPriority) {
-        // This is a priority transition but would create invalid pattern
-        // Keep it but remove the previous transition
-        if (result.length > 0) {
-          result.pop();
-        }
-        result.push(transition);
-        lastState = transition.isMuted;
-      }
-      // Otherwise, skip this transition (it would create invalid pattern and is not priority)
-    }
-
-    return result;
   }
 }

@@ -33,6 +33,13 @@ export class TracksService {
     return await this.db.run(sql.sql, sql.values);
   }
 
+  async getAllParameters(): Promise<Parameter[]> {
+    const sql = SQL`
+      SELECT * FROM parameters
+    `;
+    return await this.db.run(sql.sql, sql.values);
+  }
+
   /**
    * Get all tracks for a specific device
    */

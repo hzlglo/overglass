@@ -1,5 +1,5 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 @plugin "daisyui" {
-  themes: fantasy --default;
+  themes: fantasy, forest;
 }

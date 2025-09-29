@@ -8,6 +8,8 @@
   import type { Device } from '$lib/database/schema';
   import { CheckIcon, CircleAlertIcon } from '@lucide/svelte';
   import Autocomplete from '../core/Autocomplete.svelte';
+  import classNames from 'classnames';
+  import TrackParamMidiMapper from './TrackParamMidiMapper.svelte';
 
   interface AutomationParameterProps {
     parameterId: string;
@@ -30,11 +32,6 @@
     }
     return `${trackConfig.userEnteredName} ${ElektronNameMatcher.cleanParameterName(parameterName)}`;
   };
-  let isMappingMidiChannel = $state(false);
-  let midiChannel = $derived(
-    parameter ? midiStore.getMidiChannel(device.deviceName, parameter.parameterName) : null,
-  );
-  let deviceMapping = $derived(midiStore.getDeviceMapping(device.deviceName));
 </script>
 
 {#if parameter}
@@ -46,39 +43,7 @@
     color={trackConfig?.color}
   >
     {#snippet actions()}
-      {#if isMappingMidiChannel}
-        <div class="flex flex-row items-center justify-start gap-2">
-          <span class="label">MIDI channel</span>
-          <Autocomplete
-            options={Object.entries(deviceMapping || {}).map(([key, mapping]) => ({
-              label: key,
-              onSelect: () => {
-                console.log('onSelect', device.deviceName, parameter.parameterName, key, mapping);
-                midiStore.setMidiMappings(device.deviceName, parameter.parameterName, mapping);
-              },
-            }))}
-          />
-          {#if midiChannel}
-            <button
-              class="btn btn-square btn-ghost btn-xs"
-              onclick={() => {
-                isMappingMidiChannel = false;
-              }}
-            >
-              <CheckIcon />
-            </button>
-          {/if}
-        </div>
-      {/if}
-      {#if !midiChannel}
-        <div class="tooltip" data-tip="No MIDI channel mapped">
-          <button
-            class="btn btn-square btn-ghost btn-warning btn-xs"
-            onclick={() => (isMappingMidiChannel = true)}
-            ><CircleAlertIcon />
-          </button>
-        </div>
-      {/if}
+      <TrackParamMidiMapper {device} {parameter} />
     {/snippet}
   </LaneControl>
 {:else}

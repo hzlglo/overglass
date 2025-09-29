@@ -14,9 +14,9 @@ describe('Automation Edit API', () => {
     const adapter = new NativeDuckDBAdapter();
     db = new AutomationDatabase(adapter);
     await db.initialize();
-    
+
     parser = new ALSParser();
-    
+
     // Load test ALS data - create File-like object for Node.js
     const buffer = readFileSync('./src/tests/test1.als');
     const testFile = {
@@ -26,16 +26,16 @@ describe('Automation Edit API', () => {
       arrayBuffer: async () =>
         buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
     } as File;
-    
+
     const parsedData = await parser.parseALSFile(testFile);
     await db.loadALSData(parsedData);
-    
+
     // Get a test parameter ID
     const devices = await db.devices.getDevicesWithTracks();
     const tracks = await db.tracks.getTracksForDevice(devices[0].id);
     const parameters = await db.tracks.getParametersForTrack(tracks[0].id);
     testParameterId = parameters[0].id;
-    
+
     console.log(`Using test parameter: ${testParameterId} (${parameters[0].parameterName})`);
   });
 
@@ -48,13 +48,17 @@ describe('Automation Edit API', () => {
       const timePosition = 16.0; // 16 beats
       const value = 0.75;
 
-      const result = await db.automation.createAutomationPoint(testParameterId, timePosition, value);
+      const result = await db.automation.createAutomationPoint(
+        testParameterId,
+        timePosition,
+        value,
+      );
 
       expect(result).toMatchObject({
         parameterId: testParameterId,
         timePosition,
         value,
-        id: expect.any(String)
+        id: expect.any(String),
       });
 
       expect(result.id).toBeTruthy();
@@ -62,20 +66,19 @@ describe('Automation Edit API', () => {
       expect(result.updatedAt).toBeInstanceOf(Date);
     });
 
-
     it('should validate automation values', async () => {
-      await expect(
-        db.automation.createAutomationPoint(testParameterId, 20.0, 1.5)
-      ).rejects.toThrow('Automation value must be between 0.0 and 1.0');
+      await expect(db.automation.createAutomationPoint(testParameterId, 20.0, 1.5)).rejects.toThrow(
+        'Automation value must be between 0.0 and 1.0',
+      );
 
       await expect(
-        db.automation.createAutomationPoint(testParameterId, 20.0, -0.5)
+        db.automation.createAutomationPoint(testParameterId, 20.0, -0.5),
       ).rejects.toThrow('Automation value must be between 0.0 and 1.0');
     });
 
     it('should reject invalid parameter IDs', async () => {
       await expect(
-        db.automation.createAutomationPoint('invalid-parameter-id', 24.0, 0.5)
+        db.automation.createAutomationPoint('invalid-parameter-id', 24.0, 0.5),
       ).rejects.toThrow('Parameter invalid-parameter-id not found');
     });
   });
@@ -96,23 +99,26 @@ describe('Automation Edit API', () => {
         testPointId,
         testParameterId,
         newTimePosition,
-        newValue
+        newValue,
       );
 
       expect(result).toMatchObject({
         id: testPointId,
         parameterId: testParameterId,
         timePosition: newTimePosition,
-        value: newValue
+        value: newValue,
       });
 
       // Verify the point exists at new position with correct values
-      const pointsAtNewTime = await db.automation.getAutomationPointsInRange(testParameterId, 23.9, 24.1);
+      const pointsAtNewTime = await db.automation.getAutomationPointsInRange(
+        testParameterId,
+        23.9,
+        24.1,
+      );
       expect(pointsAtNewTime).toHaveLength(1);
       expect(pointsAtNewTime[0].value).toBe(newValue);
       expect(pointsAtNewTime[0].id).toBe(testPointId);
     });
-
 
     it('should preserve createdAt when updating', async () => {
       // Create a point
@@ -120,14 +126,14 @@ describe('Automation Edit API', () => {
       const originalCreatedAt = originalPoint.createdAt;
 
       // Wait a bit to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Update it
       const updatedPoint = await db.automation.updateAutomationPoint(
         originalPoint.id,
         testParameterId,
         30.0,
-        0.9
+        0.9,
       );
 
       expect(updatedPoint.createdAt).toEqual(originalCreatedAt);
@@ -136,7 +142,7 @@ describe('Automation Edit API', () => {
 
     it('should reject updates to non-existent points', async () => {
       await expect(
-        db.automation.updateAutomationPoint('non-existent-id', testParameterId, 32.0, 0.5)
+        db.automation.updateAutomationPoint('non-existent-id', testParameterId, 32.0, 0.5),
       ).rejects.toThrow('Automation point with id non-existent-id not found');
     });
 
@@ -144,16 +150,14 @@ describe('Automation Edit API', () => {
       const point = await db.automation.createAutomationPoint(testParameterId, 34.0, 0.5);
 
       await expect(
-        db.automation.updateAutomationPoint(point.id, testParameterId, 34.0, 1.5)
+        db.automation.updateAutomationPoint(point.id, testParameterId, 34.0, 1.5),
       ).rejects.toThrow('Automation value must be between 0.0 and 1.0');
 
       await expect(
-        db.automation.updateAutomationPoint(point.id, testParameterId, 34.0, -0.5)
+        db.automation.updateAutomationPoint(point.id, testParameterId, 34.0, -0.5),
       ).rejects.toThrow('Automation value must be between 0.0 and 1.0');
     });
   });
-
-
 
   describe('deleteAutomationPoints', () => {
     it('should delete multiple automation points by ID', async () => {
@@ -167,7 +171,11 @@ describe('Automation Edit API', () => {
       expect(deletedCount).toBe(2);
 
       // Verify they're gone and the middle one remains
-      const remainingPoints = await db.automation.getAutomationPointsInRange(testParameterId, 99.0, 103.0);
+      const remainingPoints = await db.automation.getAutomationPointsInRange(
+        testParameterId,
+        99.0,
+        103.0,
+      );
       expect(remainingPoints).toHaveLength(1);
       expect(remainingPoints[0].id).toBe(point2.id);
       expect(remainingPoints[0].timePosition).toBe(101.0);
@@ -179,7 +187,10 @@ describe('Automation Edit API', () => {
     });
 
     it('should handle deletion of non-existent IDs gracefully', async () => {
-      const deletedCount = await db.automation.deleteAutomationPoints(['non-existent-1', 'non-existent-2']);
+      const deletedCount = await db.automation.deleteAutomationPoints([
+        'non-existent-1',
+        'non-existent-2',
+      ]);
       expect(deletedCount).toBe(2); // Still reports the count attempted to delete
     });
   });
@@ -191,14 +202,14 @@ describe('Automation Edit API', () => {
       await db.automation.createAutomationPoint(testParameterId, 42.0, 0.3);
       await db.automation.createAutomationPoint(testParameterId, 44.0, 0.5);
       await db.automation.createAutomationPoint(testParameterId, 46.0, 0.7);
-      
+
       // Get points in range
       const points = await db.automation.getAutomationPointsInRange(testParameterId, 41.0, 45.0);
-      
+
       expect(points).toHaveLength(2);
       expect(points[0].timePosition).toBe(42.0);
       expect(points[1].timePosition).toBe(44.0);
-      expect(points.map(p => p.value)).toEqual([0.3, 0.5]);
+      expect(points.map((p) => p.value)).toEqual([0.3, 0.5]);
     });
 
     it('should return points sorted by time position', async () => {
@@ -206,18 +217,22 @@ describe('Automation Edit API', () => {
       await db.automation.createAutomationPoint(testParameterId, 52.0, 0.8);
       await db.automation.createAutomationPoint(testParameterId, 50.0, 0.2);
       await db.automation.createAutomationPoint(testParameterId, 51.0, 0.5);
-      
+
       const points = await db.automation.getAutomationPointsInRange(testParameterId, 49.0, 53.0);
-      
+
       expect(points).toHaveLength(3);
-      expect(points.map(p => p.timePosition)).toEqual([50.0, 51.0, 52.0]);
+      expect(points.map((p) => p.timePosition)).toEqual([50.0, 51.0, 52.0]);
     });
   });
 
   describe('bulkSetAutomationPoints', () => {
     it('should create multiple automation points efficiently', async () => {
       // Get 5 existing automation points from the database
-      const existingPoints = await db.automation.getAutomationPointsInRange(testParameterId, -100, 100);
+      const existingPoints = await db.automation.getAutomationPointsInRange(
+        testParameterId,
+        -100,
+        100,
+      );
       expect(existingPoints.length).toBeGreaterThanOrEqual(5);
 
       const pointsToUpdate = existingPoints.slice(0, 5);
@@ -227,7 +242,7 @@ describe('Automation Edit API', () => {
         id: point.id,
         parameterId: point.parameterId,
         timePosition: point.timePosition,
-        value: index * 0.2 // 0.0, 0.2, 0.4, 0.6, 0.8
+        value: index * 0.2, // 0.0, 0.2, 0.4, 0.6, 0.8
       }));
 
       const results = await db.automation.bulkSetAutomationPoints(bulkPoints);
@@ -241,13 +256,19 @@ describe('Automation Edit API', () => {
       });
 
       // Verify points were updated in database
-      const updatedPoints = await db.automation.getAutomationPointsInRange(testParameterId, -100, 100);
-      const updatedPointsById = updatedPoints.filter(p => bulkPoints.some(bp => bp.id === p.id));
+      const updatedPoints = await db.automation.getAutomationPointsInRange(
+        testParameterId,
+        -100,
+        100,
+      );
+      const updatedPointsById = updatedPoints.filter((p) =>
+        bulkPoints.some((bp) => bp.id === p.id),
+      );
       expect(updatedPointsById).toHaveLength(5);
 
       // Verify values were actually updated
-      updatedPointsById.forEach(point => {
-        const originalBulkPoint = bulkPoints.find(bp => bp.id === point.id);
+      updatedPointsById.forEach((point) => {
+        const originalBulkPoint = bulkPoints.find((bp) => bp.id === point.id);
         expect(point.value).toBe(originalBulkPoint?.value);
       });
     });
@@ -256,17 +277,25 @@ describe('Automation Edit API', () => {
   describe('integration with existing automation', () => {
     it('should work with existing automation data from ALS file', async () => {
       // Get existing automation points
-      const originalPoints = await db.automation.getAutomationPointsInRange(testParameterId, -100, 100);
+      const originalPoints = await db.automation.getAutomationPointsInRange(
+        testParameterId,
+        -100,
+        100,
+      );
       const originalCount = originalPoints.length;
-      
+
       expect(originalCount).toBeGreaterThan(0);
-      
+
       // Add new points
       await db.automation.createAutomationPoint(testParameterId, 70.0, 0.33);
       await db.automation.createAutomationPoint(testParameterId, 71.0, 0.66);
-      
+
       // Verify total count increased
-      const updatedPoints = await db.automation.getAutomationPointsInRange(testParameterId, -100, 100);
+      const updatedPoints = await db.automation.getAutomationPointsInRange(
+        testParameterId,
+        -100,
+        100,
+      );
       expect(updatedPoints.length).toBe(originalCount + 2);
     });
   });
