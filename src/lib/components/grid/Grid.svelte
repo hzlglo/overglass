@@ -79,7 +79,6 @@
     const pan = (event: WheelEvent) => {
       zoom.translateBy(svg.transition().duration(50), -event.deltaX, 0);
       if (gridContainer) {
-        console.log('panning', event, gridContainer.scrollTop);
         gridContainer.scrollTo(0, gridContainer.scrollTop + event.deltaY);
       }
       event.preventDefault();

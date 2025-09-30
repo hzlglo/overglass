@@ -3,7 +3,6 @@
   import { appStore } from '../../stores/app.svelte';
   import ExportButton from './ExportButton.svelte';
   import { goto } from '$app/navigation';
-  import { sharedXScale } from '../grid/sharedXScale.svelte';
   import PlayButtons from '../play/PlayButtons.svelte';
   import ThemeController from './ThemeController.svelte';
   import type { Snippet } from 'svelte';
@@ -16,7 +15,7 @@
   let timeSignatureToString = (timeSignature: { numerator: number; denominator: number }) => {
     return `${timeSignature.numerator}/${timeSignature.denominator}`;
   };
-  let loopLength = $derived(sharedXScale.getLoopLength());
+  // let loopLength = $derived(sharedXScale.getLoopLength());
 </script>
 
 <div class="navbar border-base-100 flex flex-row justify-between border-b">
@@ -40,9 +39,9 @@
         {timeSignatureToString(timeSignature)}
       </span>
 
-      <span class="text-base-content/60 w-fit">
+      <!-- <span class="text-base-content/60 w-fit">
         {loopLength} bars per loop
-      </span>
+      </span> -->
     </div>
     <div class="divider divider-horizontal"></div>
     <PlayButtons />

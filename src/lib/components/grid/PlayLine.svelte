@@ -7,7 +7,6 @@
 
   let playPoint = $derived(playState.getPlayPoint());
   let xScale = $derived(sharedXScale.getZoomedXScale());
-  $inspect('play line', playPoint, xScale, xScale(playPoint));
 
   let lineElt = $state<SVGLineElement>();
   let line = $derived(lineElt ? d3.select(lineElt) : undefined);

@@ -6,11 +6,11 @@ function nextPowerOfTwo(n: number) {
 function previousPowerOfTwo(n: number) {
   return Math.pow(2, Math.floor(Math.log2(n)));
 }
-export function getTicksForBarSpan(minBar: number, maxBar: number) {
+export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarget: number = 8) {
   // Generate ticks at base-2 intervals (e.g., 0.5, 1, 2, 4, 8, 16, ...)
   // Try to get ~8-12 ticks within the span
   // subtract 1 from both since the bars are 1-indexed
-  const distanceBetweenTicks = previousPowerOfTwo(maxBar - minBar) / 8;
+  const distanceBetweenTicks = previousPowerOfTwo(maxBar - minBar) / roughTickTarget;
   let firstTick = minBar;
   if (minBar % distanceBetweenTicks !== 0) {
     firstTick = minBar - (minBar % distanceBetweenTicks) + distanceBetweenTicks;
@@ -26,14 +26,7 @@ export function getTicksForBarSpan(minBar: number, maxBar: number) {
       i,
     );
   }
-  return result;
-}
-function getTicksForLoops(minLoop: number, maxLoop: number, loopLength: number) {
-  const result = [];
-  const firstTick = Math.ceil(minLoop / loopLength) * loopLength;
-  for (let i = firstTick; i <= maxLoop; i += loopLength) {
-    result.push(i);
-  }
+  console.log('getTicksForBarSpan', result);
   return result;
 }
 
@@ -59,24 +52,30 @@ const getSharedXScale = () => {
       // same pixel mapping as xScale
       .range(xScale.range()),
   );
-  let zoomedXScale = $state(xScale);
-  let zoomedXScaleBars = $state(xScaleBars);
-
-  let loopLength = $state(4);
-  let loopTicks = $derived(
-    getTicksForLoops(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1], loopLength),
-  );
-
-  let xAxisBars = $state(d3.axisTop(xScaleBars).tickFormat((d) => `${d}`));
-  let recalculateXAxisBars = () => {
-    xAxisBars = d3
-      .axisTop(zoomedXScaleBars)
-      .tickFormat((d) => `${d}`)
-      .tickValues(getTicksForBarSpan(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1]));
-  };
 
   let lastZoomEvent = $state(null);
   let currentZoomTransform = $state(null);
+
+  let zoomedXScale = $derived(
+    currentZoomTransform ? currentZoomTransform.rescaleX(xScale) : xScale,
+  );
+  let zoomedXScaleBars = $derived(
+    currentZoomTransform ? currentZoomTransform.rescaleX(xScaleBars) : xScaleBars,
+  );
+
+  // let loopLength = $state(4);
+  // TODO currently this is just providing some extra emphasis on every 4th bar. but originally
+  // wanted this to be show the length of loops. consider re-adding loop ticks if it seems important.
+  let loopTicks = $derived(
+    getTicksForBarSpan(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1], 2),
+  );
+
+  let xAxisBars = $derived(
+    d3
+      .axisTop(zoomedXScaleBars)
+      .tickFormat((d) => `${d}`)
+      .tickValues(getTicksForBarSpan(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1])),
+  );
 
   let zoom = $derived(
     d3
@@ -97,9 +96,6 @@ const getSharedXScale = () => {
       .on('zoom', (event) => {
         lastZoomEvent = event;
         currentZoomTransform = event.transform;
-        zoomedXScale = currentZoomTransform.rescaleX(xScale);
-        zoomedXScaleBars = currentZoomTransform.rescaleX(xScaleBars);
-        recalculateXAxisBars();
       }),
   );
   let getDataDeltaForScreenDelta = $derived((screenDelta: number) => {
@@ -118,20 +114,16 @@ const getSharedXScale = () => {
     getZoomedXScaleBars: () => zoomedXScaleBars,
     getXAxisBars: () => xAxisBars,
     getLoopTicks: () => loopTicks,
-    getLoopLength: () => loopLength,
-    setLoopLength: (loopLengthInner: number) => {
-      loopLength = loopLengthInner;
-    },
+    // getLoopLength: () => loopLength,
+    // setLoopLength: (loopLengthInner: number) => {
+    //   loopLength = loopLengthInner;
+    // },
     setMaxTime: (maxTimeInner: number) => {
       maxTime = maxTimeInner;
-      zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, width]);
     },
     setWidth: (widthInner: number) => {
       width = widthInner;
       zoomedXScale = d3.scaleLinear().domain([0, maxTime]).range([0, width]);
-      zoomedXScaleBars = d3.scaleLinear().domain([0, maxTime]).range([0, width]);
-      // todo figure out how to recalculate the x axis bars without infinite loop
-      // recalculateXAxisBars();
     },
     setBpm: (bpmInner: number) => {
       bpm = bpmInner;
