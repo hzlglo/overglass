@@ -160,8 +160,8 @@
       )
       .on('drag', (event, d) => {
         sharedDragSelect.dragEvent({
-          dx: event.dx,
-          dy: event.dy,
+          event,
+          currentTimePosition: d.timePosition,
           yDiffScale,
         });
       })

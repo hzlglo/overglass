@@ -6,7 +6,7 @@ function nextPowerOfTwo(n: number) {
 function previousPowerOfTwo(n: number) {
   return Math.pow(2, Math.floor(Math.log2(n)));
 }
-export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarget: number = 8) {
+export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarget: number = 16) {
   // Generate ticks at base-2 intervals (e.g., 0.5, 1, 2, 4, 8, 16, ...)
   // Try to get ~8-12 ticks within the span
   // subtract 1 from both since the bars are 1-indexed
@@ -64,11 +64,18 @@ const getSharedXScale = () => {
   );
 
   // let loopLength = $state(4);
-  // TODO currently this is just providing some extra emphasis on every 4th bar. but originally
+  // TODO currently this is just providing some extra emphasis on every couple ticks. but originally
   // wanted this to be show the length of loops. consider re-adding loop ticks if it seems important.
   let loopTicks = $derived(
     getTicksForBarSpan(zoomedXScaleBars.domain()[0], zoomedXScaleBars.domain()[1], 2),
   );
+
+  let snapPointToGrid = $derived((timePosition: number) => {
+    const [minBar, maxBar] = zoomedXScaleBars.domain();
+    const roughGranularityTarget = 64;
+    const nearestPowerOfTwo = previousPowerOfTwo(maxBar - minBar) / roughGranularityTarget;
+    return Math.round(timePosition / nearestPowerOfTwo) * nearestPowerOfTwo;
+  });
 
   let xAxisBars = $derived(
     d3
@@ -114,6 +121,7 @@ const getSharedXScale = () => {
     getZoomedXScaleBars: () => zoomedXScaleBars,
     getXAxisBars: () => xAxisBars,
     getLoopTicks: () => loopTicks,
+    getSnapPointToGrid: () => snapPointToGrid,
     // getLoopLength: () => loopLength,
     // setLoopLength: (loopLengthInner: number) => {
     //   loopLength = loopLengthInner;

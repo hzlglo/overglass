@@ -37,14 +37,6 @@
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
-  // scale used for dragging points
-  let yDiffScale = $derived(
-    d3
-      .scaleLinear()
-      .domain([0, 1])
-      .range([0, 0 - innerHeight]),
-  );
-
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
@@ -69,7 +61,9 @@
       .attr('class', 'clip')
       .attr('x', (d) => getClipStart(d.start))
       .attr('y', (d) => rectYPadding)
-      .attr('width', (d) => xScale(d.end ?? xScale.domain()[1]) - getClipStart(d.start))
+      .attr('width', (d) => {
+        return max([xScale(d.end ?? xScale.domain()[1]) - getClipStart(d.start), 0]);
+      })
       .attr('height', innerHeight - rectYPadding * 2)
       .attr('fill', color)
       .attr('fill-opacity', 0.6)
@@ -136,12 +130,10 @@
           }
         },
       )
-      .on('drag', (event) => {
+      .on('drag', (event, d) => {
         sharedDragSelect.dragEvent({
-          dx: event.dx,
-          // don't submit y transitions from mute drag
-          dy: 0,
-          yDiffScale,
+          event,
+          currentTimePosition: d.timePosition,
         });
       })
       .on('end', async () => {

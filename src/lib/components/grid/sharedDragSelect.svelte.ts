@@ -65,18 +65,30 @@ const getSharedDragSelect = () => {
       dragHandlers.set(parameterId, handler);
     },
     dragEvent: ({
-      dx,
-      dy,
+      event,
+      currentTimePosition,
       yDiffScale,
     }: {
-      dx: number;
-      dy: number;
-      yDiffScale: d3.ScaleLinear<number, number>;
+      event: d3.D3DragEvent<SVGCircleElement, AutomationPoint, SVGElement>;
+      currentTimePosition: number;
+      yDiffScale?: d3.ScaleLinear<number, number>;
     }) => {
-      const deltaTime = sharedXScale.getDataDeltaForScreenDelta(dx);
+      const shouldSnapToGrid = !(event.sourceEvent?.altKey || event.sourceEvent?.metaKey);
+      let diffSeconds = sharedXScale.getDataDeltaForScreenDelta(event.dx);
+      if (shouldSnapToGrid) {
+        const updatedPointPixels = event.x;
+        const updatedPointBars = sharedXScale.getZoomedXScaleBars().invert(updatedPointPixels);
+        const snappedPointBars = sharedXScale.getSnapPointToGrid()(updatedPointBars);
+        const snappedPointPixels = sharedXScale.getZoomedXScaleBars()(snappedPointBars);
+        const snappedPointSeconds = sharedXScale.getZoomedXScale().invert(snappedPointPixels);
+        diffSeconds = snappedPointSeconds - currentTimePosition;
+      }
+
       selectedPoints.forEach((p) => {
-        p.timePosition = p.timePosition + deltaTime;
-        p.value = clamp(p.value + yDiffScale.invert(dy), 0, 1);
+        p.timePosition = p.timePosition + diffSeconds;
+        if (yDiffScale) {
+          p.value = clamp(p.value + yDiffScale.invert(event.dy), 0, 1);
+        }
       });
       keys(selectedMuteTransitionsByTrackId).forEach((trackId) => {
         const allTrackTransitions = allMuteTransitionsByTrackId[trackId];
@@ -84,7 +96,7 @@ const getSharedDragSelect = () => {
         const movedSelectedTransitions = MuteTransitionService.getMovedMuteTransitions(
           selectedTrackTransitions,
           allTrackTransitions,
-          deltaTime,
+          diffSeconds,
         );
         const movedSelectedTransitionsById = keyBy(movedSelectedTransitions, (t) => t.id);
         for (const muteTransition of selectedTrackTransitions) {
