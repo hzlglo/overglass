@@ -12,7 +12,9 @@ const getSharedDragSelect = () => {
   let brushSelection: null | { x0: number; y0: number; x1: number; y1: number } = $state(null);
   let selectedLanes: null | LaneDisplay[] = $state(null);
   let selectedPoints: AutomationPoint[] = $state([]);
+  let selectedPointIds = $derived(new Set(selectedPoints.map((p) => p.id)));
   let selectedMuteTransitions: MuteTransition[] = $state([]);
+  let selectedMuteTransitionIds = $derived(new Set(selectedMuteTransitions.map((t) => t.id)));
   let selectedMuteTransitionsByTrackId = $derived(
     groupBy(selectedMuteTransitions, (t) => t.trackId),
   );
@@ -53,6 +55,8 @@ const getSharedDragSelect = () => {
     setSelectedPoints: (selectedPointsInner: AutomationPoint[]) => {
       selectedPoints = selectedPointsInner;
     },
+    getSelectedPointIds: () => selectedPointIds,
+    getSelectedMuteTransitionIds: () => selectedMuteTransitionIds,
     getSelectedMuteTransitions: () => selectedMuteTransitions,
     setSelectedMuteTransitions: (selectedMuteTransitionsInner: MuteTransition[]) => {
       selectedMuteTransitions = selectedMuteTransitionsInner;

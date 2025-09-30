@@ -1,5 +1,6 @@
 import { getThemeColor } from '$lib/utils/utils';
 import { formatHex, converter, interpolate } from 'culori';
+import { random } from 'lodash';
 
 // Use OKLCh (perceptually uniform color space)
 export const toOklch = converter('oklch');
@@ -80,3 +81,7 @@ export const regenerateColorOptions = () => {
   });
 };
 regenerateColorOptions();
+
+export const getRandomColor = () => {
+  return colorOptions[random(colorOptions.length - 1)][random(colorOptions[0].length - 1)];
+};

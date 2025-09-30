@@ -2,6 +2,7 @@
   import { MoonIcon, SunIcon } from '@lucide/svelte';
   import { regenerateColorOptions } from '../colors/colorOptions';
   import { onMount, tick } from 'svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
 
   const themeStorageKey = 'isDarkMode';
 
@@ -22,6 +23,7 @@
     let _x = isDarkMode;
     tick().then(() => {
       regenerateColorOptions();
+      appConfigStore.randomizeTrackColors();
     });
   });
 </script>

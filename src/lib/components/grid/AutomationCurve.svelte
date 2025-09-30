@@ -61,6 +61,7 @@
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
+  let highlightColor = 'white';
 
   let { area, line } = $derived.by(() => {
     if (!svgGroup) {
@@ -136,6 +137,11 @@
   });
 
   let selectedPoints = $derived(sharedDragSelect.getSelectedPoints());
+  let selectedPointIds = $derived(sharedDragSelect.getSelectedPointIds());
+
+  $effect(() => {
+    points?.attr('fill', (d) => (selectedPointIds.has(d.id) ? highlightColor : color));
+  });
 
   let drag = $derived(
     d3

@@ -48,51 +48,9 @@
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
+  let highlightColor = 'white';
 
   let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
-
-  // // Background rectangle to capture events
-  // let backgroundRect = $derived.by(() => {
-  //   if (!svgGroup) return undefined;
-
-  //   svgGroup.selectAll('.background-rect').remove();
-  //   return svgGroup
-  //     .append('rect')
-  //     .attr('class', 'background-rect')
-  //     .attr('x', 0)
-  //     .attr('y', 0)
-  //     .attr('width', innerWidth)
-  //     .attr('height', innerHeight)
-  //     .attr('fill', 'transparent')
-  //     .style('cursor', 'pointer');
-  // });
-
-  // // Add event listeners for track area (for adding clips)
-  // $effect(() => {
-  //   if (!backgroundRect) return;
-
-  //   backgroundRect
-  //     .on('dblclick', (event) => {
-  //       const [mouseX] = d3.pointer(event);
-  //       const timePosition = xScale.invert(mouseX);
-
-  //       actionsDispatcher.handleDoubleClick(event, 'track', {
-  //         trackId,
-  //         timePosition,
-  //         selectedMuteTransitions: selectedMuteTransitions,
-  //       });
-  //     })
-  //     .on('contextmenu', (event) => {
-  //       const [mouseX] = d3.pointer(event);
-  //       const timePosition = xScale.invert(mouseX);
-
-  //       actionsDispatcher.handleRightClick(event, 'track', {
-  //         trackId,
-  //         timePosition,
-  //         selectedMuteTransitions: selectedMuteTransitions,
-  //       });
-  //     });
-  // });
 
   let rectYPadding = 4;
   let clipRects = $derived.by(() => {
@@ -132,16 +90,17 @@
         (update) => update,
         (exit) => exit.remove(),
       );
+    const width = 6;
     rects
-      ?.attr('x', (d) => xScale(d.timePosition) - 2)
+      ?.attr('x', (d) => xScale(d.timePosition) - width / 2)
       .attr('y', 0)
       .attr('class', 'mute-drag-handle')
-      .attr('width', 4)
+      .attr('width', width)
       .attr('height', innerHeight)
-      .attr('fill', color)
       .attr('fill-opacity', 1)
       .attr('stroke', color)
       .attr('stroke-width', 1)
+      .attr('stroke-opacity', 1)
       .attr('rx', 2)
       .style('cursor', 'grab');
     return rects;
@@ -154,6 +113,13 @@
   });
 
   let selectedMuteTransitions = $derived(sharedDragSelect.getSelectedMuteTransitions());
+  let selectedMuteTransitionIds = $derived(sharedDragSelect.getSelectedMuteTransitionIds());
+
+  $effect(() => {
+    muteDragHandles?.attr('fill', (d) =>
+      selectedMuteTransitionIds.has(d.id) ? highlightColor : color,
+    );
+  });
 
   let drag = $derived(
     d3

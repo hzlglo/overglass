@@ -102,6 +102,7 @@
             // subtract 1 to ensure we don't outside grid boundary
             innerHeight - 1,
           ],
+          event,
         ]);
       }
       if (event.key === 'Backspace' || event.key === 'Delete') {

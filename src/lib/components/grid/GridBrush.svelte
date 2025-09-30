@@ -27,6 +27,7 @@
   let brushGElement = $state<SVGGElement>();
   let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);
   let brushHandler = async (event: unknown) => {
+    if (!event.sourceEvent) return;
     if (!event.selection) {
       sharedDragSelect.setBrushSelection(null);
       sharedDragSelect.setSelectedLanes([]);
@@ -95,7 +96,11 @@
         // Only allow brushing for left-clicks **without dragging a point**
         return !event.target.classList.contains('draggable') && event.button === 0;
       })
-      .on('start brush end', brushHandler);
+      .on('start brush', brushHandler)
+      .on('end', (evt) => {
+        if (!evt.sourceEvent) return;
+        brushG?.transition().duration(50).call(brush.clear);
+      });
   });
   $effect(() => {
     sharedDragSelect.setClearBrush(() => {
