@@ -3,15 +3,40 @@
   import { MidiPlayer } from '$lib/database/services/midiPlayer';
   import { MUTE_PARAMETER_NAME } from '$lib/stores/midiMapping';
   import { midiStore } from '$lib/stores/midiStore.svelte';
-  import { trackDb } from '$lib/stores/trackDb.svelte';
+  import { trackDb, useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import Tooltip from '../core/Tooltip.svelte';
   import { CircleQuestionMarkIcon, PlayIcon, SquareIcon } from '@lucide/svelte';
-  import { keyBy } from 'lodash';
+  import { has, keyBy } from 'lodash';
   import { WebMidi, type Output } from 'webmidi';
   import { playState } from './playState.svelte';
   import classNames from 'classnames';
+  import Popover from '../core/Popover.svelte';
+  import DeviceMapper from './DeviceMapper.svelte';
 
-  let midiDevices = $state<Output[]>([]);
+  let midiOutputs = $state<Output[]>([]);
+  let trackDevicesStore = useTrackDbQuery((trackDb) => trackDb.devices.getDevicesWithTracks(), []);
+  let trackDevices = $derived(trackDevicesStore.getResult());
+  let deviceToMidiOutputMapping = $state<Record<string, string | undefined>>({});
+  $effect(() => {
+    for (const trackDevice of trackDevices) {
+      if (!has(deviceToMidiOutputMapping, trackDevice.deviceName)) {
+        let defaultMidiOutput = undefined;
+        if (midiOutputs.length === 1) {
+          defaultMidiOutput = midiOutputs[0].name;
+        }
+        deviceToMidiOutputMapping[trackDevice.deviceName] = defaultMidiOutput;
+      }
+    }
+  });
+  let deviceToMidiOutput: Record<string, Output | undefined> = $derived(
+    Object.fromEntries(
+      Object.entries(deviceToMidiOutputMapping).map(([deviceName, midiOutputName]) => [
+        deviceName,
+        midiOutputs.find((o) => o.name === midiOutputName),
+      ]),
+    ),
+  );
+
   let hasClickedPlay = $state(false);
   let isPlaying = $state(false);
   let audioCtx = $state<AudioContext | null>(null);
@@ -44,7 +69,7 @@
     hasClickedPlay = true;
     if (isPlaying) return;
     await WebMidi.enable();
-    midiDevices = WebMidi.outputs;
+    midiOutputs = WebMidi.outputs;
 
     const [parameters, tracks] = await Promise.all([
       trackDb.get().tracks.getAllParameters(),
@@ -60,6 +85,11 @@
         console.error('Failed to play mute transitions for track - no mapping found', t);
         return;
       }
+      let midiOutput = deviceToMidiOutput[t.deviceName];
+      if (!midiOutput) {
+        console.error('Failed to play mute transitions for track - no midi output found', t);
+        return;
+      }
       playFunctions.push(async ({ startTime, endTime, isBeginningPlay }) => {
         const muteTransitions = await midiPlayer.getMuteTransitionsToPlay(
           t.id,
@@ -69,7 +99,7 @@
         );
         for (const m of muteTransitions) {
           sendMidiControlChange(
-            midiDevices[0],
+            midiOutput,
             [
               muteMapping,
               m.isMuted ? 127 : 0,
@@ -102,6 +132,11 @@
           console.error('Failed to play automation for parameter - no mapping found', p);
           return;
         }
+        let midiOutput = deviceToMidiOutput[track.deviceName];
+        if (!midiOutput) {
+          console.error('Failed to play automation for parameter - no midi output found', p);
+          return;
+        }
         playFunctions.push(async ({ startTime, endTime, isBeginningPlay }: PlayFunctionArgs) => {
           const automation = await midiPlayer.getInterpolatedValuesToPlay({
             parameterId: p.id,
@@ -112,7 +147,7 @@
           });
           for (const a of automation) {
             sendMidiControlChange(
-              midiDevices[0],
+              midiOutput,
               [
                 mapping,
                 Math.round(a.value * 127),
@@ -145,7 +180,9 @@
       }),
     );
     // todo when should this be continue vs start?
-    midiDevices[0].sendStart();
+    midiOutputs.forEach((midiOutput) => {
+      midiOutput.sendStart();
+    });
     console.log(
       'Play timer: first messages sent at',
       audioCtx.currentTime,
@@ -196,7 +233,9 @@
   }
 
   async function stopPlayback() {
-    midiDevices[0].sendStop();
+    midiOutputs.forEach((midiOutput) => {
+      midiOutput.sendStop();
+    });
     isPlaying = false;
     if (audioCtx) {
       audioCtx.close();
@@ -206,27 +245,52 @@
     nextMessageBatchStart = 0;
     playFunctions = [];
   }
+  let playContainerListeners = (ref: HTMLButtonElement) => {
+    if (!ref) return;
+    ref.addEventListener('keydown', async (event) => {
+      if (event.code.toLowerCase() === 'space') {
+        if (isPlaying) {
+          await stopPlayback();
+        } else {
+          await handlePlay();
+        }
+        event.preventDefault();
+      }
+    });
+  };
 </script>
 
 <div class="flex w-[300px] flex-row items-center gap-2">
   <button
     class={classNames('btn btn-sm btn-square', isPlaying ? 'btn-success' : 'btn-ghost')}
     onclick={handlePlay}
+    use:playContainerListeners
   >
     <PlayIcon />
   </button>
   {#if hasClickedPlay}
-    <button class="btn btn-sm btn-square btn-ghost" onclick={stopPlayback}>
+    <button
+      class="btn btn-sm btn-square btn-ghost"
+      onclick={stopPlayback}
+      use:playContainerListeners
+    >
       <SquareIcon />
     </button>
-    {#if midiDevices.length === 0}
+    {#if midiOutputs.length === 0}
       <span class="text-error">No MIDI input found</span>
     {:else}
-      <Tooltip contentString={midiDevices.map((device) => device.name).join(', ')}>
+      <Popover>
+        {#snippet content()}
+          <DeviceMapper
+            {midiOutputs}
+            {trackDevices}
+            deviceToMidiOutput={deviceToMidiOutputMapping}
+          />
+        {/snippet}
         <span class="text-success">
-          {midiDevices.length} MIDI {midiDevices.length === 1 ? 'device' : 'devices'} found
+          {midiOutputs.length} MIDI {midiOutputs.length === 1 ? 'device' : 'devices'} found
         </span>
-      </Tooltip>
+      </Popover>
     {/if}
     <Tooltip>
       {#snippet content()}
