@@ -11,8 +11,10 @@
 
   let isExporting = $state(false);
 
+  const loadedFile = $derived(appStore.getLoadedFile());
+
   async function handleExport() {
-    if (isExporting || !appStore.loadedFile) return;
+    if (isExporting || !loadedFile) return;
 
     try {
       isExporting = true;
@@ -28,8 +30,8 @@
 
       // Export the current database state back to ALS format
       // This uses the edited data, not the original
-      const exportFileName = `${appStore.loadedFile.name}_edited.als`;
-      const exportedFile = await writer.writeALSFile(appStore.loadedFile, exportFileName);
+      const exportFileName = `${loadedFile.name}_edited.als`;
+      const exportedFile = await writer.writeALSFile(loadedFile, exportFileName);
 
       // Create download link and trigger download
       const url = URL.createObjectURL(exportedFile);
@@ -51,6 +53,6 @@
   }
 </script>
 
-<button class={className} onclick={handleExport} disabled={isExporting || !appStore.loadedFile}>
+<button class={className} onclick={handleExport} disabled={isExporting || !loadedFile}>
   {isExporting ? 'Exporting...' : 'Export ALS'}
 </button>

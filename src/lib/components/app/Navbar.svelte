@@ -3,17 +3,15 @@
   import { appStore } from '../../stores/app.svelte';
   import ExportButton from './ExportButton.svelte';
   import { goto } from '$app/navigation';
-  import { trackDb } from '$lib/stores/trackDb.svelte';
   import { sharedXScale } from '../grid/sharedXScale.svelte';
   import PlayButtons from '../play/PlayButtons.svelte';
   import ThemeController from './ThemeController.svelte';
+  import type { Snippet } from 'svelte';
 
-  interface NavbarProps {
-    projectName?: string;
-    bpm?: number;
-  }
+  let { backAction }: { backAction?: Snippet } = $props();
 
-  let { projectName = 'Untitled Project', bpm = 120 }: NavbarProps = $props();
+  let projectName = $derived(appStore.getLoadedFile()?.name || 'Untitled Project');
+  let bpm = $derived(appStore.getLoadedFile()?.bpm || 120);
   let timeSignature = $state({ numerator: 4, denominator: 4 });
   let timeSignatureToString = (timeSignature: { numerator: number; denominator: number }) => {
     return `${timeSignature.numerator}/${timeSignature.denominator}`;
@@ -24,16 +22,7 @@
 <div class="navbar border-base-100 flex flex-row justify-between border-b">
   <!-- Left side - Project info -->
   <div class="flex items-center gap-2">
-    <button
-      class="btn btn-ghost btn-sm"
-      onclick={() => {
-        appStore.resetApp();
-        trackDb.destroy();
-        goto('/');
-      }}
-    >
-      ← Back to Files
-    </button>
+    {@render backAction?.()}
 
     <div class="divider divider-horizontal"></div>
 

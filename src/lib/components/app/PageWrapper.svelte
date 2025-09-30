@@ -1,9 +1,13 @@
 <script lang="ts">
   import Navbar from '$lib/components/app/Navbar.svelte';
-  import { appStore } from '$lib/stores/app.svelte';
   import type { Snippet } from 'svelte';
   import '../../../app.css';
-  let { children, hideNavbar }: { children: Snippet; hideNavbar?: boolean } = $props();
+
+  let {
+    children,
+    hideNavbar,
+    navbarBackAction,
+  }: { children: Snippet; hideNavbar?: boolean; navbarBackAction?: Snippet } = $props();
 </script>
 
 <div class="bg-base-100 h-screen w-screen">
@@ -11,10 +15,7 @@
   <div class="flex h-screen w-screen flex-col">
     {#if !hideNavbar}
       <!-- Top Navbar -->
-      <Navbar
-        projectName={appStore.loadedFile?.name || 'Untitled Project'}
-        bpm={appStore.loadedFile?.bpm || 120}
-      />
+      <Navbar backAction={navbarBackAction} />
     {/if}
 
     <!-- Main Content Area -->

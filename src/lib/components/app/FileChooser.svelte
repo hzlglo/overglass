@@ -98,9 +98,11 @@
 </script>
 
 <!-- File chooser card -->
-<div class="m-20 flex flex-col justify-center gap-10">
-  <h1 class="text-primary text-center text-4xl font-bold">Overglass</h1>
+<div class="m-4 flex flex-row justify-end">
   <ThemeController />
+</div>
+<div class="m-20 mt-10 flex flex-col justify-center gap-10">
+  <h1 class="text-primary text-center text-4xl font-bold">Overglass</h1>
   <div class="card bg-base-100 border-base-content/20 border p-10">
     <div class="card-header text-center text-lg font-bold">Please choose a .als file</div>
     <div class="card-body">
