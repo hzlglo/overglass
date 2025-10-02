@@ -24,9 +24,6 @@ export function getThemeColor(name: themeColor) {
     .trim();
   return value;
 }
-export function clamp(val: number, min: number, max: number) {
-  return Math.min(Math.max(val, min), max);
-}
 
 export function transpose<T>(array: T[][]) {
   return array[0].map((_, i) => array.map((row) => row[i]));

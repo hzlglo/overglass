@@ -2,10 +2,10 @@
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
 
-  let { width, height }: { width: number; height: number } = $props();
+  let { width, height, y }: { width: number; height: number; y: number } = $props();
 
-  let svgElement = $state<SVGElement>();
-  let svgGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
+  let gElement = $state<SVGGElement>();
+  let gGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 
   const margin = { top: 10, right: 0, bottom: 30, left: 0 };
   let innerWidth = $derived(width - margin.left - margin.right);
@@ -13,30 +13,22 @@
 
   let xScale = $derived(sharedXScale.getZoomedXScale());
 
+  // Setup g
   $effect(() => {
-    let zoom = sharedXScale.getZoom();
-    if (!svgGroup) {
-      return;
-    }
-    svgGroup.call(zoom);
-  });
-
-  // Setup SVG
-  $effect(() => {
-    if (svgElement && !svgGroup) {
-      const svg = d3.select(svgElement);
-      svg.selectAll('*').remove();
-      svgGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+    if (gElement && !gGroup) {
+      const g = d3.select(gElement);
+      g.selectAll('*').remove();
+      gGroup = g.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
     }
   });
 
   // Draw timeline
   $effect(() => {
-    if (svgGroup && innerWidth > 0 && innerHeight > 0) {
-      svgGroup.selectAll('*').remove();
+    if (gGroup && innerWidth > 0 && innerHeight > 0) {
+      gGroup.selectAll('*').remove();
 
       // Background
-      svgGroup
+      gGroup
         .append('rect')
         .attr('width', innerWidth)
         .attr('height', innerHeight)
@@ -44,7 +36,7 @@
         .attr('fill', 'var(--color-base-100)');
 
       // Time axis
-      svgGroup
+      gGroup
         .append('g')
         .attr('transform', `translate(0,${innerHeight})`)
         .call(
@@ -59,7 +51,7 @@
         .style('opacity', 0.3);
 
       // Current playhead (placeholder)
-      svgGroup
+      gGroup
         .append('line')
         .attr('x1', xScale(0))
         .attr('x2', xScale(0))
@@ -71,4 +63,10 @@
   });
 </script>
 
-<svg bind:this={svgElement} {width} {height} class="block"></svg>
+<g
+  bind:this={gElement}
+  {width}
+  {height}
+  class="allow-pan block cursor-grab"
+  transform={`translate(0,${y})`}
+></g>

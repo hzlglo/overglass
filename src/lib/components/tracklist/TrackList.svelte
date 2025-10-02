@@ -10,6 +10,8 @@
   import { flip } from 'svelte/animate';
   import { uniq } from 'lodash';
 
+  let { gridScroll = $bindable() }: { gridScroll: number } = $props();
+
   let tracks: { id: string; name: string }[] = $state([]);
   $effect(() => {
     tracks = gridDisplayState.getTrackOrder().map((id) => ({ id, name: id }));
@@ -18,16 +20,15 @@
   let trackListContainer = $state<HTMLDivElement>();
   $effect(() => {
     if (!trackListContainer) return;
-    gridDisplayState.setTrackListContainer(trackListContainer);
+    trackListContainer.scrollTop = gridScroll;
   });
   $effect(() => {
-    let gridContainer = gridDisplayState.getGridContainer();
-    if (!trackListContainer || !gridContainer) return;
     const syncScroll = () => {
-      if (!trackListContainer || !gridContainer) return;
-      gridDisplayState.syncScroll(trackListContainer, gridContainer);
+      if (!trackListContainer) return;
+      if (gridScroll === trackListContainer.scrollTop) return;
+      gridScroll = trackListContainer.scrollTop;
     };
-    trackListContainer.addEventListener('scroll', syncScroll);
+    trackListContainer?.addEventListener('scroll', syncScroll);
     return () => {
       trackListContainer?.removeEventListener('scroll', syncScroll);
     };

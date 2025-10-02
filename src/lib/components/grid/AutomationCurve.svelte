@@ -140,7 +140,9 @@
   let selectedPointIds = $derived(sharedDragSelect.getSelectedPointIds());
 
   $effect(() => {
-    points?.attr('fill', (d) => (selectedPointIds.has(d.id) ? highlightColor : color));
+    points
+      ?.attr('fill', (d) => (selectedPointIds.has(d.id) ? highlightColor : color))
+      .attr('stroke-opacity', (d) => (selectedPointIds.has(d.id) ? 0.5 : 1));
   });
 
   let drag = $derived(

@@ -13,12 +13,14 @@
     console.log('GridAndTrackList: syncWithDb');
     gridDisplayState.syncWithDb(trackDb.get());
   });
+
+  let gridScroll = $state(0);
 </script>
 
-<div class="flex min-h-0 flex-row">
+<div class="flex min-h-0 flex-1 flex-row">
   {#if isInitialized}
-    <Grid />
-    <TrackList />
+    <Grid bind:gridScroll />
+    <TrackList bind:gridScroll />
   {:else}
     <div class="text-error">Database not initialized</div>
   {/if}

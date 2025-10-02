@@ -2,7 +2,7 @@
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import * as d3 from 'd3';
-  import { groupBy, isEqual } from 'lodash';
+  import { clamp, groupBy, isEqual } from 'lodash';
   import SizeObserver from '../core/SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
   import GridBrush from './GridBrush.svelte';
@@ -20,6 +20,8 @@
   import { actionsDispatcher } from './actionsDispatcher.svelte';
   import PlayLine from './PlayLine.svelte';
 
+  let { gridScroll = $bindable() }: { gridScroll: number } = $props();
+
   let maxTimeStore = useTrackDbQuery((trackDb) => trackDb.automation.getMaxTime(), 0);
   let maxTime = $derived(maxTimeStore.getResult());
   $effect(() => {
@@ -32,43 +34,27 @@
   });
   let width = $state(0);
   let height = $state(0);
-  let gridContainer = $state<HTMLDivElement>();
-  $effect(() => {
-    if (!gridContainer) return;
-    gridDisplayState.setGridContainer(gridContainer);
-  });
   $effect(() => {
     sharedXScale.setWidth(width);
   });
 
-  $effect(() => {
-    let trackListContainer = gridDisplayState.getTrackListContainer();
-    if (!trackListContainer || !gridContainer) return;
-    const syncScroll = () => {
-      if (!trackListContainer || !gridContainer) return;
-      gridDisplayState.syncScroll(gridContainer, trackListContainer);
-    };
-    gridContainer.addEventListener('scroll', syncScroll);
-    return () => {
-      gridContainer?.removeEventListener('scroll', syncScroll);
-    };
-  });
-
   let trackCustomizations = $derived(appConfigStore.get()?.trackCustomizations ?? {});
-  const margin = { top: 0, right: 0, bottom: 0, left: 0 };
-  let innerWidth = $derived(width - margin.left - margin.right);
 
-  let gridHeight = $derived(gridDisplayState.getGridHeight());
-  let gridWidth = $derived(width);
-  let innerHeight = $derived(gridHeight - margin.top - margin.bottom);
+  // the full height of all tracks
+  let clippedGridHeight = $derived(height - TOP_TIMELINE_HEIGHT - BOTTOM_TIMELINE_HEIGHT);
+  let innerGridHeight = $derived(gridDisplayState.getGridHeight());
 
   let lanes = $derived(gridDisplayState.getLanes());
 
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
   let svg = $derived(svgElement ? d3.select(svgElement) : undefined);
-  let svgGroupElement = $state<SVGGElement>();
-  let svgGroup = $derived(svgGroupElement ? d3.select(svgGroupElement) : undefined);
+  let trackGroupElement = $state<SVGGElement>();
+  let trackGroup = $derived(trackGroupElement ? d3.select(trackGroupElement) : undefined);
+
+  const scroll = $derived((dy: number) => {
+    gridScroll = clamp(gridScroll + dy, 0, innerGridHeight - clippedGridHeight);
+  });
 
   $effect(() => {
     let zoom = sharedXScale.getZoom();
@@ -78,9 +64,7 @@
 
     const pan = (event: WheelEvent) => {
       zoom.translateBy(svg.transition().duration(50), -event.deltaX, 0);
-      if (gridContainer) {
-        gridContainer.scrollTo(0, gridContainer.scrollTop + event.deltaY);
-      }
+      scroll(event.deltaY);
       event.preventDefault();
     };
     svg.call(zoom).on('wheel', pan);
@@ -116,22 +100,22 @@
 
   // Draw grid lines
   $effect(() => {
-    if (svgGroup && innerWidth > 0 && innerHeight > 0) {
+    if (trackGroup && width > 0 && innerGridHeight > 0) {
       // Remove existing grid
-      svgGroup.selectAll('.x-grid').remove();
+      trackGroup.selectAll('.x-grid').remove();
 
       // X-axis grid
-      svgGroup
+      trackGroup
         .append('g')
         .attr('class', 'x-grid')
-        .call(xAxisBars.tickSize(-innerHeight).tickFormat(() => ''))
+        .call(xAxisBars.tickSize(-innerGridHeight).tickFormat(() => ''))
         .style('stroke-dasharray', '3,3')
         .style('opacity', 0.3);
 
       // Y-axis grid
-      svgGroup.selectAll('.y-grid').remove();
+      trackGroup.selectAll('.y-grid').remove();
       if (lanes.length > 0) {
-        svgGroup
+        trackGroup
           .append('g')
           .attr('class', 'y-grid')
           .selectAll('line')
@@ -148,8 +132,8 @@
       }
     }
     $effect(() => {
-      if (!svgGroup) return;
-      svgGroup
+      if (!trackGroup) return;
+      trackGroup
         .selectAll('.loop-marker')
         .data(sharedXScale.getLoopTicks())
         .join(
@@ -161,7 +145,7 @@
         .attr('x1', (d) => sharedXScale.getZoomedXScaleBars()(d))
         .attr('x2', (d) => sharedXScale.getZoomedXScaleBars()(d))
         .attr('y1', 0)
-        .attr('y2', innerHeight)
+        .attr('y2', innerGridHeight)
         .attr('stroke', 'currentColor')
         .style('opacity', 0.3);
     });
@@ -180,51 +164,54 @@
 </script>
 
 <SizeObserver bind:width bind:height>
-  <div class="flex min-h-0 flex-col" style={`width: ${gridWidth}px`}>
-    <GridTimelineTop height={TOP_TIMELINE_HEIGHT} width={gridWidth} />
-    <div class="no-scrollbar flex flex-1 flex-col overflow-y-auto" bind:this={gridContainer}>
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <svg
-        class="shrink-0 focus:outline-none"
-        height={gridHeight}
-        width={gridWidth}
-        bind:this={svgElement}
-        tabindex="0"
-      >
-        <GridBrush
-          {muteTransitionsByTrackId}
-          {automationPointsByParameterId}
-          bind:brush
-          height={gridHeight}
-          width={gridWidth}
-        />
-        <PlayLine height={gridHeight} />
-        <g bind:this={svgGroupElement}>
-          {#each lanes as lane (lane.id)}
-            {#if lane.type === 'track'}
-              <MuteClipsWrapper
-                trackId={lane.id}
-                height={gridDisplayState.getLaneHeight(lane.id)}
-                width={gridWidth}
-                yPosition={lane.top}
-                {trackCustomizations}
-                muteTransitions={muteTransitionsByTrackId[lane.id]}
-              />
-            {:else if lane.type === 'parameter'}
-              <AutomationCurveWrapper
-                parameterId={lane.id}
-                height={gridDisplayState.getLaneHeight(lane.id)}
-                width={gridWidth}
-                yPosition={lane.top}
-                {trackCustomizations}
-                automationPoints={automationPointsByParameterId[lane.id]}
-              />
-            {/if}
-          {/each}
+  <div class="flex min-h-0 flex-col" style={`width: ${width}px`}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <svg class="shrink-0 focus:outline-none" {height} {width} bind:this={svgElement} tabindex="0">
+      <GridTimelineTop height={TOP_TIMELINE_HEIGHT} {width} />
+      <PlayLine height={innerGridHeight} />
+      <g transform={`translate(0,${TOP_TIMELINE_HEIGHT})`}>
+        <clipPath id="grid-clip">
+          <rect x={0} y={0} {width} height={clippedGridHeight} />
+        </clipPath>
+        <g clip-path="url(#grid-clip)">
+          <g bind:this={trackGroupElement} transform={`translate(0,${-gridScroll})`}>
+            <GridBrush
+              {muteTransitionsByTrackId}
+              {automationPointsByParameterId}
+              bind:brush
+              height={innerGridHeight}
+              {width}
+            />
+            {#each lanes as lane (lane.id)}
+              {#if lane.type === 'track'}
+                <MuteClipsWrapper
+                  trackId={lane.id}
+                  height={gridDisplayState.getLaneHeight(lane.id)}
+                  {width}
+                  yPosition={lane.top}
+                  {trackCustomizations}
+                  muteTransitions={muteTransitionsByTrackId[lane.id]}
+                />
+              {:else if lane.type === 'parameter'}
+                <AutomationCurveWrapper
+                  parameterId={lane.id}
+                  height={gridDisplayState.getLaneHeight(lane.id)}
+                  {width}
+                  yPosition={lane.top}
+                  {trackCustomizations}
+                  automationPoints={automationPointsByParameterId[lane.id]}
+                />
+              {/if}
+            {/each}
+          </g>
         </g>
-      </svg>
-    </div>
-    <GridTimelineBottom height={BOTTOM_TIMELINE_HEIGHT} width={gridWidth} />
+      </g>
+      <GridTimelineBottom
+        y={clippedGridHeight + TOP_TIMELINE_HEIGHT}
+        height={BOTTOM_TIMELINE_HEIGHT}
+        {width}
+      />
+    </svg>
   </div>
 </SizeObserver>
 

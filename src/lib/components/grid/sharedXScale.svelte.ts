@@ -26,7 +26,6 @@ export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarg
       i,
     );
   }
-  console.log('getTicksForBarSpan', result);
   return result;
 }
 
@@ -92,11 +91,12 @@ const getSharedXScale = () => {
         [0, 0],
         [width, Infinity],
       ])
-      .filter((event) => {
+      .filter((event, d) => {
         // prevent zooming with the scroll wheel, and prevent panning via drag
+        const allowPan = event.target.closest('g.allow-pan') != null;
         const result =
-          !(!event.ctrlKey && event.type === 'wheel') &&
-          event.type !== 'mousedown' &&
+          !(!event.ctrlKey && event.type === 'wheel' && !event.metaKey && !event.ctrlKey) &&
+          (event.type !== 'mousedown' || allowPan) &&
           event.type !== 'dblclick';
         return result;
       })

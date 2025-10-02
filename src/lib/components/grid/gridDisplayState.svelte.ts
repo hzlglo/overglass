@@ -126,16 +126,6 @@ const getGridDisplayState = () => {
     }
   }
 
-  let isSyncingScroll = $state(false);
-  let gridContainer = $state<HTMLDivElement>();
-  let trackListContainer = $state<HTMLDivElement>();
-  function syncScroll(source: HTMLDivElement, target: HTMLDivElement) {
-    if (isSyncingScroll) return;
-    isSyncingScroll = true;
-    target.scrollTop = source.scrollTop;
-    isSyncingScroll = false;
-  }
-
   return {
     syncWithDb,
     getTrackExpanded: (trackId: string) => trackLaneStates.get(trackId)?.expanded ?? false,
@@ -157,15 +147,6 @@ const getGridDisplayState = () => {
     setLaneHeight: (trackOrParamId: string, height: number) => {
       laneHeights.set(trackOrParamId, height);
     },
-    setGridContainer: (container: HTMLDivElement) => {
-      gridContainer = container;
-    },
-    getGridContainer: () => gridContainer,
-    setTrackListContainer: (container: HTMLDivElement) => {
-      trackListContainer = container;
-    },
-    getTrackListContainer: () => trackListContainer,
-    syncScroll,
   };
 };
 
