@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as d3 from 'd3';
-  import type { AutomationPoint, Parameter, ParameterStats } from '../../database/schema';
+  import type { AutomationPoint, Parameter } from '../../database/schema';
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { sortBy } from 'lodash';
@@ -9,7 +9,7 @@
 
   interface AutomationCurveProps {
     parameterId: string;
-    parameter: Parameter & ParameterStats;
+    parameter: Parameter;
     height: number;
     width: number;
     automationPoints: AutomationPoint[];
@@ -156,6 +156,7 @@
             sharedDragSelect.clear();
             sharedDragSelect.setSelectedPoints([d]);
           }
+          // event.sourceEvent?.stopPropagation();
         },
       )
       .on('drag', (event, d) => {
@@ -164,6 +165,7 @@
           currentTimePosition: d.timePosition,
           yDiffScale,
         });
+        // event.sourceEvent?.stopPropagation();
       })
       .on('end', async (event, d) => {
         await sharedDragSelect.dragEnd();

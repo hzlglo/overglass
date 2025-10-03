@@ -1,8 +1,7 @@
 <script lang="ts">
   import { ElektronNameMatcher } from '$lib/config/regex';
-  import { appConfigStore, type TrackCustomization } from '$lib/stores/customization.svelte';
-  import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
-  import { gridDisplayState } from '../grid/gridDisplayState.svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
+  import { sharedGridState } from '../grid/sharedGridState.svelte';
   import LaneControl from './LaneControl.svelte';
   import TrackParamMidiMapper from './TrackParamMidiMapper.svelte';
 
@@ -12,40 +11,31 @@
 
   let { parameterId }: AutomationParameterProps = $props();
 
-  let parameterStore = useTrackDbQuery(
-    (trackDb) => trackDb.tracks.getParameterById(parameterId),
-    null,
-  );
-  let parameter = $derived(parameterStore.getResult());
+  let parameterState = $derived(sharedGridState.getParameterState(parameterId));
   let trackConfig = $derived(
-    parameter ? (appConfigStore.get()?.trackCustomizations[parameter.trackId] ?? null) : null,
+    appConfigStore.get()?.trackCustomizations[parameterState?.track.id ?? ''] ?? null,
   );
-  let deviceStore = useTrackDbQuery(
-    (trackDb) =>
-      parameter ? trackDb.devices.getTrackDevice(parameter.trackId) : Promise.resolve(null),
-    null,
-  );
-  let device = $derived(deviceStore.getResult());
-
-  let isExpanded = $derived(gridDisplayState.getParameterExpanded(parameterId));
-  let getParameterDisplayName = (parameterName: string, trackConfig: TrackCustomization | null) => {
-    if (!trackConfig || !trackConfig.userEnteredName) {
-      return parameterName;
+  let title = $derived.by(() => {
+    if (!parameterState) {
+      return '';
     }
-    return `${trackConfig.userEnteredName} ${ElektronNameMatcher.cleanParameterName(parameterName)}`;
-  };
+    if (!trackConfig || !trackConfig.userEnteredName) {
+      return parameterState.parameter.parameterName;
+    }
+    return `${trackConfig.userEnteredName} ${ElektronNameMatcher.cleanParameterName(parameterState.parameter.parameterName)}`;
+  });
 </script>
 
-{#if parameter && device}
+{#if parameterState}
   <LaneControl
-    title={getParameterDisplayName(parameter.parameterName, trackConfig)}
-    {isExpanded}
-    onToggleExpanded={() => gridDisplayState.toggleParameterExpansion(parameterId)}
+    {title}
+    isExpanded={parameterState.expanded}
+    onToggleExpanded={() => sharedGridState.toggleParameterExpansion(parameterId)}
     laneId={parameterId}
     color={trackConfig?.color}
   >
     {#snippet actions()}
-      <TrackParamMidiMapper {device} {parameter} />
+      <TrackParamMidiMapper device={parameterState.device} parameter={parameterState.parameter} />
     {/snippet}
   </LaneControl>
 {:else}

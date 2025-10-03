@@ -11,8 +11,33 @@ let DEFAULT_PARAMETER_HEIGHT = 60;
 let DEFAULT_TRACK_HEIGHT = 50;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
-export type TrackLaneDisplay = { top: number; bottom: number; type: 'track'; id: string };
-export type ParameterLaneDisplay = { top: number; bottom: number; type: 'parameter'; id: string };
+export type TrackLaneState = {
+  expanded: boolean;
+  track: Track;
+  device: Device;
+};
+export type ParameterLaneState = {
+  name: string;
+  expanded: boolean;
+  track: Track;
+  device: Device;
+  parameter: Parameter;
+};
+
+export type TrackLaneDisplay = TrackLaneState & {
+  top: number;
+  bottom: number;
+  height: number;
+  type: 'track';
+  id: string;
+};
+export type ParameterLaneDisplay = ParameterLaneState & {
+  top: number;
+  bottom: number;
+  height: number;
+  type: 'parameter';
+  id: string;
+};
 export type LaneDisplay = TrackLaneDisplay | ParameterLaneDisplay;
 
 // the lanes to display for a track, taking into account search-filtering and sorting within the track
@@ -23,15 +48,7 @@ export type TrackLanesDisplay = {
   parameterLanes: ParameterLaneDisplay[];
 };
 
-export type TrackLaneState = {
-  expanded: boolean;
-};
-export type ParameterLaneState = {
-  name: string;
-  expanded: boolean;
-};
-
-const getGridDisplayState = () => {
+const getSharedGridState = () => {
   // Reactive state for expansion
   let trackLaneStates = $state<SvelteMap<string, TrackLaneState>>(new SvelteMap());
   let parameterLaneStates = $state<SvelteMap<string, ParameterLaneState>>(new SvelteMap());
@@ -64,11 +81,14 @@ const getGridDisplayState = () => {
           laneSearch === '' ||
           trackNames.some((name) => name.toLowerCase().includes(laneSearch.toLowerCase()));
         if (trackMatchesSearch) {
+          const height = laneHeights.get(trackId) ?? 0;
           const trackLane: TrackLaneDisplay = {
             top: y,
-            bottom: y + (laneHeights.get(trackId) ?? 0),
+            bottom: y + height,
+            height,
             type: 'track',
             id: trackId,
+            ...trackLaneState,
           };
           lanesInner.push(trackLane);
           trackLanesDisplay.trackLane = trackLane;
@@ -85,11 +105,14 @@ const getGridDisplayState = () => {
               laneSearch === '' ||
               parameterLaneState.name.toLowerCase().includes(laneSearch.toLowerCase());
             if (parameterMatchesSearch || trackMatchesSearch) {
+              const height = laneHeights.get(parameterId) ?? 0;
               const parameterLane: ParameterLaneDisplay = {
                 top: y,
-                bottom: y + (laneHeights.get(parameterId) ?? 0),
+                bottom: y + height,
+                height,
                 type: 'parameter',
                 id: parameterId,
+                ...parameterLaneState,
               };
               lanesInner.push(parameterLane);
               trackLanesDisplay.parameterLanes.push(parameterLane);
@@ -99,7 +122,7 @@ const getGridDisplayState = () => {
         }
         lanesByTrackInner.push(trackLanesDisplay);
       }
-      console.log('gridDisplayState', { lanesByTrackInner, lanesInner });
+      console.log('sharedGridState', { lanesByTrackInner, lanesInner });
       return { lanes: lanesInner, lanesByTrack: lanesByTrackInner };
     });
 
@@ -117,12 +140,21 @@ const getGridDisplayState = () => {
 
       // Expand all parameters for each track
       for (const track of tracks) {
-        const parameters = await db.tracks.getParametersForTrack(track.id);
+        const [device, parameters] = await Promise.all([
+          db.devices.getDeviceById(track.deviceId),
+          db.tracks.getParametersForTrack(track.id),
+        ]);
         const nonMuteParameters = parameters.filter((p) => !p.isMute);
-        trackLaneStates.set(track.id, { expanded: true });
+        trackLaneStates.set(track.id, { expanded: true, track, device });
         if (nonMuteParameters) {
           nonMuteParameters.forEach((param) => {
-            parameterLaneStates.set(param.id, { expanded: true, name: param.parameterName });
+            parameterLaneStates.set(param.id, {
+              expanded: true,
+              name: param.parameterName,
+              track,
+              device: device,
+              parameter: param,
+            });
 
             laneHeights.set(param.id, DEFAULT_PARAMETER_HEIGHT);
           });
@@ -177,9 +209,8 @@ const getGridDisplayState = () => {
     },
     getLaneSearch: () => laneSearch,
     syncWithDb,
-    getTrackExpanded: (trackId: string) => trackLaneStates.get(trackId)?.expanded ?? false,
-    getParameterExpanded: (parameterId: string) =>
-      parameterLaneStates.get(parameterId)?.expanded ?? false,
+    getTrackState: (trackId: string) => trackLaneStates.get(trackId),
+    getParameterState: (parameterId: string) => parameterLaneStates.get(parameterId),
     toggleTrackExpansion,
     toggleParameterExpansion,
     getTrackOrder: () => trackOrder,
@@ -191,7 +222,7 @@ const getGridDisplayState = () => {
       parameterOrder.set(trackId, order);
     },
     getLaneHeight: (trackOrParamId: string) => laneHeights.get(trackOrParamId) ?? 0,
-    getGridHeight: () => sum(Array.from(laneHeights.values())),
+    getGridHeight: () => sum(lanes.map((l) => l.height)),
     getLanes: () => lanes,
     getLanesByTrack: () => lanesByTrack,
     setLaneHeight: (trackOrParamId: string, height: number) => {
@@ -200,4 +231,4 @@ const getGridDisplayState = () => {
   };
 };
 
-export const gridDisplayState = getGridDisplayState();
+export const sharedGridState = getSharedGridState();

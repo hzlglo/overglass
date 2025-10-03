@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { appConfigStore } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import * as d3 from 'd3';
   import { clamp, groupBy, isEqual } from 'lodash';
@@ -8,9 +7,9 @@
   import GridBrush from './GridBrush.svelte';
   import {
     BOTTOM_TIMELINE_HEIGHT,
-    gridDisplayState,
+    sharedGridState,
     TOP_TIMELINE_HEIGHT,
-  } from './gridDisplayState.svelte';
+  } from './sharedGridState.svelte';
   import GridTimelineBottom from './GridTimelineBottom.svelte';
   import GridTimelineTop from './GridTimelineTop.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
@@ -40,13 +39,11 @@
     sharedXScale.setWidth(width);
   });
 
-  let trackCustomizations = $derived(appConfigStore.get()?.trackCustomizations ?? {});
-
   // the full height of all tracks
   let clippedGridHeight = $derived(height - TOP_TIMELINE_HEIGHT - BOTTOM_TIMELINE_HEIGHT);
-  let innerGridHeight = $derived(gridDisplayState.getGridHeight());
+  let innerGridHeight = $derived(sharedGridState.getGridHeight());
 
-  let lanes = $derived(gridDisplayState.getLanes());
+  let lanes = $derived(sharedGridState.getLanes());
 
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
@@ -193,7 +190,7 @@
             />
             {#each lanes as lane (lane.id)}
               <VirtualizedLane
-                height={gridDisplayState.getLaneHeight(lane.id)}
+                height={sharedGridState.getLaneHeight(lane.id)}
                 {width}
                 yPosition={lane.top}
                 {gridScroll}
@@ -201,18 +198,14 @@
               >
                 {#if lane.type === 'track'}
                   <MuteClipsWrapper
-                    trackId={lane.id}
-                    height={gridDisplayState.getLaneHeight(lane.id)}
+                    {lane}
                     {width}
-                    {trackCustomizations}
                     muteTransitions={muteTransitionsByTrackId[lane.id]}
                   />
                 {:else if lane.type === 'parameter'}
                   <AutomationCurveWrapper
-                    parameterId={lane.id}
-                    height={gridDisplayState.getLaneHeight(lane.id)}
+                    {lane}
                     {width}
-                    {trackCustomizations}
                     automationPoints={automationPointsByParameterId[lane.id]}
                   />
                 {/if}

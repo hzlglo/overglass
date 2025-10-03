@@ -2,10 +2,10 @@
   import TrackControl from './TrackControl.svelte';
   import {
     BOTTOM_TIMELINE_HEIGHT,
-    gridDisplayState,
+    sharedGridState,
     TOP_TIMELINE_HEIGHT,
     type TrackLanesDisplay,
-  } from '../grid/gridDisplayState.svelte';
+  } from '../grid/sharedGridState.svelte';
   import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
   import SizeObserver from '../core/SizeObserver.svelte';
   import { flip } from 'svelte/animate';
@@ -18,8 +18,8 @@
   let trackLanesById: Record<string, TrackLanesDisplay> = $state({});
   let trackOrder: { id: string; name: string }[] = $state([]);
   $effect(() => {
-    trackLanesById = keyBy(gridDisplayState.getLanesByTrack(), (t: TrackLanesDisplay) => t.trackId);
-    trackOrder = gridDisplayState.getTrackOrder().map((id) => ({ id, name: id }));
+    trackLanesById = keyBy(sharedGridState.getLanesByTrack(), (t: TrackLanesDisplay) => t.trackId);
+    trackOrder = sharedGridState.getTrackOrder().map((id) => ({ id, name: id }));
   });
 
   let trackListContainer = $state<HTMLDivElement>();
@@ -40,7 +40,7 @@
   });
   let height = $state(0);
   let width = $state(0);
-  let laneSearch = $derived(gridDisplayState.getLaneSearch());
+  let laneSearch = $derived(sharedGridState.getLaneSearch());
   // Reference to the search input element
   let searchInput: HTMLInputElement | null = null;
 
@@ -78,7 +78,7 @@
         bind:this={searchInput}
         placeholder="⌘+F"
         value={laneSearch}
-        oninput={(e) => gridDisplayState.setLaneSearch(e.target.value)}
+        oninput={(e) => sharedGridState.setLaneSearch(e.target.value)}
       />
     </label>
   </div>
@@ -99,7 +99,7 @@
           trackOrder = e.detail.items;
         }}
         onfinalize={(e) => {
-          gridDisplayState.setTrackOrder(uniq(e.detail.items.map((t) => t.id)));
+          sharedGridState.setTrackOrder(uniq(e.detail.items.map((t) => t.id)));
         }}
       >
         {#each trackOrder as track (track.id)}

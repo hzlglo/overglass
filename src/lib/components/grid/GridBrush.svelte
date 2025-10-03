@@ -2,7 +2,7 @@
   import * as d3 from 'd3';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { sharedXScale } from './sharedXScale.svelte';
-  import { gridDisplayState } from './gridDisplayState.svelte';
+  import { sharedGridState } from './sharedGridState.svelte';
   import type { AutomationPoint, MuteTransition } from '$lib/database/schema';
   import { actionsDispatcher, type GridEventContext } from './actionsDispatcher.svelte';
   import { clamp } from 'lodash';
@@ -22,7 +22,7 @@
     width: number;
   } = $props();
 
-  let lanes = $derived(gridDisplayState.getLanes());
+  let lanes = $derived(sharedGridState.getLanes());
 
   let brushGElement = $state<SVGGElement>();
   let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);

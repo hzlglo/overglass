@@ -1,40 +1,31 @@
 <script lang="ts">
   import type { AutomationPoint } from '$lib/database/schema';
-  import type { TrackCustomization } from '$lib/stores/customization.svelte';
-  import { useTrackDbQuery } from '../../stores/trackDb.svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
   import AutomationCurve from './AutomationCurve.svelte';
-  import { gridDisplayState } from './gridDisplayState.svelte';
+  import { type ParameterLaneDisplay } from './sharedGridState.svelte';
 
   interface AutomationCurveWrapperProps {
-    parameterId: string;
-    height: number;
+    lane: ParameterLaneDisplay;
     width: number;
-    trackCustomizations: Record<string, TrackCustomization>;
     automationPoints: AutomationPoint[];
   }
 
-  let {
-    parameterId,
-    height,
-    width,
-    trackCustomizations,
-    automationPoints,
-  }: AutomationCurveWrapperProps = $props();
+  let { lane, width, automationPoints }: AutomationCurveWrapperProps = $props();
 
-  let parameterStore = useTrackDbQuery((db) => db.tracks.getParameterById(parameterId), null);
-  let parameter = $derived(parameterStore.getResult());
-  let isExpanded = $derived(gridDisplayState.getParameterExpanded(parameterId));
+  let parameter = $derived(lane.parameter);
+  let isExpanded = $derived(lane.expanded);
+  let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[lane.track.id] ?? null);
 </script>
 
 {#if parameter}
   {#if isExpanded}
     <AutomationCurve
-      {parameterId}
+      parameterId={lane.id}
       {parameter}
-      {height}
+      height={lane.bottom - lane.top}
       {width}
       {automationPoints}
-      color={trackCustomizations[parameter.trackId]?.color}
+      color={trackConfig?.color}
     />
   {/if}
 {:else}

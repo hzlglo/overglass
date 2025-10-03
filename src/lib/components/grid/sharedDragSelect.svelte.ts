@@ -1,6 +1,6 @@
 import type { AutomationPoint } from '$lib/database/schema';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { LaneDisplay } from './gridDisplayState.svelte';
+import type { LaneDisplay } from './sharedGridState.svelte';
 import { sharedXScale } from './sharedXScale.svelte';
 import { groupBy, keyBy, keys, clamp } from 'lodash';
 import type { MuteTransition } from '$lib/database/schema';

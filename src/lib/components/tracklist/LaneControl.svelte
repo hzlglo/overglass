@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { gridDisplayState } from '../grid/gridDisplayState.svelte';
+  import { sharedGridState } from '../grid/sharedGridState.svelte';
   import classNames from 'classnames';
   import { CheckIcon, PencilIcon } from '@lucide/svelte';
 
@@ -35,7 +35,7 @@
   // if isExpandedProp is not provided, show the content
   let isExpanded = $derived(isExpandedProp === undefined ? true : isExpandedProp);
 
-  let height = $derived(gridDisplayState.getLaneHeight(laneId));
+  let height = $derived(sharedGridState.getLaneHeight(laneId));
   let isRenaming = $state(false);
   let newTitle = $state(title || '');
 </script>

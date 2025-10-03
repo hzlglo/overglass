@@ -1,7 +1,7 @@
 <script lang="ts">
   import TrackList from '../tracklist/TrackList.svelte';
   import Grid from './Grid.svelte';
-  import { gridDisplayState } from './gridDisplayState.svelte';
+  import { sharedGridState } from './sharedGridState.svelte';
   import { trackDb } from '../../stores/trackDb.svelte';
 
   let isInitialized = $derived(trackDb.isInitialized());
@@ -11,7 +11,7 @@
       return;
     }
     console.log('GridAndTrackList: syncWithDb');
-    gridDisplayState.syncWithDb(trackDb.get());
+    sharedGridState.syncWithDb(trackDb.get());
   });
 
   let gridScroll = $state(0);

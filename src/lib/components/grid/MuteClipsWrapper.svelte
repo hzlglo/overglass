@@ -1,36 +1,28 @@
 <script lang="ts">
-  import type { TrackCustomization } from '$lib/stores/customization.svelte';
-  import { useTrackDbQuery } from '../../stores/trackDb.svelte';
-  import MuteClips from './MuteClips.svelte';
-  import { gridDisplayState } from './gridDisplayState.svelte';
   import type { MuteTransition } from '$lib/database/schema';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
+  import MuteClips from './MuteClips.svelte';
+  import { type TrackLaneDisplay } from './sharedGridState.svelte';
 
   interface MuteTransitionWrapperProps {
-    trackId: string;
-    height: number;
+    lane: TrackLaneDisplay;
     width: number;
-    trackCustomizations: Record<string, TrackCustomization>;
     muteTransitions: MuteTransition[];
   }
 
-  let { trackId, height, width, trackCustomizations, muteTransitions }: MuteTransitionWrapperProps =
-    $props();
-  let trackStore = useTrackDbQuery((db) => db.tracks.getTrackById(trackId), null);
-  let track = $derived(trackStore.getResult());
-  let isExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
+  let { lane, width, muteTransitions }: MuteTransitionWrapperProps = $props();
+
+  let isExpanded = $derived(lane.expanded);
+  let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[lane.track.id] ?? null);
 </script>
 
-{#if track}
-  {#if isExpanded}
-    <MuteClips
-      {trackId}
-      {track}
-      {height}
-      {width}
-      {muteTransitions}
-      color={trackCustomizations[trackId]?.color}
-    />
-  {/if}
-{:else}
-  <g><text> {trackId} track not found</text></g>
+{#if isExpanded && muteTransitions && muteTransitions.length > 0}
+  <MuteClips
+    trackId={lane.track.id}
+    track={lane.track}
+    height={lane.bottom - lane.top}
+    {width}
+    {muteTransitions}
+    color={trackConfig?.color}
+  />
 {/if}

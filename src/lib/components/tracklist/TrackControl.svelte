@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { useTrackDbQuery } from '../../stores/trackDb.svelte';
   import TrackParamControl from './TrackParamControl.svelte';
-  import { gridDisplayState } from '../grid/gridDisplayState.svelte';
+  import { sharedGridState } from '../grid/sharedGridState.svelte';
   import LaneControl from './LaneControl.svelte';
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import ColorChooser from '../colors/ColorChooser.svelte';
@@ -16,17 +15,12 @@
 
   let { trackId }: TrackProps = $props();
 
-  let trackStore = useTrackDbQuery((trackDb) => trackDb.tracks.getTrackById(trackId), null);
-  let track = $derived(trackStore.getResult());
+  let trackState = $derived(sharedGridState.getTrackState(trackId));
 
-  let isTrackExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
-
-  let deviceStore = useTrackDbQuery((trackDb) => trackDb.devices.getTrackDevice(trackId), null);
-  let device = $derived(deviceStore.getResult());
   let parameters: { id: string }[] = $state([]);
   $effect(() => {
     parameters =
-      gridDisplayState
+      sharedGridState
         .getParameterOrder()
         .get(trackId)
         ?.map((p) => ({
@@ -36,14 +30,14 @@
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
 </script>
 
-{#if track && device}
+{#if trackState}
   <LaneControl
-    title={trackConfig?.userEnteredName || track.trackName}
-    subtitle={trackConfig?.userEnteredName ? track.trackName : undefined}
-    onRename={(newTitle) => appConfigStore.setTrackName(track.id, newTitle)}
+    title={trackConfig?.userEnteredName || trackState.track.trackName}
+    subtitle={trackConfig?.userEnteredName ? trackState.track.trackName : undefined}
+    onRename={(newTitle) => appConfigStore.setTrackName(trackState.track.id, newTitle)}
     class="font-bold"
-    isExpanded={isTrackExpanded}
-    onToggleExpanded={() => gridDisplayState.toggleTrackExpansion(trackId)}
+    isExpanded={trackState.expanded}
+    onToggleExpanded={() => sharedGridState.toggleTrackExpansion(trackId)}
     laneId={trackId}
     color={trackConfig?.color}
   >
@@ -64,7 +58,7 @@
         parameters = e.detail.items;
       }}
       onfinalize={(e) => {
-        gridDisplayState.setParameterOrder(trackId, uniq(e.detail.items.map((t) => t.id)));
+        sharedGridState.setParameterOrder(trackId, uniq(e.detail.items.map((t) => t.id)));
       }}
     >
       {#each parameters as parameter (parameter.id)}
@@ -77,6 +71,4 @@
       {/each}
     </div>
   </LaneControl>
-{:else}
-  <div class="text-error">Track {trackId} not found</div>
 {/if}

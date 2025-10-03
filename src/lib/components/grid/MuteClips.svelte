@@ -74,9 +74,10 @@
     if (!svgGroup) {
       return undefined;
     }
+    console.log('muteTransitions', muteTransitions);
     const rects = svgGroup
       .selectAll('.mute-drag-handle')
-      .data(muteTransitions, (d) => d.id)
+      .data(muteTransitions, (d: MuteTransition) => d.id)
       .join(
         (enter) => enter.append('rect'),
         (update) => update,
