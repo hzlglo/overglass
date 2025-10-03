@@ -1,7 +1,6 @@
 import { browser } from '$app/environment';
-import { fromPairs } from 'lodash';
+import { getRandomColor } from '$lib/components/colors/colorOptions';
 import type { Track } from '$lib/database/schema';
-import { colorOptions, getRandomColor } from '$lib/components/colors/colorOptions';
 
 /**
  * Display settings that are persisted to localStorage
