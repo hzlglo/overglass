@@ -72,7 +72,7 @@
           animate:flip={{ duration: 150 }}
           data-is-dnd-shadow-item-hint={parameter[SHADOW_ITEM_MARKER_PROPERTY_NAME]}
         >
-          <TrackParamControl parameterId={parameter.id} {trackConfig} {device}></TrackParamControl>
+          <TrackParamControl parameterId={parameter.id}></TrackParamControl>
         </div>
       {/each}
     </div>

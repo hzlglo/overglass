@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AutomationDatabase } from '../lib/database/duckdb';
 import { NativeDuckDBAdapter } from '../lib/database/adapters/native';
-import type { ParsedALS } from '../lib/types/automation';
 
 describe('DuckDB Schema Tests', () => {
   let database: AutomationDatabase;
@@ -33,7 +32,7 @@ describe('DuckDB Schema Tests', () => {
       id: 'test-device-1',
       deviceName: 'Test Device',
       deviceType: 'Elektron',
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     const testTrack = {
@@ -43,7 +42,7 @@ describe('DuckDB Schema Tests', () => {
       trackNumber: 1,
       isMuted: false,
       createdAt: new Date(),
-      lastEditTime: new Date()
+      lastEditTime: new Date(),
     };
 
     const testParameter = {
@@ -52,7 +51,7 @@ describe('DuckDB Schema Tests', () => {
       parameterName: 'Volume',
       parameterPath: '/Test Device/Volume',
       originalPointeeId: null,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     const testAutomationPoint1 = {
@@ -62,7 +61,7 @@ describe('DuckDB Schema Tests', () => {
       value: 0.5,
       curveType: 'linear',
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     const testAutomationPoint2 = {
@@ -72,7 +71,7 @@ describe('DuckDB Schema Tests', () => {
       value: 0.8,
       curveType: 'linear',
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     // Insert entities directly

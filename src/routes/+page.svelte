@@ -9,7 +9,7 @@
   import '../app.css';
 </script>
 
-<PageWrapper hideNavbar={appStore.getLoadedFile() == null}>
+<PageWrapper hideNavbar={appStore.getFileMetadata() == null}>
   {#snippet navbarBackAction()}
     <button
       class="btn btn-ghost btn-sm"
@@ -23,7 +23,7 @@
       Load a different file
     </button>
   {/snippet}
-  {#if appStore.getLoadedFile() == null}
+  {#if appStore.getFileMetadata() == null}
     <FileChooser />
   {:else}
     <GridAndTrackList />

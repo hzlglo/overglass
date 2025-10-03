@@ -1,7 +1,6 @@
 <script lang="ts">
   import { ElektronNameMatcher } from '$lib/config/regex';
-  import type { Device } from '$lib/database/schema';
-  import { type TrackCustomization } from '$lib/stores/customization.svelte';
+  import { appConfigStore, type TrackCustomization } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import { gridDisplayState } from '../grid/gridDisplayState.svelte';
   import LaneControl from './LaneControl.svelte';
@@ -9,17 +8,24 @@
 
   interface AutomationParameterProps {
     parameterId: string;
-    trackConfig: TrackCustomization | null;
-    device: Device;
   }
 
-  let { parameterId, trackConfig, device }: AutomationParameterProps = $props();
+  let { parameterId }: AutomationParameterProps = $props();
 
   let parameterStore = useTrackDbQuery(
     (trackDb) => trackDb.tracks.getParameterById(parameterId),
     null,
   );
   let parameter = $derived(parameterStore.getResult());
+  let trackConfig = $derived(
+    parameter ? (appConfigStore.get()?.trackCustomizations[parameter.trackId] ?? null) : null,
+  );
+  let deviceStore = useTrackDbQuery(
+    (trackDb) =>
+      parameter ? trackDb.devices.getTrackDevice(parameter.trackId) : Promise.resolve(null),
+    null,
+  );
+  let device = $derived(deviceStore.getResult());
 
   let isExpanded = $derived(gridDisplayState.getParameterExpanded(parameterId));
   let getParameterDisplayName = (parameterName: string, trackConfig: TrackCustomization | null) => {
@@ -30,7 +36,7 @@
   };
 </script>
 
-{#if parameter}
+{#if parameter && device}
   <LaneControl
     title={getParameterDisplayName(parameter.parameterName, trackConfig)}
     {isExpanded}

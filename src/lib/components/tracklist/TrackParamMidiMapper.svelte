@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Device, Parameter } from '$lib/database/schema';
   import { midiStore } from '$lib/stores/midiStore.svelte';
-  import { CheckIcon, CircleAlertIcon } from '@lucide/svelte';
+  import { CircleAlertIcon } from '@lucide/svelte';
   import classNames from 'classnames';
   import Autocomplete from '../core/Autocomplete.svelte';
   import { ElektronNameMatcher } from '$lib/config/regex';

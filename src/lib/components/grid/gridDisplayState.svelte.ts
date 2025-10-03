@@ -1,7 +1,8 @@
 import type { AutomationDatabase } from '$lib/database/duckdb';
-import type { Parameter } from '$lib/database/schema';
-import { fromPairs, get, sum } from 'lodash';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import type { Device, Parameter, Track } from '$lib/database/schema';
+import { appConfigStore } from '$lib/stores/customization.svelte';
+import { compact, sum } from 'lodash';
+import { SvelteMap } from 'svelte/reactivity';
 
 export let TOP_TIMELINE_HEIGHT = 60;
 export let BOTTOM_TIMELINE_HEIGHT = 60;
@@ -10,12 +11,23 @@ let DEFAULT_PARAMETER_HEIGHT = 60;
 let DEFAULT_TRACK_HEIGHT = 50;
 let DEFAULT_COLLAPSED_HEIGHT = 30;
 
-export type LaneDisplay = { top: number; bottom: number; type: 'parameter' | 'track'; id: string };
+export type TrackLaneDisplay = { top: number; bottom: number; type: 'track'; id: string };
+export type ParameterLaneDisplay = { top: number; bottom: number; type: 'parameter'; id: string };
+export type LaneDisplay = TrackLaneDisplay | ParameterLaneDisplay;
+
+// the lanes to display for a track, taking into account search-filtering and sorting within the track
+export type TrackLanesDisplay = {
+  trackId: string;
+  // null if the track is filtered out by search
+  trackLane: TrackLaneDisplay | null;
+  parameterLanes: ParameterLaneDisplay[];
+};
 
 export type TrackLaneState = {
   expanded: boolean;
 };
 export type ParameterLaneState = {
+  name: string;
   expanded: boolean;
 };
 
@@ -27,36 +39,69 @@ const getGridDisplayState = () => {
   let parameterOrder = $state<SvelteMap<string, string[]>>(new SvelteMap());
   // store both track and parameter heights
   let laneHeights = $state<SvelteMap<string, number>>(new SvelteMap());
-  let lanes: LaneDisplay[] = $derived.by(() => {
-    let lanesInner: LaneDisplay[] = [];
-    let y = 0;
-    for (const trackId of trackOrder) {
-      const trackLaneState = trackLaneStates.get(trackId);
-      if (!trackLaneState) {
-        continue;
-      }
-      lanesInner.push({
-        top: y,
-        bottom: y + (laneHeights.get(trackId) ?? 0),
-        type: 'track',
-        id: trackId,
-      });
-      y += laneHeights.get(trackId) ?? 0;
-      if (trackLaneState.expanded) {
-        const trackParameters = parameterOrder.get(trackId) ?? [];
-        for (const parameterId of trackParameters) {
-          lanesInner.push({
-            top: y,
-            bottom: y + (laneHeights.get(parameterId) ?? 0),
-            type: 'parameter',
-            id: parameterId,
-          });
-          y += laneHeights.get(parameterId) ?? 0;
+  let laneSearch = $state<string>('');
+  let { lanes, lanesByTrack }: { lanes: LaneDisplay[]; lanesByTrack: TrackLanesDisplay[] } =
+    $derived.by(() => {
+      let lanesInner: LaneDisplay[] = [];
+      let lanesByTrackInner: TrackLanesDisplay[] = [];
+      let y = 0;
+      const customizations = appConfigStore.get();
+      for (const trackId of trackOrder) {
+        const trackLaneState = trackLaneStates.get(trackId);
+        if (!trackLaneState) {
+          continue;
         }
+        const trackNames = compact([
+          customizations?.trackCustomizations[trackId]?.userEnteredName,
+          customizations?.trackCustomizations[trackId]?.rawTrackName,
+        ]);
+        let trackLanesDisplay: TrackLanesDisplay = {
+          trackId,
+          trackLane: null,
+          parameterLanes: [],
+        };
+        let trackMatchesSearch =
+          laneSearch === '' ||
+          trackNames.some((name) => name.toLowerCase().includes(laneSearch.toLowerCase()));
+        if (trackMatchesSearch) {
+          const trackLane: TrackLaneDisplay = {
+            top: y,
+            bottom: y + (laneHeights.get(trackId) ?? 0),
+            type: 'track',
+            id: trackId,
+          };
+          lanesInner.push(trackLane);
+          trackLanesDisplay.trackLane = trackLane;
+          y += laneHeights.get(trackId) ?? 0;
+        }
+        if (trackLaneState.expanded) {
+          const trackParameters = parameterOrder.get(trackId) ?? [];
+          for (const parameterId of trackParameters) {
+            const parameterLaneState = parameterLaneStates.get(parameterId);
+            if (!parameterLaneState) {
+              continue;
+            }
+            let parameterMatchesSearch =
+              laneSearch === '' ||
+              parameterLaneState.name.toLowerCase().includes(laneSearch.toLowerCase());
+            if (parameterMatchesSearch || trackMatchesSearch) {
+              const parameterLane: ParameterLaneDisplay = {
+                top: y,
+                bottom: y + (laneHeights.get(parameterId) ?? 0),
+                type: 'parameter',
+                id: parameterId,
+              };
+              lanesInner.push(parameterLane);
+              trackLanesDisplay.parameterLanes.push(parameterLane);
+              y += laneHeights.get(parameterId) ?? 0;
+            }
+          }
+        }
+        lanesByTrackInner.push(trackLanesDisplay);
       }
-    }
-    return lanesInner;
-  });
+      console.log('gridDisplayState', { lanesByTrackInner, lanesInner });
+      return { lanes: lanesInner, lanesByTrack: lanesByTrackInner };
+    });
 
   async function syncWithDb(db: AutomationDatabase) {
     const tracks = await db.tracks.getAllTracks();
@@ -77,7 +122,7 @@ const getGridDisplayState = () => {
         trackLaneStates.set(track.id, { expanded: true });
         if (nonMuteParameters) {
           nonMuteParameters.forEach((param) => {
-            parameterLaneStates.set(param.id, { expanded: true });
+            parameterLaneStates.set(param.id, { expanded: true, name: param.parameterName });
 
             laneHeights.set(param.id, DEFAULT_PARAMETER_HEIGHT);
           });
@@ -127,6 +172,10 @@ const getGridDisplayState = () => {
   }
 
   return {
+    setLaneSearch: (search: string) => {
+      laneSearch = search;
+    },
+    getLaneSearch: () => laneSearch,
     syncWithDb,
     getTrackExpanded: (trackId: string) => trackLaneStates.get(trackId)?.expanded ?? false,
     getParameterExpanded: (parameterId: string) =>
@@ -144,6 +193,7 @@ const getGridDisplayState = () => {
     getLaneHeight: (trackOrParamId: string) => laneHeights.get(trackOrParamId) ?? 0,
     getGridHeight: () => sum(Array.from(laneHeights.values())),
     getLanes: () => lanes,
+    getLanesByTrack: () => lanesByTrack,
     setLaneHeight: (trackOrParamId: string, height: number) => {
       laneHeights.set(trackOrParamId, height);
     },
