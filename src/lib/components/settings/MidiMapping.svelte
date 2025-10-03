@@ -1,16 +1,19 @@
 <script lang="ts">
   import { midiStore } from '$lib/stores/midiStore.svelte';
-  import { PlusIcon, UploadIcon, DownloadIcon, TrashIcon, EditIcon } from '@lucide/svelte';
+  import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import AgGrid from '../core/AgGrid.svelte';
   import type { GridApi } from 'ag-grid-community';
   import { omit } from 'lodash';
 
-  let devices = $derived(midiStore.getAllDeviceNames());
-  let selectedDevice = $state<string | null>(null);
+  let deviceStore = useTrackDbQuery((trackDb) => trackDb.devices.getDevicesWithTracks(), null);
+  let devices = $derived(deviceStore.getResult() ?? []);
+  let selectedDeviceId = $state<string | null>(null);
+  let selectedDevice = $derived(devices.find((d) => d.id === selectedDeviceId));
   const PARAMETER_NAME_COLUMN = 'Parameter Name';
   let { rows, cols } = $derived.by(() => {
     if (!selectedDevice) return { rows: [], cols: [] };
-    const mapping = midiStore.getDeviceMapping(selectedDevice);
+    const mapping = midiStore.getDeviceMapping(selectedDevice.deviceName);
+    if (!mapping) return { rows: [], cols: [] };
     let cols = new Set<string>([PARAMETER_NAME_COLUMN]);
     let rows = [];
     for (const [parameterName, midiMappings] of Object.entries(mapping)) {
@@ -27,7 +30,7 @@
 
   function downloadCSV() {
     if (!selectedDevice) return;
-    const csv = midiStore.exportToCSV(selectedDevice);
+    const csv = midiStore.exportToCSV(selectedDevice.deviceName);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -50,7 +53,7 @@
       try {
         const csvData = e.target?.result as string;
         console.log('csvData', csvData);
-        midiStore.importFromCSV(csvData, selectedDevice);
+        midiStore.importFromCSV(csvData, selectedDevice.deviceName);
         alert('MIDI mappings imported successfully!');
       } catch (error) {
         alert(`Failed to import CSV: ${error}`);
@@ -66,10 +69,10 @@
     gridApi?.addEventListener('cellValueChanged', (event) => {
       if (!selectedDevice) return;
       if (event.colDef.field === PARAMETER_NAME_COLUMN) {
-        midiStore.deleteMidiChannel(selectedDevice, event.oldValue);
+        midiStore.deleteMidiChannel(selectedDevice.deviceName, event.oldValue);
       }
       midiStore.setMidiMappings(
-        selectedDevice,
+        selectedDevice.deviceName,
         event.node.data[PARAMETER_NAME_COLUMN],
         omit(event.node.data, PARAMETER_NAME_COLUMN),
       );
@@ -81,7 +84,14 @@
   <div class="flex items-center justify-between">
     <h2 class="text-2xl font-bold">MIDI Channel Mappings</h2>
     <div class="flex flex-row items-center gap-2">
-      <button class="btn btn-error" onclick={() => midiStore.clearAllMappings()}>
+      <button
+        class="btn btn-error"
+        onclick={() => {
+          midiStore.clearAllMappings();
+          alert('All midi mappings cleared');
+          selectedDeviceId = null;
+        }}
+      >
         Clear all mappings
       </button>
     </div>
@@ -89,9 +99,9 @@
 
   <div class="flex flex-row items-center gap-2">
     <span class="">Select a device</span>
-    <select class="select select-primary" bind:value={selectedDevice}>
+    <select class="select select-primary" bind:value={selectedDeviceId}>
       {#each devices as device}
-        <option value={device}>{device}</option>
+        <option value={device.id}>{device.deviceName}</option>
       {/each}
     </select>
     {#if selectedDevice}
@@ -113,8 +123,10 @@
   </pre>
 
   {#if selectedDevice}
-    <div class="h-[50vh] w-full">
-      <AgGrid {rows} columns={cols} bind:gridApi />
-    </div>
+    {#key selectedDevice}
+      <div class="h-[50vh] w-full">
+        <AgGrid {rows} columns={cols} bind:gridApi />
+      </div>
+    {/key}
   {/if}
 </div>

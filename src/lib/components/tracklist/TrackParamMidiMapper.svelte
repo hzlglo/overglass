@@ -25,14 +25,16 @@
       isMappingMidiChannel = true;
     }
   });
+  $inspect({
+    isAutocompleteOpen,
+    isMappingMidiChannel,
+    deviceMapping,
+    midiChannel,
+    hasEditedMidiChannel,
+  });
 </script>
 
-<div
-  class={classNames(
-    'flex flex-row items-center justify-start gap-2 group-hover:block',
-    isMappingMidiChannel || isAutocompleteOpen ? '' : 'hidden',
-  )}
->
+<div class={classNames('flex flex-row items-center justify-start gap-2')}>
   {#if !midiChannel}
     <div class="tooltip" data-tip="No MIDI channel mapped">
       <button
@@ -42,33 +44,31 @@
       </button>
     </div>
   {/if}
-
-  <Autocomplete
-    bind:open={isAutocompleteOpen}
-    placeholder={midiChannel ? `MIDI channel: ${midiChannel.toString()}` : ''}
-    options={Object.entries(deviceMapping || {}).map(([key, mapping]) => ({
-      label: `${key}: ${mapping.cc_msb}`,
-      value: key,
-      onSelect: () => {
+  <div
+    class={classNames(
+      'flex flex-row items-center gap-2 group-hover:block',
+      isMappingMidiChannel || isAutocompleteOpen ? '' : 'hidden',
+    )}
+  >
+    <Autocomplete
+      bind:open={isAutocompleteOpen}
+      placeholder={midiChannel ? `MIDI channel: ${midiChannel.toString()}` : ''}
+      onchange={(mappingName) => {
+        if (!deviceMapping) return;
+        const mapping = deviceMapping[mappingName];
         midiStore.setMidiMappings(
           device.deviceName,
           ElektronNameMatcher.cleanParameterName(parameter.parameterName),
           mapping,
         );
         hasEditedMidiChannel = true;
-      },
-    }))}
-  />
-  {#if midiChannel && hasEditedMidiChannel}
-    <button
-      class="btn btn-square btn-ghost btn-xs"
-      onclick={() => {
-        isMappingMidiChannel = false;
         isAutocompleteOpen = false;
-        hasEditedMidiChannel = false;
+        isMappingMidiChannel = false;
       }}
-    >
-      <CheckIcon />
-    </button>
-  {/if}
+      options={Object.entries(deviceMapping || {}).map(([key, mapping]) => ({
+        label: `${key}: ${mapping.cc_msb}`,
+        value: key,
+      }))}
+    />
+  </div>
 </div>
