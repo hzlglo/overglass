@@ -1,14 +1,10 @@
 <script lang="ts">
+  import { ElektronNameMatcher } from '$lib/config/regex';
+  import type { Device } from '$lib/database/schema';
+  import { type TrackCustomization } from '$lib/stores/customization.svelte';
   import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import { gridDisplayState } from '../grid/gridDisplayState.svelte';
   import LaneControl from './LaneControl.svelte';
-  import { type TrackCustomization } from '$lib/stores/customization.svelte';
-  import { ElektronNameMatcher } from '$lib/config/regex';
-  import { midiStore } from '$lib/stores/midiStore.svelte';
-  import type { Device } from '$lib/database/schema';
-  import { CheckIcon, CircleAlertIcon } from '@lucide/svelte';
-  import Autocomplete from '../core/Autocomplete.svelte';
-  import classNames from 'classnames';
   import TrackParamMidiMapper from './TrackParamMidiMapper.svelte';
 
   interface AutomationParameterProps {

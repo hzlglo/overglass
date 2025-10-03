@@ -12,7 +12,6 @@
     track: Track;
     height: number;
     width: number;
-    yPosition: number;
     muteTransitions: MuteTransition[];
     color: string | undefined;
   }
@@ -22,7 +21,6 @@
     track,
     height,
     width,
-    yPosition,
     muteTransitions,
     color: colorProp,
   }: AutomationMuteProps = $props();
@@ -183,7 +181,7 @@
 <g
   id={`${trackId}-${track.trackName}`}
   bind:this={gElement}
-  transform={`translate(0,${yPosition + margin.top})`}
+  transform={`translate(0,${margin.top})`}
   {width}
   {color}
 ></g>

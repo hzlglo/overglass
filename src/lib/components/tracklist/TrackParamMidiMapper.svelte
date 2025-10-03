@@ -33,6 +33,16 @@
     isMappingMidiChannel || isAutocompleteOpen ? '' : 'hidden',
   )}
 >
+  {#if !midiChannel}
+    <div class="tooltip" data-tip="No MIDI channel mapped">
+      <button
+        class="btn btn-square btn-ghost btn-warning btn-xs"
+        onclick={() => (isMappingMidiChannel = true)}
+        ><CircleAlertIcon />
+      </button>
+    </div>
+  {/if}
+
   <Autocomplete
     bind:open={isAutocompleteOpen}
     placeholder={midiChannel ? `MIDI channel: ${midiChannel.toString()}` : ''}
@@ -62,12 +72,3 @@
     </button>
   {/if}
 </div>
-{#if !midiChannel}
-  <div class="tooltip" data-tip="No MIDI channel mapped">
-    <button
-      class="btn btn-square btn-ghost btn-warning btn-xs"
-      onclick={() => (isMappingMidiChannel = true)}
-      ><CircleAlertIcon />
-    </button>
-  </div>
-{/if}

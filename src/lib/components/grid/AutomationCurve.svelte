@@ -12,7 +12,6 @@
     parameter: Parameter & ParameterStats;
     height: number;
     width: number;
-    yPosition: number;
     automationPoints: AutomationPoint[];
     color: string | undefined;
   }
@@ -21,7 +20,6 @@
     parameterId,
     parameter,
     height,
-    yPosition,
     automationPoints,
     color: colorProp,
   }: AutomationCurveProps = $props();
@@ -201,6 +199,6 @@
 <g
   id={`${parameterId}-${parameter.parameterName}`}
   bind:this={gElement}
-  transform={`translate(0,${yPosition + margin.top})`}
+  transform={`translate(0,${margin.top})`}
   {color}
 ></g>

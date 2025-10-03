@@ -9,19 +9,12 @@
     trackId: string;
     height: number;
     width: number;
-    yPosition: number;
     trackCustomizations: Record<string, TrackCustomization>;
     muteTransitions: MuteTransition[];
   }
 
-  let {
-    trackId,
-    height,
-    width,
-    yPosition,
-    trackCustomizations,
-    muteTransitions,
-  }: MuteTransitionWrapperProps = $props();
+  let { trackId, height, width, trackCustomizations, muteTransitions }: MuteTransitionWrapperProps =
+    $props();
   let trackStore = useTrackDbQuery((db) => db.tracks.getTrackById(trackId), null);
   let track = $derived(trackStore.getResult());
   let isExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
@@ -34,7 +27,6 @@
       {track}
       {height}
       {width}
-      {yPosition}
       {muteTransitions}
       color={trackCustomizations[trackId]?.color}
     />

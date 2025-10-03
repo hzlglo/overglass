@@ -16,10 +16,8 @@
 
   let { trackId }: TrackProps = $props();
 
-  let trackStore = useTrackDbQuery((trackDb) => trackDb.tracks.getTrackById(trackId), 'abc');
+  let trackStore = useTrackDbQuery((trackDb) => trackDb.tracks.getTrackById(trackId), null);
   let track = $derived(trackStore.getResult());
-
-  $inspect('TrackControl', trackId, track, trackStore);
 
   let isTrackExpanded = $derived(gridDisplayState.getTrackExpanded(trackId));
 
@@ -27,7 +25,6 @@
   let device = $derived(deviceStore.getResult());
   let parameters: { id: string }[] = $state([]);
   $effect(() => {
-    console.log('TrackControl: parameters');
     parameters =
       gridDisplayState
         .getParameterOrder()
@@ -42,7 +39,7 @@
 {#if track && device}
   <LaneControl
     title={trackConfig?.userEnteredName || track.trackName}
-    subtitle={trackConfig.userEnteredName ? track.trackName : undefined}
+    subtitle={trackConfig?.userEnteredName ? track.trackName : undefined}
     onRename={(newTitle) => appConfigStore.setTrackName(track.id, newTitle)}
     class="font-bold"
     isExpanded={isTrackExpanded}

@@ -20,6 +20,7 @@
   import { actionsDispatcher } from './actionsDispatcher.svelte';
   import PlayLine from './PlayLine.svelte';
   import { playState } from '../play/playState.svelte';
+  import VirtualizedLane from './VirtualizedLane.svelte';
 
   let { gridScroll = $bindable() }: { gridScroll: number } = $props();
 
@@ -191,25 +192,31 @@
               {width}
             />
             {#each lanes as lane (lane.id)}
-              {#if lane.type === 'track'}
-                <MuteClipsWrapper
-                  trackId={lane.id}
-                  height={gridDisplayState.getLaneHeight(lane.id)}
-                  {width}
-                  yPosition={lane.top}
-                  {trackCustomizations}
-                  muteTransitions={muteTransitionsByTrackId[lane.id]}
-                />
-              {:else if lane.type === 'parameter'}
-                <AutomationCurveWrapper
-                  parameterId={lane.id}
-                  height={gridDisplayState.getLaneHeight(lane.id)}
-                  {width}
-                  yPosition={lane.top}
-                  {trackCustomizations}
-                  automationPoints={automationPointsByParameterId[lane.id]}
-                />
-              {/if}
+              <VirtualizedLane
+                height={gridDisplayState.getLaneHeight(lane.id)}
+                {width}
+                yPosition={lane.top}
+                {gridScroll}
+                gridHeight={height}
+              >
+                {#if lane.type === 'track'}
+                  <MuteClipsWrapper
+                    trackId={lane.id}
+                    height={gridDisplayState.getLaneHeight(lane.id)}
+                    {width}
+                    {trackCustomizations}
+                    muteTransitions={muteTransitionsByTrackId[lane.id]}
+                  />
+                {:else if lane.type === 'parameter'}
+                  <AutomationCurveWrapper
+                    parameterId={lane.id}
+                    height={gridDisplayState.getLaneHeight(lane.id)}
+                    {width}
+                    {trackCustomizations}
+                    automationPoints={automationPointsByParameterId[lane.id]}
+                  />
+                {/if}
+              </VirtualizedLane>
             {/each}
           </g>
         </g>

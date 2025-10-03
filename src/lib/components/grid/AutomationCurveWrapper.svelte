@@ -9,7 +9,6 @@
     parameterId: string;
     height: number;
     width: number;
-    yPosition: number;
     trackCustomizations: Record<string, TrackCustomization>;
     automationPoints: AutomationPoint[];
   }
@@ -18,7 +17,6 @@
     parameterId,
     height,
     width,
-    yPosition,
     trackCustomizations,
     automationPoints,
   }: AutomationCurveWrapperProps = $props();
@@ -35,7 +33,6 @@
       {parameter}
       {height}
       {width}
-      {yPosition}
       {automationPoints}
       color={trackCustomizations[parameter.trackId]?.color}
     />
