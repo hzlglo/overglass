@@ -10,7 +10,7 @@
     {@render children()}
   </Popover.Trigger>
   <Popover.Portal>
-    <Popover.Content>
+    <Popover.Content class="z-50">
       {@render content()}
     </Popover.Content>
   </Popover.Portal>

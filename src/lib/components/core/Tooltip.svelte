@@ -14,7 +14,7 @@
     <Tooltip.Trigger>
       {@render children()}
     </Tooltip.Trigger>
-    <Tooltip.Content sideOffset={8}>
+    <Tooltip.Content sideOffset={8} class="z-50">
       {@render content?.()}
       {#if contentString}
         <div class="bg-base-100 border-base-content/20 border p-2 text-sm">

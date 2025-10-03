@@ -19,7 +19,7 @@
       <div class="size-4" style="background-color: {value}"></div>
     </button>
   </Popover.Trigger>
-  <Popover.Content class="menu rounded-box bg-base-100 border-base-content/20 border">
+  <Popover.Content class="menu rounded-box bg-base-100 border-base-content/20 z-50 border">
     <div class="flex flex-row gap-1">
       {#each colorOptions as colorGroup}
         <div class="flex flex-col gap-1">
