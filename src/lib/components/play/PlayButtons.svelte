@@ -38,7 +38,7 @@
   );
 
   let hasClickedPlay = $state(false);
-  let isPlaying = $state(false);
+  let isPlaying = $derived(playState.getIsPlaying());
   let audioCtx = $state<AudioContext | null>(null);
   // represents the starting point of play in song time seconds (0 is the start of the song)
   let startTime = $state(0);
@@ -164,7 +164,7 @@
       });
 
     // Create audio context clock
-    isPlaying = true;
+    playState.setIsPlaying(true);
     audioCtx = new AudioContext();
     startTime = playState.getPlayPoint();
     console.log('Play timer: starting at', startTime);
@@ -236,7 +236,7 @@
     midiOutputs.forEach((midiOutput) => {
       midiOutput.sendStop();
     });
-    isPlaying = false;
+    playState.setIsPlaying(false);
     if (audioCtx) {
       audioCtx.close();
       audioCtx = null;

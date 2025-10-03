@@ -1,5 +1,5 @@
 import type { Device } from '../schema';
-import type { ParsedALS } from '../../types/automation';
+import type { ParsedALS } from '../schema';
 import { ALSParser } from '../../parsers/alsParser';
 import type { AutomationDatabase } from '../duckdb';
 import SQL from 'sql-template-tag';

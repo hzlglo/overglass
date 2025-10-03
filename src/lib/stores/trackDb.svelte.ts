@@ -1,6 +1,6 @@
 import { AutomationDatabase } from '../database/duckdb';
 import { WasmDuckDBAdapter } from '../database/adapters/wasm';
-import type { ParsedALS } from '../types/automation';
+import type { ParsedALS } from '../database/schema';
 import { isEqual } from 'lodash';
 
 /**

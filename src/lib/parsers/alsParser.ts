@@ -1,6 +1,6 @@
 import { inflate } from 'pako';
 import { sortBy, reverse, uniqBy } from 'lodash';
-import type { ParsedALS } from '../types/automation';
+import type { ParsedALS } from '../database/schema';
 import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { RegexMatcher, createRegexConfig } from '../config/regex';
 

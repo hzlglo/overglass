@@ -1,11 +1,8 @@
-import type { ParsedALS } from '../types/automation';
+import type { ParsedALS } from '../database/schema';
 import type { AutomationDatabase } from '../database/duckdb';
 import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { gzipXmlHelpers } from '../utils/gzipXmlHelpers';
-import {
-  extractAutomationEnvelopes,
-  updateAutomationEvents
-} from './alsXmlHelpers';
+import { extractAutomationEnvelopes, updateAutomationEvents } from './alsXmlHelpers';
 
 export class ALSWriter {
   constructor(private db: AutomationDatabase) {}
@@ -28,14 +25,15 @@ export class ALSWriter {
       // Update automation data in XML
       await this.updateAutomationInXML(xmlDoc, dbData);
 
-
       // Create new ALS file with updated XML using helper
       const file = await gzipXmlHelpers.writeALSFile(xmlDoc, fileName);
 
       console.log(`✅ ALS file written: ${fileName} (${file.size} bytes)`);
 
       // For Node.js testing environment, also write to disk directly to avoid File object issues
-      console.log(`🔧 Checking environment: window is ${typeof window}, process is ${typeof process}`);
+      console.log(
+        `🔧 Checking environment: window is ${typeof window}, process is ${typeof process}`,
+      );
       if (typeof process !== 'undefined' && process.versions && process.versions.node) {
         console.log(`🔧 Node.js environment detected - also writing to disk for testing`);
         try {
@@ -60,24 +58,45 @@ export class ALSWriter {
       return file;
     } catch (error) {
       console.error('Error writing ALS file:', error);
-      throw new Error(`Failed to write ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to write ALS file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   /**
    * Collect all automation data from database
    */
-  private async collectDatabaseData(devices: (Device & { trackCount: number; parameterCount: number; automationPointCount: number })[]) {
-    const deviceData = new Map<string, {
-      device: Device & { trackCount: number; parameterCount: number; automationPointCount: number };
-      tracks: Map<string, {
-        track: Track & { parameterCount: number; automationPointCount: number };
-        parameters: Map<string, {
-          parameter: Parameter;
-          automationPoints: AutomationPoint[];
-        }>;
-      }>;
-    }>();
+  private async collectDatabaseData(
+    devices: (Device & {
+      trackCount: number;
+      parameterCount: number;
+      automationPointCount: number;
+    })[],
+  ) {
+    const deviceData = new Map<
+      string,
+      {
+        device: Device & {
+          trackCount: number;
+          parameterCount: number;
+          automationPointCount: number;
+        };
+        tracks: Map<
+          string,
+          {
+            track: Track & { parameterCount: number; automationPointCount: number };
+            parameters: Map<
+              string,
+              {
+                parameter: Parameter;
+                automationPoints: AutomationPoint[];
+              }
+            >;
+          }
+        >;
+      }
+    >();
 
     for (const device of devices) {
       const tracks = await this.db.tracks.getTracksForDevice(device.id);
@@ -89,19 +108,21 @@ export class ALSWriter {
 
         for (const parameter of parameters) {
           const automationPoints = await this.db.automation.getAutomationPoints({
-            parameterId: parameter.id
+            parameterId: parameter.id,
           });
 
           parameterData.set(parameter.id, {
             parameter,
-            automationPoints
+            automationPoints,
           });
         }
 
         // Separately handle mute transitions for this track
         const muteTransitions = await this.db.muteTransitions.getMuteTransitionsForTrack(track.id);
         if (muteTransitions.length > 0) {
-          console.log(`🔇 Converting ${muteTransitions.length} mute transitions to automation points for track "${track.trackName}"`);
+          console.log(
+            `🔇 Converting ${muteTransitions.length} mute transitions to automation points for track "${track.trackName}"`,
+          );
 
           // Group mute transitions by their mute parameter ID
           const transitionsByParameter = new Map<string, MuteTransition[]>();
@@ -133,7 +154,7 @@ export class ALSWriter {
                   value: transition.isMuted ? 1 : 0,
                   curveType: 'linear' as const,
                   createdAt: transition.createdAt,
-                  updatedAt: transition.updatedAt
+                  updatedAt: transition.updatedAt,
                 };
                 muteAutomationPoints.push(initialPoint);
               } else {
@@ -147,7 +168,7 @@ export class ALSWriter {
                   value: prevTransition.isMuted ? 1 : 0, // Previous state value
                   curveType: 'linear' as const,
                   createdAt: transition.createdAt,
-                  updatedAt: transition.updatedAt
+                  updatedAt: transition.updatedAt,
                 };
                 muteAutomationPoints.push(endPrevPoint);
 
@@ -159,7 +180,7 @@ export class ALSWriter {
                   value: transition.isMuted ? 1 : 0, // New state value
                   curveType: 'linear' as const,
                   createdAt: transition.createdAt,
-                  updatedAt: transition.updatedAt
+                  updatedAt: transition.updatedAt,
                 };
                 muteAutomationPoints.push(startNewPoint);
               }
@@ -180,7 +201,7 @@ export class ALSWriter {
               // We need to find the parameter info for this muteParameterId
               const muteParameter = await this.db.run(
                 'SELECT id, parameter_name, original_pointee_id FROM parameters WHERE id = ?',
-                [muteParameterId]
+                [muteParameterId],
               );
 
               if (muteParameter.length > 0) {
@@ -192,11 +213,13 @@ export class ALSWriter {
                     parameterName: param.parameterName,
                     originalPointeeId: param.originalPointeeId,
                     isMute: true, // Keep for now until we clean it up
-                    createdAt: new Date()
+                    createdAt: new Date(),
                   },
-                  automationPoints: muteAutomationPoints
+                  automationPoints: muteAutomationPoints,
                 });
-                console.log(`📝 Created synthetic parameter entry for mute parameter "${param.parameterName}" with ${muteAutomationPoints.length} automation points`);
+                console.log(
+                  `📝 Created synthetic parameter entry for mute parameter "${param.parameterName}" with ${muteAutomationPoints.length} automation points`,
+                );
               }
             }
           }
@@ -204,13 +227,13 @@ export class ALSWriter {
 
         trackData.set(track.id, {
           track,
-          parameters: parameterData
+          parameters: parameterData,
         });
       }
 
       deviceData.set(device.id, {
         device,
-        tracks: trackData
+        tracks: trackData,
       });
     }
 
@@ -244,7 +267,9 @@ export class ALSWriter {
       }
     }
 
-    console.log(`Parameter mapping: ${parameterIdMap.size} total parameters, ${parameterPointeeIdMap.size} with original PointeeId, ${existingEnvelopes.length} envelopes`);
+    console.log(
+      `Parameter mapping: ${parameterIdMap.size} total parameters, ${parameterPointeeIdMap.size} with original PointeeId, ${existingEnvelopes.length} envelopes`,
+    );
 
     // Build envelope-to-parameter mapping using PointeeId (same logic as parser)
     const envelopeParameterMap = new Map<Element, any>();
@@ -256,16 +281,21 @@ export class ALSWriter {
       if (targetElement) {
         const pointeeIdElement = targetElement.querySelector('PointeeId');
         if (pointeeIdElement) {
-          const pointeeId = pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
+          const pointeeId =
+            pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
 
           // Check if this PointeeId matches any of our parameters' originalPointeeId
           if (pointeeId && parameterPointeeIdMap.has(pointeeId)) {
             const parameterInfo = parameterPointeeIdMap.get(pointeeId)!;
             envelopeParameterMap.set(envelope.element, parameterInfo);
             processedParameterIds.add(parameterInfo.parameter.id);
-            console.log(`✅ Matched envelope ${envelope.id} to parameter "${parameterInfo.parameter.parameterName}" via PointeeId "${pointeeId}"`);
+            console.log(
+              `✅ Matched envelope ${envelope.id} to parameter "${parameterInfo.parameter.parameterName}" via PointeeId "${pointeeId}"`,
+            );
           } else {
-            console.log(`⚠️  Envelope ${envelope.id} has PointeeId "${pointeeId}" but no matching parameter found`);
+            console.log(
+              `⚠️  Envelope ${envelope.id} has PointeeId "${pointeeId}" but no matching parameter found`,
+            );
           }
         } else {
           console.log(`⚠️  Envelope ${envelope.id} has no PointeeId element`);
@@ -287,12 +317,14 @@ export class ALSWriter {
         const events = automationPoints.map((point: any) => ({
           time: point.timePosition,
           value: point.value,
-          curveType: point.curveType || 'linear'
+          curveType: point.curveType || 'linear',
         }));
 
         updateAutomationEvents(envelopeElement, events);
         updatedCount++;
-        console.log(`Updated matched envelope with ${events.length} events for parameter "${parameterInfo.parameter.parameterName}"`);
+        console.log(
+          `Updated matched envelope with ${events.length} events for parameter "${parameterInfo.parameter.parameterName}"`,
+        );
       }
     }
 
@@ -301,6 +333,4 @@ export class ALSWriter {
 
     console.log(`✅ XML automation update complete: ${updatedCount} updated`);
   }
-
-
 }

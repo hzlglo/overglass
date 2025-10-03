@@ -11,9 +11,10 @@
 
   let isExporting = $state(false);
 
-  const loadedFile = $derived(appStore.getLoadedFile());
+  const fileMetadata = $derived(appStore.getFileMetadata());
 
   async function handleExport() {
+    const loadedFile = appStore.getLoadedFile();
     if (isExporting || !loadedFile) return;
 
     try {
@@ -53,6 +54,6 @@
   }
 </script>
 
-<button class={className} onclick={handleExport} disabled={isExporting || !loadedFile}>
+<button class={className} onclick={handleExport} disabled={isExporting || !fileMetadata}>
   {isExporting ? 'Exporting...' : 'Export ALS'}
 </button>

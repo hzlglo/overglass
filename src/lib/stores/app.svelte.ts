@@ -1,30 +1,40 @@
-import type { ParsedALS } from '../types/automation';
+import { omit } from 'lodash';
+import type { ParsedALS } from '../database/schema';
 
 /**
  * Transient app state that is not persisted to localStorage
  */
 
-interface AppState {
-  loadedFile: ParsedALS | null;
-}
-
 const createAppStore = () => {
-  let state = $state<AppState>({
-    loadedFile: null,
-  });
+  let fileMetadata = $state<Omit<ParsedALS, 'rawXML'> | null>(null);
+  // this is stored in separate raw state since it's potentially huge and doesn't need to be reactive
+  let fileContents = $state.raw<ParsedALS['rawXML'] | null>(null);
 
   return {
     // Getters
+    getFileMetadata() {
+      return fileMetadata;
+    },
     getLoadedFile() {
-      return state.loadedFile;
+      return { ...fileMetadata, rawXML: fileContents };
     },
 
     setLoadedFile(file: ParsedALS) {
-      state.loadedFile = file;
+      fileMetadata = omit(file, 'rawXML');
+      // TODO read time signature from file
+      fileMetadata.meter = { numerator: 4, denominator: 4 };
+      fileContents = file.rawXML;
     },
 
     resetApp() {
-      state.loadedFile = null;
+      fileMetadata = null;
+      fileContents = null;
+    },
+    updateFileMetadata(
+      updater: (metadata: Omit<ParsedALS, 'rawXML'>) => Omit<ParsedALS, 'rawXML'>,
+    ) {
+      if (!fileMetadata) return;
+      fileMetadata = updater(fileMetadata);
     },
   };
 };

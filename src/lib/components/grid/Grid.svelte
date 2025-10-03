@@ -19,6 +19,7 @@
   import GridContextMenu from './GridContextMenu.svelte';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
   import PlayLine from './PlayLine.svelte';
+  import { playState } from '../play/playState.svelte';
 
   let { gridScroll = $bindable() }: { gridScroll: number } = $props();
 
@@ -93,6 +94,13 @@
         event.preventDefault();
         actionsDispatcher.handleKeyDown('delete');
       }
+    });
+  });
+
+  $effect(() => {
+    trackGroup?.on('click', (event) => {
+      if (playState.getIsPlaying()) return;
+      playState.setPlayPoint(sharedXScale.getZoomedXScale().invert(event.offsetX));
     });
   });
 

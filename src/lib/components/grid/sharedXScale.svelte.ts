@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import { secondsToBars } from '../../utils/timeConversion';
+import { appStore } from '$lib/stores/app.svelte';
 function nextPowerOfTwo(n: number) {
   return Math.pow(2, Math.ceil(Math.log2(n)));
 }
@@ -34,9 +35,9 @@ const getSharedXScale = () => {
   let maxTime = $state(60);
   let width = $state(800);
 
-  let bpm = $state(120);
-  let timeSigNumerator = $state(4);
-  let timeSigDenominator = $state(4);
+  let bpm = $derived(appStore.getFileMetadata()?.bpm || 120);
+  let timeSigNumerator = $derived(appStore.getFileMetadata()?.meter.numerator || 4);
+  let timeSigDenominator = $derived(appStore.getFileMetadata()?.meter.denominator || 4);
 
   let totalBars = $derived(secondsToBars(maxTime, bpm, timeSigNumerator, timeSigDenominator));
 

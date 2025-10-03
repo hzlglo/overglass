@@ -1,5 +1,15 @@
 import { mapKeys, snakeCase, camelCase } from 'lodash';
 
+export interface ParsedALS {
+  name: string;
+  bpm: number;
+  meter: {
+    numerator: number;
+    denominator: number;
+  };
+  rawXML?: Document;
+}
+
 // Database schema with camelCase interfaces (TypeScript friendly)
 export interface DatabaseSchema {
   // Core tables for normalized data storage

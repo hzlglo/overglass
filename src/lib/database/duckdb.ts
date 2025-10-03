@@ -1,5 +1,5 @@
 import { CREATE_TABLES, CREATE_INDEXES, toSnakeCase, toCamelCase } from './schema';
-import type { ParsedALS } from '../types/automation';
+import type { ParsedALS } from './schema';
 import type { DatabaseAdapter } from './interface';
 import { DeviceService } from './services/deviceService';
 import { AutomationService } from './services/automationService';

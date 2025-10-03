@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as d3 from 'd3';
-  import type { AutomationPoint, Parameter, ParameterStats } from '../../types/automation';
+  import type { AutomationPoint, Parameter, ParameterStats } from '../../database/schema';
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
   import { sortBy } from 'lodash';
