@@ -9,7 +9,8 @@
     <div class="mx-auto max-h-[80vh] space-y-6 overflow-y-auto p-6">
       <!-- Intro -->
       <p>
-        <strong>Overglass</strong> is a web app that makes it easier to edit recorded automation.
+        <strong>Overglass</strong> is a web app that makes it easier to edit Ableton files that contain
+        Overbridge-recorded automation.
       </p>
 
       <!-- Features -->

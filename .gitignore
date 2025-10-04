@@ -11,3 +11,4 @@ vite.config.ts.timestamp-*
 .yarn/install-state.gz
 screenshots/
 .claude/*
+test_output/*

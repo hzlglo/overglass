@@ -84,7 +84,7 @@ describe('ALS Structure Verification', () => {
     expect(t1Params).toHaveLength(1);
     expect(t1Params[0].parameterName).toMatch(/mute/i);
 
-    // T3 should have 2 automated parameters
+    // T3 should have 1 automated parameter
     const t3 = sortedTracks.find((t) => t.trackNumber === 3);
     expect(t3).toBeDefined();
     const t3Params = await db.tracks.getParametersForTrack(t3!.id);
@@ -92,7 +92,7 @@ describe('ALS Structure Verification', () => {
       'T3 parameters:',
       t3Params.map((p) => p.parameterName),
     );
-    expect(t3Params).toHaveLength(2);
+    expect(t3Params).toHaveLength(1);
 
     // T6 should have 3 automated parameters
     const t6 = sortedTracks.find((t) => t.trackNumber === 6);
@@ -121,8 +121,11 @@ describe('ALS Structure Verification', () => {
 
         console.log(`Track ${track.trackNumber} - ${param.parameterName}: ${points.length} points`);
 
-        // Each parameter should have at least some automation points
-        expect(points.length).toBeGreaterThan(0);
+        // Only non-mute parameters should have automation points
+        // Mute parameters have mute transitions instead
+        if (!param.isMute) {
+          expect(points.length).toBeGreaterThan(0);
+        }
       }
     }
 

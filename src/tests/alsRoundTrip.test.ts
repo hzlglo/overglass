@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runRoundTripTest, findParametersWithPoints, verifyXMLDifferences } from './helpers/roundTripTestHelper';
+import { MuteTransitionService } from '../lib/database/services/muteTransitionService';
 
 describe('ALS Round-Trip Integration Test', () => {
   console.log('🚀 Starting ALS Round-Trip Integration Test');
@@ -132,7 +133,8 @@ describe('ALS Round-Trip Integration Test', () => {
             const parameterName = parameter?.parameterName || 'Unknown';
 
             // Move the mute transition by 1 second using the new API
-            const movedTransitions = await db.muteTransitions.getMovedMuteTransitions([editableTransition.id], 1.0);
+            const allTrackTransitions = await db.muteTransitions.getMuteTransitionsForTrack(editableTransition.trackId);
+            const movedTransitions = MuteTransitionService.getMovedMuteTransitions([editableTransition], allTrackTransitions, 1.0);
             if (movedTransitions.length > 0) {
               const actualNewTime = movedTransitions[0].timePosition;
               await db.muteTransitions.updateMuteTransitions([{

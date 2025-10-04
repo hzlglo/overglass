@@ -72,14 +72,14 @@ describe('DuckDB Database Integration', () => {
     const devices = await database.devices.getDevicesWithTracks();
     const firstDevice = devices[0];
 
-    expect(parseInt(firstDevice.trackCount)).toBeGreaterThan(0);
-    expect(parseInt(firstDevice.parameter_count)).toBeGreaterThan(0);
-    expect(parseInt(firstDevice.automation_point_count)).toBeGreaterThan(0);
+    expect(firstDevice.trackCount).toBeGreaterThan(0);
+    expect(firstDevice.parameterCount).toBeGreaterThan(0);
+    expect(firstDevice.automationPointCount).toBeGreaterThan(0);
 
     console.log(`Device ${firstDevice.deviceName}:`);
     console.log(`  Tracks: ${firstDevice.trackCount}`);
-    console.log(`  Parameters: ${firstDevice.parameter_count}`);
-    console.log(`  Automation Points: ${firstDevice.automation_point_count}`);
+    console.log(`  Parameters: ${firstDevice.parameterCount}`);
+    console.log(`  Automation Points: ${firstDevice.automationPointCount}`);
   });
 
   it('should handle time-based queries efficiently', async () => {
@@ -108,9 +108,9 @@ describe('DuckDB Database Integration', () => {
 
     // Each device should have consistent counts
     devices.forEach((device) => {
-      expect(parseInt(device.trackCount)).toBeGreaterThanOrEqual(0);
-      expect(parseInt(device.parameter_count)).toBeGreaterThanOrEqual(0);
-      expect(parseInt(device.automation_point_count)).toBeGreaterThanOrEqual(0);
+      expect(device.trackCount).toBeGreaterThanOrEqual(0);
+      expect(device.parameterCount).toBeGreaterThanOrEqual(0);
+      expect(device.automationPointCount).toBeGreaterThanOrEqual(0);
     });
   });
 
