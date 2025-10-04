@@ -10,14 +10,17 @@ export class WasmDuckDBAdapter implements DatabaseAdapter {
     if (this.isInitialized) return;
 
     try {
-      // Use local DuckDB WASM files instead of CDN to avoid CORS issues
-      const bundle: duckdb.DuckDBBundle = {
-        mainModule: '/duckdb-mvp.wasm',
-        mainWorker: '/duckdb-browser-mvp.worker.js',
-        pthreadWorker: '/duckdb-browser-eh.worker.js',
-      };
+      const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
 
-      const worker = new Worker(bundle.mainWorker!);
+      // Select a bundle based on browser checks
+      const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+
+      const worker_url = URL.createObjectURL(
+        new Blob([`importScripts("${bundle.mainWorker!}");`], { type: 'text/javascript' }),
+      );
+
+      // Instantiate the asynchronous version of DuckDB-Wasm
+      const worker = new Worker(worker_url);
       const logger = new duckdb.ConsoleLogger();
       this.db = new duckdb.AsyncDuckDB(logger, worker);
       await this.db.instantiate(bundle.mainModule, bundle.pthreadWorker);
