@@ -6,7 +6,7 @@
 
   const themeStorageKey = 'isDarkMode';
 
-  let isDarkMode = $state(false);
+  let isDarkMode = $state(true);
 
   onMount(() => {
     const stored = localStorage.getItem(themeStorageKey);

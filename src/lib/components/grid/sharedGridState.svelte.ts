@@ -133,7 +133,10 @@ const getSharedGridState = () => {
       console.log('syncWithDb: tracks already synced');
       return;
     }
-    console.log('syncWithDb: resetting all track display state');
+    console.log('syncWithDb: resetting all track display state', {
+      trackLaneStates: $state.snapshot(trackLaneStates),
+      tracks,
+    });
     if (tracks.length > 0) {
       trackOrder = tracks.map((t) => t.id);
       laneHeights = new SvelteMap(tracks.map((t) => [t.id, DEFAULT_TRACK_HEIGHT]));

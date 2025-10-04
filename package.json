@@ -37,6 +37,7 @@
     "lodash": "^4.17.21",
     "pako": "^2.1.0",
     "papaparse": "^5.5.3",
+    "posthog-js": "^1.270.1",
     "sql-template-tag": "^5.2.1",
     "svelte-dnd-action": "^0.9.65",
     "tailwind-merge": "^3.3.1",

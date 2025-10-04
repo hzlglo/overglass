@@ -1,26 +1,20 @@
 <script lang="ts">
-  import { ALSParser } from '../../parsers/alsParser';
-  import { trackDb } from '../../stores/trackDb.svelte';
-  import { appStore } from '../../stores/app.svelte';
+  import { dev } from '$app/environment';
   import { appConfigStore } from '$lib/stores/customization.svelte';
+  import { ArrowRightIcon, GithubIcon, XIcon } from '@lucide/svelte';
   import { fromPairs, toPairs } from 'lodash';
-  import ThemeController from './ThemeController.svelte';
-  import {
-    ArrowRightIcon,
-    CheckIcon,
-    CrossIcon,
-    DeleteIcon,
-    GithubIcon,
-    XIcon,
-  } from '@lucide/svelte';
+  import { ALSParser } from '../../parsers/alsParser';
+  import { appStore } from '../../stores/app.svelte';
+  import { trackDb } from '../../stores/trackDb.svelte';
   import HelpModal from './HelpModal.svelte';
+  import ThemeController from './ThemeController.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  const DEVELOPMENT = false;
+  const DEVELOPMENT = dev;
 
   const parser = new ALSParser();
 
@@ -130,7 +124,7 @@
         </p>
         <a
           class="link"
-          href="https://docs.google.com/document/d/121NUcaH3U1NsMa1u3bYBQZxF1vooAETfR9-7-fkNyQ8/edit?tab=t.0"
+          href="https://docs.google.com/document/d/121NUcaH3U1NsMa1u3bYBQZxF1vooAETfR9-7-fkNyQ8/edit?usp=sharing"
           target="_blank"
         >
           Read the docs

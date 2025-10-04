@@ -1,5 +1,15 @@
-// Tauri doesn't have a Node.js server to do proper SSR
-// so we use adapter-static with a fallback to index.html to put the site in SPA mode
-// See: https://svelte.dev/docs/kit/single-page-apps
-// See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
+import { browser, dev } from '$app/environment';
+import posthog from 'posthog-js';
 export const ssr = false;
+
+export const load = async () => {
+  if (browser && !dev) {
+    posthog.init('phc_jNE3deF5LflJzr7AZtgIwFgTknGDqVdBBqvhEPk4GZ2', {
+      api_host: 'https://us.i.posthog.com',
+      defaults: '2025-05-24',
+      person_profiles: 'always',
+    });
+  }
+
+  return;
+};

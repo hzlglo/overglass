@@ -54,6 +54,15 @@
           </li>
         </ul>
       </div>
+
+      <!-- Data privacy -->
+      <div class="space-y-2">
+        <h2 class="text-xl font-semibold">Data privacy</h2>
+        <p class="leading-relaxed">
+          Overglass does not send your file to any servers. It only loads it into your web browser,
+          and allows you to edit it. Your file never leaves your computer.
+        </p>
+      </div>
     </div>
   {/snippet}
 </Modal>
