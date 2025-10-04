@@ -1,11 +1,14 @@
 <script lang="ts">
   import { Tabs } from 'bits-ui';
   import type { Snippet } from 'svelte';
-  let { options, children }: { options: { label?: string; value: string }[]; children: Snippet } =
-    $props();
+  let {
+    options,
+    children,
+    value = $bindable(),
+  }: { options: { label?: string; value: string }[]; children: Snippet; value?: string } = $props();
 </script>
 
-<Tabs.Root class="">
+<Tabs.Root class="" bind:value>
   <Tabs.List class="tabs">
     {#each options as option}
       <Tabs.Trigger value={option.value} class="tab data-[state=active]:tab-active "

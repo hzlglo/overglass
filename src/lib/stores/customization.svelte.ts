@@ -71,24 +71,24 @@ const createCustomizationStore = () => {
       if (!currentFile) {
         throw new Error('No file is currently loaded. Call initializeFile() first.');
       }
-      for (const track of tracks) {
+      tracks.forEach((track, i) => {
         if (!state.fileCustomizations[currentFile].trackCustomizations[track.id]) {
           state.fileCustomizations[currentFile].trackCustomizations[track.id] = {
             rawTrackName: track.trackName,
-            color: getRandomColor(),
+            color: getRandomColor(i),
           };
         }
-      }
+      });
     },
     randomizeTrackColors() {
       if (!currentFile) {
         return;
       }
-      for (const track of Object.values(
-        state.fileCustomizations[currentFile].trackCustomizations,
-      )) {
-        track.color = getRandomColor();
-      }
+      Object.values(state.fileCustomizations[currentFile].trackCustomizations).forEach(
+        (track, i) => {
+          track.color = getRandomColor(i);
+        },
+      );
     },
     setCurrentFile(fileName: string) {
       currentFile = fileName;

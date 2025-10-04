@@ -19,7 +19,7 @@ export function generatePalette({
   backgroundHex,
   contentHex,
   themePrimaryHex,
-  numCategories = 12,
+  numCategories = 8,
   numShades = 6,
 }: PaletteOptions) {
   const background = toOklch(backgroundHex)!;
@@ -82,6 +82,6 @@ export const regenerateColorOptions = () => {
 };
 regenerateColorOptions();
 
-export const getRandomColor = () => {
-  return colorOptions[random(colorOptions.length - 1)][random(colorOptions[0].length - 1)];
+export const getRandomColor = (index: number) => {
+  return colorOptions[index % colorOptions.length][random(colorOptions[0].length - 1)];
 };

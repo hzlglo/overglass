@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
   import { sharedGridState } from '../grid/sharedGridState.svelte';
   import classNames from 'classnames';
   import { CheckIcon, PencilIcon } from '@lucide/svelte';
@@ -38,6 +38,7 @@
   let height = $derived(sharedGridState.getLaneHeight(laneId));
   let isRenaming = $state(false);
   let newTitle = $state(title || '');
+  let inputRef = $state<HTMLInputElement>();
 </script>
 
 <div class="mr-2 min-w-0">
@@ -53,11 +54,15 @@
       {/if}
       <div class="group flex w-full flex-row justify-between">
         <div
-          class={classNames(!isExpanded ? 'text-base-content/60' : 'text-base-content', className)}
+          class={classNames(
+            !isExpanded ? 'text-base-content/60 text-sm' : 'text-base-content',
+            className,
+          )}
         >
           {#if isRenaming}
             <input
               type="text"
+              bind:this={inputRef}
               bind:value={newTitle}
               onkeydown={(e) => {
                 if (e.key === 'Enter') {
@@ -85,7 +90,12 @@
             {:else}
               <button
                 class="btn btn-xs btn-ghost hidden group-hover:block"
-                onclick={() => (isRenaming = true)}
+                onclick={() => {
+                  isRenaming = true;
+                  tick().then(() => {
+                    inputRef?.focus();
+                  });
+                }}
               >
                 <PencilIcon class="size-3" />
               </button>
@@ -96,14 +106,16 @@
       </div>
     </div>
 
-    <div class="ml-7 flex flex-col">
-      {#if subtitle && isExpanded}
-        <div class="text-base-content/60 text-sm">
-          {subtitle}
-        </div>
-      {/if}
-      {@render actions?.()}
-    </div>
+    {#if isExpanded}
+      <div class="ml-7 flex flex-col">
+        {#if subtitle}
+          <div class="text-base-content/60 text-sm">
+            {subtitle}
+          </div>
+        {/if}
+        {@render actions?.()}
+      </div>
+    {/if}
   </div>
   {#if isExpanded && children}
     {@render children()}

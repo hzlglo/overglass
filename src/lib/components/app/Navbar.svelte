@@ -22,7 +22,7 @@
   // let loopLength = $derived(sharedXScale.getLoopLength());
 </script>
 
-<div class="navbar border-base-100 flex flex-row justify-between border-b">
+<div class="navbar border-base-content/20 flex flex-row justify-between border-b">
   <!-- Left side - Project info -->
   <div class="flex h-full min-w-0 shrink items-center">
     {@render backAction?.()}
@@ -36,8 +36,7 @@
       {projectName}
     </h3>
   </div>
-
-  <div class="ml-3 flex shrink-0 grow flex-row flex-nowrap items-center">
+  <div class="flex shrink-0 items-center gap-2">
     <Popover>
       {#snippet content()}
         <div class="bg-base-100 border-base-content/20 flex w-[250px] flex-col gap-2 border p-4">
@@ -93,9 +92,9 @@
     <!-- <span class="text-base-content/60 w-fit">
         {loopLength} bars per loop
       </span> -->
+    <div class="divider divider-horizontal"></div>
+    <PlayButtons />
   </div>
-  <div class="divider divider-horizontal"></div>
-  <PlayButtons />
 
   <!-- Right side - Controls -->
   <div class="flex shrink-0 items-center gap-2">

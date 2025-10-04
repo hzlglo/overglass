@@ -110,7 +110,6 @@
 
   // Draw points
   let points = $derived.by(() => {
-    console.log('rerendering points');
     return svgGroup
       ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
       .data(automationPoints, (p) => p.id)

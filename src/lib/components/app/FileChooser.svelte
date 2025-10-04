@@ -126,6 +126,13 @@
           Overglass is a UI skin around Ableton, designed for editing Elektron sets recorded with
           Overbridge.
         </p>
+        <a
+          class="link"
+          href="https://docs.google.com/document/d/121NUcaH3U1NsMa1u3bYBQZxF1vooAETfR9-7-fkNyQ8/edit?tab=t.0"
+          target="_blank"
+        >
+          Read the docs
+        </a>
         <p class="mt-8 font-bold">To start, choose an .als file.</p>
         <div class="">
           <div class="">

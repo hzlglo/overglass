@@ -5,6 +5,7 @@
   import classNames from 'classnames';
   import Autocomplete from '../core/Autocomplete.svelte';
   import { ElektronNameMatcher } from '$lib/config/regex';
+  import Tooltip from '../core/Tooltip.svelte';
 
   let { device, parameter }: { device: Device; parameter: Parameter } = $props();
 
@@ -18,31 +19,23 @@
       : null,
   );
   let deviceMapping = $derived(midiStore.getDeviceMapping(device.deviceName));
-  let hasEditedMidiChannel = $state(false);
   let isAutocompleteOpen = $state(false);
   $effect(() => {
     if (isAutocompleteOpen) {
       isMappingMidiChannel = true;
     }
   });
-  $inspect({
-    isAutocompleteOpen,
-    isMappingMidiChannel,
-    deviceMapping,
-    midiChannel,
-    hasEditedMidiChannel,
-  });
 </script>
 
 <div class={classNames('flex flex-row items-center justify-start gap-2')}>
   {#if !midiChannel}
-    <div class="tooltip" data-tip="No MIDI channel mapped">
+    <Tooltip contentString="No MIDI channel mapped">
       <button
         class="btn btn-square btn-ghost btn-warning btn-xs"
         onclick={() => (isMappingMidiChannel = true)}
         ><CircleAlertIcon />
       </button>
-    </div>
+    </Tooltip>
   {/if}
   <div
     class={classNames(
@@ -61,7 +54,6 @@
           ElektronNameMatcher.cleanParameterName(parameter.parameterName),
           mapping,
         );
-        hasEditedMidiChannel = true;
         isAutocompleteOpen = false;
         isMappingMidiChannel = false;
       }}

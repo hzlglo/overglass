@@ -74,7 +74,6 @@
     if (!svgGroup) {
       return undefined;
     }
-    console.log('rerendering mute drag handles');
     const rects = svgGroup
       .selectAll('.mute-drag-handle')
       .data(muteTransitions, (d: MuteTransition) => d.id)

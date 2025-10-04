@@ -69,32 +69,6 @@
     svg.call(zoom).on('wheel', pan);
   });
 
-  let brush = $state<d3.BrushBehavior<unknown>>();
-  $effect(() => {
-    if (!svg) return;
-    svg.on('keydown', (event) => {
-      console.log('svg keydown', event);
-
-      // Mac: event.metaKey, Windows/Linux: event.ctrlKey
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
-        event.preventDefault(); // stops browser select-all
-        d3.select('.brush-group').call(brush?.move, [
-          [0, 0],
-          [
-            innerWidth,
-            // subtract 1 to ensure we don't outside grid boundary
-            innerHeight - 1,
-          ],
-          event,
-        ]);
-      }
-      if (event.key === 'Backspace' || event.key === 'Delete') {
-        event.preventDefault();
-        actionsDispatcher.handleKeyDown('delete');
-      }
-    });
-  });
-
   $effect(() => {
     trackGroup?.on('click', (event) => {
       if (playState.getIsPlaying()) return;
@@ -167,6 +141,25 @@
   $effect(() => {
     sharedDragSelect.setAllMuteTransitionsByTrackId(muteTransitionsByTrackId);
   });
+
+  $effect(() => {
+    if (!svg) return;
+    svg.on('keydown', (event) => {
+      console.log('svg keydown', event);
+
+      // Mac: event.metaKey, Windows/Linux: event.ctrlKey
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault(); // stops browser select-all
+        sharedDragSelect.setSelectedPoints(automationPoints);
+        sharedDragSelect.setSelectedMuteTransitions(muteTransitions);
+        sharedDragSelect.setSelectedLanes(lanes);
+      }
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault();
+        actionsDispatcher.handleKeyDown('delete');
+      }
+    });
+  });
 </script>
 
 <SizeObserver bind:width bind:height>
@@ -184,7 +177,6 @@
             <GridBrush
               {muteTransitionsByTrackId}
               {automationPointsByParameterId}
-              bind:brush
               height={innerGridHeight}
               {width}
             />

@@ -13,8 +13,6 @@
     placeholder: string;
     triggerClass?: string;
   } = $props();
-
-  $inspect('select', { value, placeholder });
 </script>
 
 <Select.Root type="single" bind:value>

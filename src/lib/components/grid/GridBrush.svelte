@@ -11,13 +11,11 @@
   let {
     muteTransitionsByTrackId,
     automationPointsByParameterId,
-    brush = $bindable(),
     height,
     width,
   }: {
     muteTransitionsByTrackId: Record<string, MuteTransition[]>;
     automationPointsByParameterId: Record<string, AutomationPoint[]>;
-    brush: d3.BrushBehavior<unknown>;
     height: number;
     width: number;
   } = $props();
@@ -26,6 +24,19 @@
 
   let brushGElement = $state<SVGGElement>();
   let brushG = $derived(brushGElement ? d3.select(brushGElement) : undefined);
+
+  let brush = $derived(
+    d3
+      .brush()
+      .extent([
+        [0, 0],
+        [width, height],
+      ])
+      .filter((event) => {
+        // Only allow brushing for left-clicks **without dragging a point**
+        return !event.target.classList.contains('draggable') && event.button === 0;
+      }),
+  );
   let brushHandler = async (event: unknown) => {
     if (!event.sourceEvent) return;
     if (!event.selection) {
@@ -86,21 +97,10 @@
     sharedDragSelect.setBrushSelection({ x0, y0, x1, y1 });
   };
   $effect(() => {
-    brush = d3
-      .brush()
-      .extent([
-        [0, 0],
-        [width, height],
-      ])
-      .filter((event) => {
-        // Only allow brushing for left-clicks **without dragging a point**
-        return !event.target.classList.contains('draggable') && event.button === 0;
-      })
-      .on('start brush', brushHandler)
-      .on('end', (evt) => {
-        if (!evt.sourceEvent) return;
-        brushG?.transition().duration(50).call(brush.clear);
-      });
+    brush.on('start brush', brushHandler).on('end', (evt) => {
+      if (!evt.sourceEvent) return;
+      brushG?.transition().duration(50).call(brush.clear);
+    });
   });
   $effect(() => {
     sharedDragSelect.setClearBrush(() => {

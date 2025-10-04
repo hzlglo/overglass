@@ -9,7 +9,7 @@ export let BOTTOM_TIMELINE_HEIGHT = 60;
 
 let DEFAULT_PARAMETER_HEIGHT = 60;
 let DEFAULT_TRACK_HEIGHT = 50;
-let DEFAULT_COLLAPSED_HEIGHT = 30;
+let DEFAULT_COLLAPSED_HEIGHT = 25;
 
 export type TrackLaneState = {
   expanded: boolean;
