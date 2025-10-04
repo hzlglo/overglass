@@ -109,8 +109,9 @@
   });
 
   // Draw points
-  let points = $derived(
-    svgGroup
+  let points = $derived.by(() => {
+    console.log('rerendering points');
+    return svgGroup
       ?.selectAll<SVGCircleElement, AutomationPoint>('.point')
       .data(automationPoints, (p) => p.id)
       .join(
@@ -125,8 +126,8 @@
       .attr('fill', color)
       .attr('fill-opacity', 0.4)
       .attr('stroke', color)
-      .attr('stroke-width', 1),
-  );
+      .attr('stroke-width', 1);
+  });
 
   $effect(() => {
     sharedDragSelect.registerDragHandler(parameterId, () => {
@@ -156,7 +157,6 @@
             sharedDragSelect.clear();
             sharedDragSelect.setSelectedPoints([d]);
           }
-          // event.sourceEvent?.stopPropagation();
         },
       )
       .on('drag', (event, d) => {
@@ -165,7 +165,6 @@
           currentTimePosition: d.timePosition,
           yDiffScale,
         });
-        // event.sourceEvent?.stopPropagation();
       })
       .on('end', async (event, d) => {
         await sharedDragSelect.dragEnd();

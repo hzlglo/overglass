@@ -7,7 +7,7 @@
     class?: string;
   }
 
-  let { class: className = 'btn btn-outline btn-sm' }: ExportButtonProps = $props();
+  let { class: className = 'btn btn-outline btn-sm mr-3' }: ExportButtonProps = $props();
 
   let isExporting = $state(false);
 

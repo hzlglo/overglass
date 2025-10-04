@@ -14,9 +14,9 @@
       isDarkMode = stored === 'true';
     }
     if (isDarkMode) {
-      document.documentElement.setAttribute('data-theme', 'forest');
+      document.documentElement.setAttribute('data-theme', 'overglass-dark');
     } else {
-      document.documentElement.setAttribute('data-theme', 'fantasy');
+      document.documentElement.setAttribute('data-theme', 'emerald');
     }
   });
   $effect(() => {
@@ -28,14 +28,17 @@
   });
 </script>
 
-<label class="swap swap-rotate pl-3">
+<label class="swap swap-rotate">
   <input
     type="checkbox"
     class="theme-controller"
-    value={isDarkMode ? 'forest' : 'fantasy'}
+    value={isDarkMode ? 'overglass-dark' : 'emerald'}
     onchange={() => {
       isDarkMode = !isDarkMode;
-      document.documentElement.setAttribute('data-theme', isDarkMode ? 'forest' : 'fantasy');
+      document.documentElement.setAttribute(
+        'data-theme',
+        isDarkMode ? 'overglass-dark' : 'emerald',
+      );
 
       localStorage.setItem(themeStorageKey, isDarkMode.toString());
     }}

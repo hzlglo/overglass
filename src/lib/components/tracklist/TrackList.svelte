@@ -72,7 +72,7 @@
 <div class="flex min-h-0 flex-col">
   <div style="height: {TOP_TIMELINE_HEIGHT}px" class="flex flex-row items-center gap-2 px-2">
     <label class="input input-sm w-[200px]">
-      <span class="label"><SearchIcon class="size-3" /></span>
+      <SearchIcon class="size-3" />
       <input
         type="text"
         bind:this={searchInput}
