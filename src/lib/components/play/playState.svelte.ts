@@ -1,6 +1,7 @@
 const getPlayState = () => {
   let playPoint = $state(0);
   let isPlaying = $state(false);
+  let hasClickedPlay = $state(false);
 
   return {
     getPlayPoint: () => playPoint,
@@ -10,6 +11,10 @@ const getPlayState = () => {
     getIsPlaying: () => isPlaying,
     setIsPlaying: (playing: boolean) => {
       isPlaying = playing;
+    },
+    getHasClickedPlay: () => hasClickedPlay,
+    setHasClickedPlay: (clicked: boolean) => {
+      hasClickedPlay = clicked;
     },
   };
 };

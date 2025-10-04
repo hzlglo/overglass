@@ -17,7 +17,7 @@
   let gridScroll = $state(0);
 </script>
 
-<div class="flex min-h-0 flex-1 flex-row">
+<div class="flex min-h-0 flex-1 flex-row px-3">
   {#if isInitialized}
     <Grid bind:gridScroll />
     <TrackList bind:gridScroll />

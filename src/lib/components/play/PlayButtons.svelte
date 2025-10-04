@@ -37,7 +37,6 @@
     ),
   );
 
-  let hasClickedPlay = $state(false);
   let isPlaying = $derived(playState.getIsPlaying());
   let audioCtx = $state<AudioContext | null>(null);
   // represents the starting point of play in song time seconds (0 is the start of the song)
@@ -66,7 +65,7 @@
   }
 
   async function handlePlay() {
-    hasClickedPlay = true;
+    playState.setHasClickedPlay(true);
     if (isPlaying) return;
     await WebMidi.enable();
     midiOutputs = WebMidi.outputs;
@@ -268,7 +267,7 @@
   >
     <PlayIcon />
   </button>
-  {#if hasClickedPlay}
+  {#if playState.getHasClickedPlay()}
     <button
       class="btn btn-sm btn-square btn-ghost"
       onclick={stopPlayback}

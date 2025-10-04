@@ -28,7 +28,7 @@
   });
 </script>
 
-<label class="swap swap-rotate">
+<label class="swap swap-rotate btn-square btn btn-ghost btn-sm">
   <input
     type="checkbox"
     class="theme-controller"

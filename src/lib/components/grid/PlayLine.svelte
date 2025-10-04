@@ -22,13 +22,15 @@
   });
 </script>
 
-<line
-  x1={xScale(playPoint)}
-  x2={xScale(playPoint)}
-  y1={0}
-  y2={height}
-  stroke="currentColor"
-  stroke-width={2}
-  style="cursor: grab"
-  bind:this={lineElt}
-/>
+{#if playState.getHasClickedPlay()}
+  <line
+    x1={xScale(playPoint)}
+    x2={xScale(playPoint)}
+    y1={0}
+    y2={height}
+    stroke="currentColor"
+    stroke-width={2}
+    style="cursor: grab"
+    bind:this={lineElt}
+  />
+{/if}

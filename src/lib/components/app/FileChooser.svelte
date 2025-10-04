@@ -13,6 +13,7 @@
     GithubIcon,
     XIcon,
   } from '@lucide/svelte';
+  import HelpModal from './HelpModal.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
@@ -108,9 +109,10 @@
   </div>
 </div> -->
 <div class="relative">
-  <div class="absolute top-4 right-4">
+  <div class="absolute top-4 right-4 flex flex-row gap-2">
+    <HelpModal />
     <a
-      class="btn btn-ghost btn-sm"
+      class="btn btn-ghost btn-sm btn-square"
       href="https://github.com/hzlglo/overglass"
       title="View on GitHub"
     >

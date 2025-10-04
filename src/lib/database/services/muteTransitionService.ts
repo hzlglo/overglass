@@ -153,7 +153,6 @@ export class MuteTransitionService {
         endTransition: undefined,
       });
     }
-    console.log('clips', clips);
 
     return clips;
   }
@@ -408,8 +407,6 @@ export class MuteTransitionService {
     );
 
     const createdTransitions: MuteTransition[] = [];
-
-    console.log('existingClip', existingClip);
 
     if (existingClip) {
       // Adding muted time inside an existing clip - split the clip

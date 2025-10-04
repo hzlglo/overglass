@@ -19,7 +19,7 @@
     {/if}
 
     <!-- Main Content Area -->
-    <div class="flex min-h-0 w-screen flex-1 flex-col px-3">
+    <div class="flex min-h-0 w-screen flex-1 flex-col">
       {@render children()}
     </div>
   </div>

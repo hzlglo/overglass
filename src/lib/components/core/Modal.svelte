@@ -10,7 +10,7 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger>
+  <Dialog.Trigger class="btn btn-ghost btn-sm btn-square">
     {@render children()}
   </Dialog.Trigger>
   <Dialog.Portal>

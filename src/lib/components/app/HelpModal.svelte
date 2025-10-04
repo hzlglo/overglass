@@ -4,9 +4,7 @@
 </script>
 
 <Modal titleString="Overglass Documentation">
-  <button class="btn btn-ghost btn-sm">
-    <CircleQuestionMarkIcon />
-  </button>
+  <CircleQuestionMarkIcon />
   {#snippet content()}
     <div class="mx-auto max-h-[80vh] space-y-6 overflow-y-auto p-6">
       <!-- Intro -->

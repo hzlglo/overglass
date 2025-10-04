@@ -103,7 +103,7 @@
     <ThemeController />
 
     <button
-      class="btn btn-ghost btn-sm"
+      class="btn btn-ghost btn-sm btn-square"
       onclick={() => {
         if (window.location.pathname.endsWith('/settings')) {
           goto('/');

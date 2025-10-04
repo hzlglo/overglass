@@ -1,7 +1,7 @@
 <script lang="ts">
   import { useTrackDbQuery } from '$lib/stores/trackDb.svelte';
   import * as d3 from 'd3';
-  import { clamp, groupBy, isEqual } from 'lodash';
+  import { clamp, groupBy, isEqual, min } from 'lodash';
   import SizeObserver from '../core/SizeObserver.svelte';
   import AutomationCurveWrapper from './AutomationCurveWrapper.svelte';
   import GridBrush from './GridBrush.svelte';
@@ -40,8 +40,10 @@
   });
 
   // the full height of all tracks
-  let clippedGridHeight = $derived(height - TOP_TIMELINE_HEIGHT - BOTTOM_TIMELINE_HEIGHT);
   let innerGridHeight = $derived(sharedGridState.getGridHeight());
+  let clippedGridHeight = $derived(
+    min([height - TOP_TIMELINE_HEIGHT - BOTTOM_TIMELINE_HEIGHT, innerGridHeight])!,
+  );
 
   let lanes = $derived(sharedGridState.getLanes());
 
@@ -167,7 +169,6 @@
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <svg class="shrink-0 focus:outline-none" {height} {width} bind:this={svgElement} tabindex="0">
       <GridTimelineTop height={TOP_TIMELINE_HEIGHT} {width} />
-      <PlayLine height={innerGridHeight} />
       <g transform={`translate(0,${TOP_TIMELINE_HEIGHT})`}>
         <clipPath id="grid-clip">
           <rect x={0} y={0} {width} height={clippedGridHeight} />
@@ -211,6 +212,7 @@
         height={BOTTOM_TIMELINE_HEIGHT}
         {width}
       />
+      <PlayLine height={clippedGridHeight + TOP_TIMELINE_HEIGHT + BOTTOM_TIMELINE_HEIGHT} />
     </svg>
   </div>
 </SizeObserver>
