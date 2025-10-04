@@ -28,7 +28,7 @@
     <div class="absolute" style:left="{contextMenuState.x}px" style:top="{contextMenuState.y}px">
       <div class="menu menu-sm bg-base-100 border-base-content/20 rounded-none border">
         {#each menuOptions as option}
-          <div class="btn btn-sm btn-ghost rounded-none" onclick={option.onSelect}>
+          <div class="btn btn-sm btn-ghost justify-start rounded-none" onclick={option.onSelect}>
             {option.label}
           </div>
         {/each}

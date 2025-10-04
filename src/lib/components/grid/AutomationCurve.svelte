@@ -59,7 +59,7 @@
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
-  let highlightColor = 'white';
+  let highlightColor = 'var(--color-base-content)';
 
   let { area, line } = $derived.by(() => {
     if (!svgGroup) {
@@ -140,6 +140,7 @@
   $effect(() => {
     points
       ?.attr('fill', (d) => (selectedPointIds.has(d.id) ? highlightColor : color))
+      .attr('fill-opacity', (d) => (selectedPointIds.has(d.id) ? 1 : 0.4))
       .attr('stroke-opacity', (d) => (selectedPointIds.has(d.id) ? 0.5 : 1));
   });
 

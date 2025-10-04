@@ -38,7 +38,7 @@
   let svgGroup = $derived(gElement ? d3.select(gElement) : undefined);
 
   let color = $derived(colorProp ?? 'var(--color-secondary)');
-  let highlightColor = 'white';
+  let highlightColor = 'var(--color-base-content)';
 
   let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
 
@@ -155,7 +155,7 @@
         actionsDispatcher.handleDoubleClick(event, 'track', {
           trackId,
           selectedMuteTransitions: clipTransitions,
-          timePosition: xScale.invert(event.x),
+          timePosition: xScale.invert(event.offsetX),
         });
       })
       .on('contextmenu', (event, d) => {
@@ -163,7 +163,7 @@
         actionsDispatcher.handleRightClick(event, 'track', {
           trackId,
           selectedMuteTransitions: clipTransitions,
-          timePosition: xScale.invert(event.x),
+          timePosition: xScale.invert(event.offsetX),
         });
       });
 

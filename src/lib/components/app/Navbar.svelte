@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { SettingsIcon } from '@lucide/svelte';
-  import { appStore } from '../../stores/app.svelte';
-  import ExportButton from './ExportButton.svelte';
   import { goto } from '$app/navigation';
-  import PlayButtons from '../play/PlayButtons.svelte';
-  import ThemeController from './ThemeController.svelte';
+  import { SettingsIcon } from '@lucide/svelte';
   import type { Snippet } from 'svelte';
+  import { appStore } from '../../stores/app.svelte';
   import Popover from '../core/Popover.svelte';
-  import Tooltip from '../core/Tooltip.svelte';
+  import PlayButtons from '../play/PlayButtons.svelte';
+  import ExportButton from './ExportButton.svelte';
+  import HelpModal from './HelpModal.svelte';
+  import ThemeController from './ThemeController.svelte';
 
   let { backAction }: { backAction?: Snippet } = $props();
 
@@ -99,6 +99,7 @@
   <!-- Right side - Controls -->
   <div class="flex shrink-0 items-center gap-2">
     <ExportButton />
+    <HelpModal />
     <ThemeController />
 
     <button
