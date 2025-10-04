@@ -8,13 +8,14 @@
   import { trackDb } from '../../stores/trackDb.svelte';
   import HelpModal from './HelpModal.svelte';
   import ThemeController from './ThemeController.svelte';
+  import { enableUsageAnalyticsStore } from './enableUsageAnalytics.svelte';
 
   let selectedFile = $state<File | null>(null);
   let fileName = $state('');
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  const DEVELOPMENT = dev;
+  const DEVELOPMENT = false;
 
   const parser = new ALSParser();
 
@@ -210,6 +211,16 @@
               </div>
             {/if}
           </div>
+        </div>
+        <div class="mt-10 flex flex-row gap-2 self-center">
+          <input
+            type="checkbox"
+            onchange={(event) =>
+              enableUsageAnalyticsStore.setEnableUsageAnalytics(
+                (event.target as HTMLInputElement).checked,
+              )}
+          />
+          <p>Enable usage analytics to help make this app better</p>
         </div>
       </div>
     </div>
