@@ -5,10 +5,16 @@
     options,
     children,
     value = $bindable(),
-  }: { options: { label?: string; value: string }[]; children: Snippet; value?: string } = $props();
+    class: className,
+  }: {
+    options: { label?: string; value: string }[];
+    children: Snippet;
+    value?: string;
+    class?: string;
+  } = $props();
 </script>
 
-<Tabs.Root class="" bind:value>
+<Tabs.Root class={className} bind:value>
   <Tabs.List class="tabs">
     {#each options as option}
       <Tabs.Trigger value={option.value} class="tab data-[state=active]:tab-active "

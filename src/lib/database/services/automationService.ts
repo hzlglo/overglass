@@ -189,33 +189,38 @@ export class AutomationService {
     >,
   ): Promise<AutomationPoint[]> {
     console.log(`🔍 Bulk setting ${points.length} automation points`, points);
-    const results: AutomationPoint[] = [];
+    const a = new Date();
 
     // Process points in a transaction-like manner
-    for (const point of points) {
-      let result: AutomationPoint;
+    const results = await Promise.all(
+      points.map(async (point) => {
+        let result: AutomationPoint;
 
-      if (point.id) {
-        // Update existing point
-        result = await this.updateAutomationPoint(
-          point.id,
-          point.parameterId,
-          point.timePosition,
-          point.value,
-        );
-      } else {
-        // Create new point
-        result = await this.createAutomationPoint(
-          point.parameterId,
-          point.timePosition,
-          point.value,
-        );
-      }
+        if (point.id) {
+          // Update existing point
+          result = await this.updateAutomationPoint(
+            point.id,
+            point.parameterId,
+            point.timePosition,
+            point.value,
+          );
+        } else {
+          // Create new point
+          result = await this.createAutomationPoint(
+            point.parameterId,
+            point.timePosition,
+            point.value,
+          );
+        }
+        return result;
+      }),
+    );
 
-      results.push(result);
-    }
+    const b = new Date();
+    console.log(
+      `✅ Bulk processed ${points.length} automation points in ${b.getTime() - a.getTime()}ms`,
+    );
 
-    console.log(`✅ Bulk processed ${points.length} automation points`);
     return results;
   }
 

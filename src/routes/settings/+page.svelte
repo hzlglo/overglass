@@ -15,7 +15,11 @@
       Back
     </button>
   {/snippet}
-  <Tabs options={[{ value: 'Midi Mapping' }, { value: 'Debugger' }]} value="Midi Mapping">
+  <Tabs
+    options={[{ value: 'Midi Mapping' }, { value: 'Debugger' }]}
+    value="Midi Mapping"
+    class="min-h-0 overflow-y-auto"
+  >
     <Tab value="Debugger">
       <Debugger />
     </Tab>
