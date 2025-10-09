@@ -240,6 +240,7 @@ export class ALSParser {
       {
         parameterName: string;
         originalPointeeId?: string;
+        originalParameterId?: string;
         points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
       }[]
     >();
@@ -256,6 +257,7 @@ export class ALSParser {
       envelopesByTrack.get(trackNumber)!.push({
         parameterName: envelope.parameterName,
         originalPointeeId: envelope.originalPointeeId,
+        originalParameterId: envelope.originalParameterId,
         points: envelope.points,
       });
     });
@@ -289,15 +291,15 @@ export class ALSParser {
       // Track whether we've already created mute transitions for this track (only use first mute parameter)
       let hasCreatedMuteTransitions = false;
 
-      trackParameters.forEach(({ parameterName, originalPointeeId, points }) => {
+      trackParameters.forEach(({ parameterName, originalPointeeId, originalParameterId, points }) => {
         const parameterId = this.generateId();
 
         if (originalPointeeId) {
           console.log(
-            `📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}"`,
+            `📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}", originalParameterId: "${originalParameterId || 'none'}"`,
           );
         } else {
-          console.log(`📝 Creating parameter "${parameterName}" with NO originalPointeeId`);
+          console.log(`📝 Creating parameter "${parameterName}" with NO originalPointeeId, originalParameterId: "${originalParameterId || 'none'}"`);
         }
 
         // Check if parameter is a mute parameter using the regex pattern
@@ -308,12 +310,13 @@ export class ALSParser {
           trackId,
           parameterName,
           parameterPath: `/${deviceName}/${parameterName}`,
+          originalParameterId,
           originalPointeeId,
           isMute,
           createdAt: new Date(),
         };
         if (this.debug)
-          console.log(`🔍 Parameter object created with originalPointeeId: "${originalPointeeId}"`);
+          console.log(`🔍 Parameter object created with originalPointeeId: "${originalPointeeId}", originalParameterId: "${originalParameterId}"`);
         parameters.push(parameter);
 
         // Check if this is a mute parameter with only 0/1 values - if so, create mute transitions instead of automation points
@@ -379,6 +382,7 @@ export class ALSParser {
     trackParameters: {
       parameterName: string;
       originalPointeeId?: string;
+      originalParameterId?: string;
       points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
     }[],
   ): Date {
@@ -400,8 +404,8 @@ export class ALSParser {
     return muteElement?.textContent === 'true';
   }
 
-  private buildParameterMapping(trackElement: Element): Record<string, string> {
-    const parameterMapping: Record<string, string> = {};
+  private buildParameterMapping(trackElement: Element): Record<string, { parameterName: string; originalParameterId?: string }> {
+    const parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }> = {};
 
     // Find PluginFloatParameter elements in the DeviceChain
     const pluginFloatParams = trackElement.querySelectorAll('PluginFloatParameter');
@@ -410,6 +414,10 @@ export class ALSParser {
       // Look for ParameterName child
       const parameterNameElement = param.querySelector('ParameterName');
       const paramName = parameterNameElement?.getAttribute('Value') || `Param ${index + 1}`;
+
+      // Look for ParameterId child element
+      const parameterIdElement = param.querySelector('ParameterId');
+      const parameterId = parameterIdElement?.getAttribute('Value');
 
       // The key insight: PointeeIds match PluginFloatParameter AutomationTarget._Id (somewhere in the structure)
       const paramId = param.getAttribute('Id');
@@ -424,6 +432,7 @@ export class ALSParser {
       if (this.debug && index < 3) {
         console.log(`    🔍 PluginFloatParameter ${index}:`);
         console.log(`      Id="${paramId}"`);
+        console.log(`      ParameterId="${parameterId || 'NOT FOUND'}"`);
         console.log(`      AutomationTarget found: ${automationTargetElement ? 'YES' : 'NO'}`);
         if (automationTargetElement) {
           console.log(`      AutomationTarget._Id="${automationTargetId || 'NO _Id ATTR'}"`);
@@ -444,16 +453,22 @@ export class ALSParser {
         console.log(`      ParameterName: "${paramName}"`);
       }
 
-      // Map both Id and AutomationTarget._Id to the parameter name
+      // Create parameter info object
+      const paramInfo = {
+        parameterName: paramName,
+        originalParameterId: parameterId,
+      };
+
+      // Map both Id and AutomationTarget._Id to the parameter info
       if (paramId) {
-        parameterMapping[paramId] = paramName;
+        parameterMapping[paramId] = paramInfo;
       }
 
       if (automationTargetId) {
-        parameterMapping[automationTargetId] = paramName;
+        parameterMapping[automationTargetId] = paramInfo;
         if (this.debug && index < 3) {
           console.log(
-            `      ✅ Mapped AutomationTarget._Id "${automationTargetId}" → "${paramName}"`,
+            `      ✅ Mapped AutomationTarget._Id "${automationTargetId}" → "${paramName}" (parameterId: ${parameterId || 'none'})`,
           );
         }
       }
@@ -471,13 +486,15 @@ export class ALSParser {
 
       console.log(`    📋 Small IDs (${smallIds.length}):`);
       smallIds.slice(0, 5).forEach((id) => {
-        console.log(`      ID ${id}: "${parameterMapping[id]}"`);
+        const info = parameterMapping[id];
+        console.log(`      ID ${id}: "${info.parameterName}" (parameterId: ${info.originalParameterId || 'none'})`);
       });
 
       if (largeIds.length > 0) {
         console.log(`    📋 Large ParameterIds (${largeIds.length}):`);
         largeIds.slice(0, 5).forEach((id) => {
-          console.log(`      ID ${id}: "${parameterMapping[id]}"`);
+          const info = parameterMapping[id];
+          console.log(`      ID ${id}: "${info.parameterName}" (parameterId: ${info.originalParameterId || 'none'})`);
         });
         if (largeIds.length > 5) {
           console.log(`      ... and ${largeIds.length - 5} more`);
@@ -492,10 +509,12 @@ export class ALSParser {
     trackElement: Element,
     deviceName: string,
     trackNumber: number,
-    parameterMapping: Record<string, string>,
-  ): { parameterName: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] }[] {
+    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
+  ): { parameterName: string; originalPointeeId?: string; originalParameterId?: string; points: Pick<AutomationPoint, 'timePosition' | 'value'>[] }[] {
     const envelopes: {
       parameterName: string;
+      originalPointeeId?: string;
+      originalParameterId?: string;
       points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
     }[] = [];
 
@@ -523,10 +542,11 @@ export class ALSParser {
     deviceName: string,
     trackNumber: number,
     index: number,
-    parameterMapping: Record<string, string>,
+    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
   ): {
     parameterName: string;
     originalPointeeId?: string;
+    originalParameterId?: string;
     points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
   } | null {
     // Extract parameter name and original PointeeId from automation target using the parameter mapping
@@ -536,6 +556,7 @@ export class ALSParser {
     const parameterInfo = extractedInfo || {
       parameterName: `Param ${index + 1}`,
       originalPointeeId: undefined,
+      originalParameterId: undefined,
     };
 
     // Extract automation points
@@ -548,14 +569,15 @@ export class ALSParser {
     return {
       parameterName: parameterInfo.parameterName,
       originalPointeeId: parameterInfo.originalPointeeId,
+      originalParameterId: parameterInfo.originalParameterId,
       points,
     };
   }
 
   private extractParameterInfo(
     envElement: Element,
-    parameterMapping: Record<string, string>,
-  ): { parameterName: string; originalPointeeId?: string } | null {
+    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
+  ): { parameterName: string; originalPointeeId?: string; originalParameterId?: string } | null {
     if (this.debug) console.log(`🔍 Extracting parameter info for envelope`);
     if (this.debug) {
       console.log(`    🔍 Extracting parameter info for envelope:`);
@@ -583,23 +605,25 @@ export class ALSParser {
         console.log(`🔍 Parameter mapping has ${Object.keys(parameterMapping).length} entries`);
 
       if (pointeeId && parameterMapping[pointeeId]) {
+        const paramInfo = parameterMapping[pointeeId];
         if (this.debug)
           console.log(
-            `✅ Found mapping for PointeeId "${pointeeId}" → "${parameterMapping[pointeeId]}"`,
+            `✅ Found mapping for PointeeId "${pointeeId}" → "${paramInfo.parameterName}"`,
           );
         if (this.debug) {
           console.log(
-            `    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${parameterMapping[pointeeId]}"`,
+            `    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${paramInfo.parameterName}"`,
           );
         }
         if (this.debug) {
           console.log(
-            `    ✅ Storing originalPointeeId: "${pointeeId}" for parameter: "${parameterMapping[pointeeId]}"`,
+            `    ✅ Storing originalPointeeId: "${pointeeId}" for parameter: "${paramInfo.parameterName}" (originalParameterId: ${paramInfo.originalParameterId || 'none'})`,
           );
         }
         return {
-          parameterName: parameterMapping[pointeeId],
+          parameterName: paramInfo.parameterName,
           originalPointeeId: pointeeId,
+          originalParameterId: paramInfo.originalParameterId,
         };
       } else {
         if (this.debug) console.log(`❌ PointeeId "${pointeeId}" not found in parameter mapping`);
@@ -612,11 +636,12 @@ export class ALSParser {
     }
 
     // Fall back to other extraction methods but without PointeeId
-    const parameterName = this.extractParameterName(envElement, parameterMapping);
-    if (parameterName) {
+    const paramInfo = this.extractParameterName(envElement, parameterMapping);
+    if (paramInfo) {
       return {
-        parameterName,
+        parameterName: paramInfo.parameterName,
         originalPointeeId: undefined,
+        originalParameterId: paramInfo.originalParameterId,
       };
     }
 
@@ -625,8 +650,8 @@ export class ALSParser {
 
   private extractParameterName(
     envElement: Element,
-    parameterMapping: Record<string, string>,
-  ): string | null {
+    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
+  ): { parameterName: string; originalParameterId?: string } | null {
     if (this.debug) {
       console.log(`    🔍 Extracting parameter name for envelope:`);
     }
@@ -674,12 +699,13 @@ export class ALSParser {
       const pointeeId =
         pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
       if (pointeeId && parameterMapping[pointeeId]) {
+        const paramInfo = parameterMapping[pointeeId];
         if (this.debug) {
           console.log(
-            `    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${parameterMapping[pointeeId]}"`,
+            `    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${paramInfo.parameterName}"`,
           );
         }
-        return parameterMapping[pointeeId];
+        return paramInfo;
       } else {
         if (this.debug) {
           console.log(`    ❌ PointeeId "${pointeeId}" not found in parameter mapping`);
@@ -695,12 +721,13 @@ export class ALSParser {
       for (let i = 0; i < targetElement.attributes.length; i++) {
         const attr = targetElement.attributes[i];
         if (parameterMapping[attr.value]) {
+          const paramInfo = parameterMapping[attr.value];
           if (this.debug) {
             console.log(
-              `    ✅ Found parameter via ${attr.name}: "${attr.value}" → "${parameterMapping[attr.value]}"`,
+              `    ✅ Found parameter via ${attr.name}: "${attr.value}" → "${paramInfo.parameterName}"`,
             );
           }
-          return parameterMapping[attr.value];
+          return paramInfo;
         }
       }
     }
@@ -726,12 +753,13 @@ export class ALSParser {
         }
 
         if (parameterMapping[paramId]) {
+          const paramInfo = parameterMapping[paramId];
           if (this.debug) {
             console.log(
-              `    ✅ Found parameter via Path extraction: "${paramId}" → "${parameterMapping[paramId]}"`,
+              `    ✅ Found parameter via Path extraction: "${paramId}" → "${paramInfo.parameterName}"`,
             );
           }
-          return parameterMapping[paramId];
+          return paramInfo;
         }
       } else {
         if (this.debug) {

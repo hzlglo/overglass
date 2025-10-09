@@ -310,4 +310,39 @@ describe('ALS Parser', () => {
     // For binary mute parameters, we should have mute transitions instead of automation points
     expect(automationPointsForMuteParams.length).toBe(0);
   });
+
+  it('should capture originalParameterId for all parameters', async () => {
+    const result = await parser.parseALSFile(testFile);
+    const entities = parser.extractDatabaseEntities(result);
+
+    expect(entities.parameters.length).toBeGreaterThan(0);
+
+    // Check that all parameters have originalParameterId defined
+    entities.parameters.forEach((param) => {
+      console.log(
+        `Parameter: "${param.parameterName}", originalPointeeId: ${param.originalPointeeId || 'none'}, originalParameterId: ${param.originalParameterId || 'none'}`,
+      );
+
+      // All parameters should have an originalParameterId
+      expect(param.originalParameterId).toBeDefined();
+      expect(param.originalParameterId).not.toBe('');
+      expect(typeof param.originalParameterId).toBe('string');
+    });
+
+    // Verify specific parameter IDs from the test file
+    const t6Mute = entities.parameters.find((p) => p.parameterName === 'T6 Mute');
+    expect(t6Mute).toBeDefined();
+    expect(t6Mute?.originalParameterId).toBe('55853');
+    expect(t6Mute?.originalPointeeId).toBe('22353');
+
+    const t1Mute = entities.parameters.find((p) => p.parameterName === 'T1 Mute');
+    expect(t1Mute).toBeDefined();
+    expect(t1Mute?.originalParameterId).toBe('55848');
+    expect(t1Mute?.originalPointeeId).toBe('22343');
+
+    const t3FilterFreq = entities.parameters.find((p) => p.parameterName === 'T3 Filter Frequency');
+    expect(t3FilterFreq).toBeDefined();
+    expect(t3FilterFreq?.originalParameterId).toBe('1573269');
+    expect(t3FilterFreq?.originalPointeeId).toBe('22375');
+  });
 });
