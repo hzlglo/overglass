@@ -50,6 +50,13 @@ const createTrackDbStore = () => {
       await database.initialize();
 
       await database.loadALSData(parsedALS, trackToName);
+      await database.run('INSTALL httpfs; LOAD httpfs;');
+      await database.run(
+        'INSERT INTO midi_mappings (SELECT * from "http://localhost:1420/midi-maps/Digitakt II.csv")',
+      );
+      await database.run(
+        'INSERT INTO midi_mappings (SELECT * from "http://localhost:1420/midi-maps/Digitone II.csv")',
+      );
       await refreshData();
       return;
     } finally {

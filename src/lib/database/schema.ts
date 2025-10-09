@@ -18,6 +18,7 @@ export interface DatabaseSchema {
   parameters: Parameter;
   automationPoints: AutomationPoint;
   muteTransitions: MuteTransition;
+  midiMappings: MidiMapping;
 }
 
 export interface Device {
@@ -66,6 +67,25 @@ export interface MuteTransition {
   muteParameterId: string; // Reference to the original mute parameter for ALS writing
   createdAt: Date;
   updatedAt?: Date;
+}
+
+export interface MidiMapping {
+  manufacturer: string; // e.g., "Elektron"
+  device: string; // e.g., "Digitakt II"
+  paramId: string; // Parameter ID from device
+  name: string; // Human-readable parameter name
+  categories?: string; // Comma-separated categories
+  ccMsb?: number; // MIDI CC MSB (0-127)
+  ccLsb?: number; // MIDI CC LSB (0-127)
+  ccMinValue?: number; // Minimum CC value
+  ccMaxValue?: number; // Maximum CC value
+  nrpnMsb?: number; // NRPN MSB (0-127)
+  nrpnLsb?: number; // NRPN LSB (0-127)
+  nrpnMinValue?: number; // Minimum NRPN value
+  nrpnMaxValue?: number; // Maximum NRPN value
+  orientation?: string; // UI orientation hint
+  notes?: string; // Additional notes
+  usage?: string; // Usage information
 }
 
 // Utility functions for camelCase <-> snake_case conversion
@@ -152,6 +172,28 @@ export const CREATE_TABLES = {
       can_undo BOOLEAN NOT NULL DEFAULT true
     )
   `,
+
+  midi_mappings: `
+    CREATE TABLE midi_mappings (
+      manufacturer VARCHAR NOT NULL,
+      device VARCHAR NOT NULL,
+      param_id VARCHAR NOT NULL,
+      name VARCHAR NOT NULL,
+      categories VARCHAR,
+      cc_msb INTEGER,
+      cc_lsb INTEGER,
+      cc_min_value INTEGER,
+      cc_max_value INTEGER,
+      nrpn_msb INTEGER,
+      nrpn_lsb INTEGER,
+      nrpn_min_value INTEGER,
+      nrpn_max_value INTEGER,
+      orientation VARCHAR,
+      notes TEXT,
+      usage TEXT,
+      PRIMARY KEY (manufacturer, device, param_id)
+    )
+  `,
 };
 
 // Indexes for efficient querying
@@ -166,6 +208,7 @@ export const CREATE_INDEXES = [
   'CREATE INDEX idx_mute_transitions_mute_parameter ON mute_transitions(mute_parameter_id)',
   'CREATE INDEX idx_edit_history_timestamp ON edit_history(edit_timestamp)',
   'CREATE INDEX idx_edit_history_type ON edit_history(edit_type)',
+  'CREATE INDEX idx_midi_mappings_device_param ON midi_mappings(device, param_id)',
 ];
 
 // Computed parameter statistics (no longer stored in DB)
