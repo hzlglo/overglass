@@ -79,6 +79,10 @@
               />
             </label>
           </div>
+          <p class="text-sm">
+            Note: currently these values are not loaded from your Ableton file, and any updates will
+            not be saved to the exported file.
+          </p>
         </div>
       {/snippet}
       <span class="text-base-content/60 w-fit">

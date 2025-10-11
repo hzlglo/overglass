@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import FileChooser from '$lib/components/app/FileChooser.svelte';
+  import LandingPage from '$lib/components/app/LandingPage.svelte';
   import PageWrapper from '$lib/components/app/PageWrapper.svelte';
   import GridAndTrackList from '$lib/components/grid/GridAndTrackList.svelte';
   import { appStore } from '$lib/stores/app.svelte';
@@ -24,7 +24,7 @@
     </button>
   {/snippet}
   {#if appStore.getFileMetadata() == null}
-    <FileChooser />
+    <LandingPage />
   {:else}
     <GridAndTrackList />
   {/if}

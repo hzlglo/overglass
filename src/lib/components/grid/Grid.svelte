@@ -72,10 +72,10 @@
   });
 
   $effect(() => {
-    trackGroup?.on('click', (event) => {
-      if (playState.getIsPlaying()) return;
-      playState.setPlayPoint(sharedXScale.getZoomedXScale().invert(event.offsetX));
-    });
+    // trackGroup?.on('click', (event) => {
+    //   if (playState.getIsPlaying()) return;
+    //   playState.setPlayPoint(sharedXScale.getZoomedXScale().invert(event.offsetX));
+    // });
   });
 
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
@@ -147,8 +147,6 @@
   $effect(() => {
     if (!svg) return;
     svg.on('keydown', (event) => {
-      console.log('svg keydown', event);
-
       // Mac: event.metaKey, Windows/Linux: event.ctrlKey
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
         event.preventDefault(); // stops browser select-all

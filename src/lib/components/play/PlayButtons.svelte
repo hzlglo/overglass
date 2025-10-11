@@ -7,7 +7,6 @@
   import { has } from 'lodash';
   import { WebMidi, type Output } from 'webmidi';
   import Popover from '../core/Popover.svelte';
-  import Tooltip from '../core/Tooltip.svelte';
   import DeviceMapper from './DeviceMapper.svelte';
   import { sendMidiControlChange } from './midiHelpers';
   import { playState } from './playState.svelte';
@@ -57,7 +56,6 @@
   async function handlePlay() {
     playState.setHasClickedPlay(true);
     if (isPlaying) return;
-    await WebMidi.enable();
     midiOutputs = WebMidi.outputs;
 
     const midiPlayer = new MidiPlayer(trackDb.get());
@@ -227,9 +225,9 @@
     nextMessageBatchStart = 0;
     playFunctions = [];
   }
-  let playContainerListeners = (ref: HTMLButtonElement) => {
-    if (!ref) return;
-    ref.addEventListener('keydown', async (event) => {
+  let playContainerListeners = (_ref: any) => {
+    if (!document) return;
+    document.addEventListener('keydown', async (event) => {
       if (event.code.toLowerCase() === 'space') {
         if (isPlaying) {
           await stopPlayback();
@@ -243,51 +241,62 @@
 </script>
 
 <div class="flex w-[300px] flex-row items-center gap-2">
-  <button
-    class={classNames('btn btn-sm btn-square', isPlaying ? 'btn-success' : 'btn-ghost')}
-    onclick={handlePlay}
-    use:playContainerListeners
-  >
-    <PlayIcon />
-  </button>
-  {#if playState.getHasClickedPlay()}
+  {#if midiOutputs.length === 0}
     <button
-      class="btn btn-sm btn-square btn-ghost"
-      onclick={stopPlayback}
+      class="btn btn-sm btn-ghost btn-success"
+      onclick={async () => {
+        await WebMidi.enable();
+        midiOutputs = WebMidi.outputs;
+        midiOutputs.forEach((midiOutput) => {
+          const matchingDevice = trackDevices.find(
+            (device) =>
+              device.deviceName.includes(midiOutput.name) ||
+              midiOutput.name.includes(device.deviceName),
+          );
+          if (matchingDevice) {
+            deviceToMidiOutputMapping[matchingDevice.deviceName] = midiOutput.name;
+          }
+        });
+      }}
+    >
+      <PlayIcon />
+      Enable MIDI playback
+    </button>
+  {:else}
+    <button
+      class={classNames('btn btn-sm btn-square', isPlaying ? 'btn-success' : 'btn-ghost')}
+      onclick={() => (isPlaying ? stopPlayback() : handlePlay())}
       use:playContainerListeners
     >
-      <SquareIcon />
+      {#if isPlaying}
+        <SquareIcon />
+      {:else}
+        <PlayIcon />
+      {/if}
     </button>
-    {#if midiOutputs.length === 0}
-      <span class="text-error">No MIDI input found</span>
-    {:else}
-      <Popover>
-        {#snippet content()}
-          <DeviceMapper
-            {midiOutputs}
-            {trackDevices}
-            deviceToMidiOutput={deviceToMidiOutputMapping}
-          />
-        {/snippet}
-        <span class="text-success">
-          {midiOutputs.length} MIDI {midiOutputs.length === 1 ? 'device' : 'devices'} found
-        </span>
-      </Popover>
-    {/if}
-    <Tooltip>
-      {#snippet content()}
-        <div class="bg-base-100 border-base-content/20 border p-2 text-sm">
-          <p>If you encounter any issues, please ensure your device</p>
-          <ul class="list-inside list-disc">
-            <li>Is connected via USB</li>
-            <li>Has MIDI enabled</li>
-            <li>Has Transport Receive enabled</li>
-            <li>Has Clock Receive disabled</li>
-            <li>Each track is mapped to the corresponding MIDI channel</li>
-          </ul>
-        </div>
-      {/snippet}
-      <CircleQuestionMarkIcon />
-    </Tooltip>
   {/if}
+
+  <Popover>
+    {#snippet content()}
+      <div class="bg-base-100 border-base-content/20 border p-2 text-sm">
+        <p>If you encounter any issues, please ensure your device</p>
+        <ul class="list-inside list-disc">
+          <li>Is connected via USB</li>
+          <li>Has MIDI enabled</li>
+          <li>Has Transport Receive enabled</li>
+          <li>Has Clock Receive disabled</li>
+          <li>Each track is mapped to the corresponding MIDI channel</li>
+        </ul>
+        <DeviceMapper {midiOutputs} {trackDevices} deviceToMidiOutput={deviceToMidiOutputMapping} />
+      </div>
+    {/snippet}
+    {#if midiOutputs.length > 0}
+      <span class="text-success">
+        {midiOutputs.length}
+        {midiOutputs.length === 1 ? 'device' : 'devices'} found
+      </span>
+    {:else}
+      <CircleQuestionMarkIcon />
+    {/if}
+  </Popover>
 </div>
