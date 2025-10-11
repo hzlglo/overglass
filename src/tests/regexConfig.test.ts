@@ -27,35 +27,35 @@ describe('Regex Configuration', () => {
 
   describe('Mute Parameter Detection', () => {
     it('should identify mute parameters', () => {
-      const result1 = matcher.parsemuteParameter('T1 Muted');
+      const result1 = matcher.parseMuteParameter('T1 Muted');
       expect(result1.isMute).toBe(true);
       expect(result1.trackNumber).toBe(1);
 
-      const result2 = matcher.parsemuteParameter('T8 Mute');
+      const result2 = matcher.parseMuteParameter('T8 Mute');
       expect(result2.isMute).toBe(true);
       expect(result2.trackNumber).toBe(8);
 
-      const result3 = matcher.parsemuteParameter('T5 MuteLevel');
+      const result3 = matcher.parseMuteParameter('T5 MuteLevel');
       expect(result3.isMute).toBe(true);
       expect(result3.trackNumber).toBe(5);
     });
 
     it('should handle case insensitive mute detection', () => {
-      const result1 = matcher.parsemuteParameter('T1 MUTED');
+      const result1 = matcher.parseMuteParameter('T1 MUTED');
       expect(result1.isMute).toBe(true);
       expect(result1.trackNumber).toBe(1);
 
-      const result2 = matcher.parsemuteParameter('T5 mute');
+      const result2 = matcher.parseMuteParameter('T5 mute');
       expect(result2.isMute).toBe(true);
       expect(result2.trackNumber).toBe(5);
     });
 
     it('should not identify non-mute parameters', () => {
-      const result1 = matcher.parsemuteParameter('T1 Filter Cutoff');
+      const result1 = matcher.parseMuteParameter('T1 Filter Cutoff');
       expect(result1.isMute).toBe(false);
       expect(result1.trackNumber).toBeNull();
 
-      const result2 = matcher.parsemuteParameter('T5 Volume');
+      const result2 = matcher.parseMuteParameter('T5 Volume');
       expect(result2.isMute).toBe(false);
       expect(result2.trackNumber).toBeNull();
     });
@@ -103,7 +103,7 @@ describe('Regex Configuration', () => {
       'T5 Volume',
       'T11 Sample Pitch',
       'Master Volume',
-      'Global BPM'
+      'Global BPM',
     ];
 
     it('should get all referenced track numbers', () => {
@@ -113,19 +113,10 @@ describe('Regex Configuration', () => {
 
     it('should group parameters by track', () => {
       const grouped = matcher.groupParametersByTrack(testParameterNames);
-      
-      expect(grouped.get(1)).toEqual([
-        'T1 Filter Cutoff',
-        'T1 Reverb Send', 
-        'T1 Muted'
-      ]);
-      expect(grouped.get(5)).toEqual([
-        'T5 LFO Speed',
-        'T5 Volume'
-      ]);
-      expect(grouped.get(11)).toEqual([
-        'T11 Sample Pitch'
-      ]);
+
+      expect(grouped.get(1)).toEqual(['T1 Filter Cutoff', 'T1 Reverb Send', 'T1 Muted']);
+      expect(grouped.get(5)).toEqual(['T5 LFO Speed', 'T5 Volume']);
+      expect(grouped.get(11)).toEqual(['T11 Sample Pitch']);
       expect(grouped.has(99)).toBe(false);
     });
   });
@@ -134,28 +125,28 @@ describe('Regex Configuration', () => {
     it('should create elektron config', () => {
       const config = createRegexConfig('elektron');
       const matcher = new RegexMatcher(config);
-      
+
       expect(matcher.extractTrackNumber('T1 Filter Cutoff')).toBe(1);
-      expect(matcher.parsemuteParameter('T5 Muted').isMute).toBe(true);
+      expect(matcher.parseMuteParameter('T5 Muted').isMute).toBe(true);
     });
 
     it('should create custom config', () => {
       const config = createRegexConfig('custom', {
         trackNumberPattern: /Track(\d+)/,
-        muteParameterPattern: /Track(\d+)_Mute/
+        muteParameterPattern: /Track(\d+)_Mute/,
       });
       const matcher = new RegexMatcher(config);
-      
+
       expect(matcher.extractTrackNumber('Track5 Volume')).toBe(5);
-      expect(matcher.parsemuteParameter('Track3_Mute').isMute).toBe(true);
+      expect(matcher.parseMuteParameter('Track3_Mute').isMute).toBe(true);
     });
 
     it('should merge custom config with defaults for elektron', () => {
       const config = createRegexConfig('elektron', {
-        deviceNamePattern: /(custom|device)/i
+        deviceNamePattern: /(custom|device)/i,
       });
       const matcher = new RegexMatcher(config);
-      
+
       // Should still work with elektron patterns
       expect(matcher.extractTrackNumber('T1 Filter Cutoff')).toBe(1);
       // But use custom device pattern

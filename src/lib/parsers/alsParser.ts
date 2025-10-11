@@ -223,20 +223,16 @@ export class ALSParser {
     muteTransitions: MuteTransition[],
     trackIdMapping?: Record<string, string>,
   ): void {
-    // Check if track is muted (will be applied to all sub-tracks)
-    // TODO this is never used, we should remove track.isMuted
-    const isMuted = this.isTrackMuted(trackElement);
+    // The structure of an ableton file is: each device has parameters,
+    // each parameter has an ID and name and AutomationTarget.Id.
+    // If there is automation, AutomationTarget.Id will match up with
+    // AutomationEnvelope.EnvelopeTarget.PointeeId
 
     // Build parameter mapping from PluginFloatParameter elements
     const parameterMapping = this.buildParameterMapping(trackElement);
 
     // Extract ALL automation envelopes first
-    const allEnvelopes = this.extractAutomationEnvelopes(
-      trackElement,
-      deviceName,
-      0, // We'll override this per envelope
-      parameterMapping,
-    );
+    const allEnvelopes = this.extractAutomationEnvelopes(trackElement, parameterMapping);
 
     // Group envelopes by track number found in parameter names
     const envelopesByTrack = new Map<
@@ -275,8 +271,6 @@ export class ALSParser {
         deviceId: device.id,
         trackNumber,
         trackName,
-        isMuted,
-        lastEditTime: this.getLastEditTimeFromParameters(trackParameters),
         createdAt: new Date(),
       };
       tracks.push(track);
@@ -309,7 +303,7 @@ export class ALSParser {
           }
 
           // Check if parameter is a mute parameter using the regex pattern
-          const { isMute } = this.regexMatcher.parsemuteParameter(parameterName);
+          const { isMute } = this.regexMatcher.parseMuteParameter(parameterName);
 
           const parameter: Parameter = {
             id: parameterId,
@@ -387,32 +381,6 @@ export class ALSParser {
     });
   }
 
-  private getLastEditTimeFromParameters(
-    trackParameters: {
-      parameterName: string;
-      originalPointeeId?: string;
-      originalParameterId?: string;
-      points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
-    }[],
-  ): Date {
-    // For now, return the latest automation point time converted to a date
-    let maxTime = 0;
-    trackParameters.forEach((param) => {
-      param.points.forEach((point) => {
-        maxTime = Math.max(maxTime, point.timePosition);
-      });
-    });
-    // Convert beats to milliseconds for a rough timestamp (assuming 120 BPM)
-    const beatsToMs = (beats: number) => (beats / 120) * 60 * 1000;
-    return new Date(1970, 0, 1, 0, 0, 0, beatsToMs(maxTime));
-  }
-
-  private isTrackMuted(trackElement: Element): boolean {
-    // Look for mute state in various possible locations
-    const muteElement = trackElement.querySelector('Mute Value');
-    return muteElement?.textContent === 'true';
-  }
-
   private buildParameterMapping(
     trackElement: Element,
   ): Record<string, { parameterName: string; originalParameterId: string }> {
@@ -431,50 +399,14 @@ export class ALSParser {
       const parameterIdElement = param.querySelector('ParameterId');
       const parameterId = parameterIdElement?.getAttribute('Value');
 
-      // The key insight: PointeeIds match PluginFloatParameter AutomationTarget._Id (somewhere in the structure)
-      const paramId = param.getAttribute('Id');
-
-      // Try different possible paths for AutomationTarget
       let automationTargetElement = param.querySelector('AutomationTarget');
       const automationTargetId = automationTargetElement?.getAttribute('Id');
 
-      if (this.debug && index < 3) {
-        console.log(`    🔍 PluginFloatParameter ${index}:`);
-        console.log(`      Id="${paramId}"`);
-        console.log(`      ParameterId="${parameterId || 'NOT FOUND'}"`);
-        console.log(`      AutomationTarget found: ${automationTargetElement ? 'YES' : 'NO'}`);
-        if (automationTargetElement) {
-          console.log(`      AutomationTarget._Id="${automationTargetId || 'NO _Id ATTR'}"`);
-          // Show all attributes on the AutomationTarget element
-          if (automationTargetElement.attributes) {
-            const attrs = [];
-            for (let i = 0; i < automationTargetElement.attributes.length; i++) {
-              const attr = automationTargetElement.attributes[i];
-              attrs.push(`${attr.name}="${attr.value}"`);
-            }
-            console.log(`      AutomationTarget attributes: ${attrs.join(', ')}`);
-          }
-        } else {
-          // Show if there are any AutomationTarget elements anywhere in the param
-          const allTargets = param.querySelectorAll('AutomationTarget');
-          console.log(`      Total AutomationTarget elements found: ${allTargets.length}`);
-        }
-        console.log(`      ParameterName: "${paramName}"`);
-      }
-
-      // Create parameter info object
-      const paramInfo = {
-        parameterName: paramName,
-        originalParameterId: parameterId,
-      };
-      // TODO why are we using the same map for paramId and automationTargetId? that feels off
-      // Map both Id and AutomationTarget._Id to the parameter info
-      if (paramId) {
-        parameterMapping[paramId] = paramInfo;
-      }
-
-      if (automationTargetId) {
-        parameterMapping[automationTargetId] = paramInfo;
+      if (automationTargetId && parameterId) {
+        parameterMapping[automationTargetId] = {
+          parameterName: paramName,
+          originalParameterId: parameterId,
+        };
         if (this.debug && index < 3) {
           console.log(
             `      ✅ Mapped AutomationTarget._Id "${automationTargetId}" → "${paramName}" (parameterId: ${parameterId || 'none'})`,
@@ -483,45 +415,11 @@ export class ALSParser {
       }
     });
 
-    if (this.debug) {
-      console.log(
-        `    📋 Built parameter mapping with ${Object.keys(parameterMapping).length} entries`,
-      );
-
-      // Show both the small IDs and large ParameterIds for comparison
-      const allKeys = Object.keys(parameterMapping);
-      const smallIds = allKeys.filter((k) => parseInt(k) < 1000);
-      const largeIds = allKeys.filter((k) => parseInt(k) >= 1000);
-
-      console.log(`    📋 Small IDs (${smallIds.length}):`);
-      smallIds.slice(0, 5).forEach((id) => {
-        const info = parameterMapping[id];
-        console.log(
-          `      ID ${id}: "${info.parameterName}" (parameterId: ${info.originalParameterId || 'none'})`,
-        );
-      });
-
-      if (largeIds.length > 0) {
-        console.log(`    📋 Large ParameterIds (${largeIds.length}):`);
-        largeIds.slice(0, 5).forEach((id) => {
-          const info = parameterMapping[id];
-          console.log(
-            `      ID ${id}: "${info.parameterName}" (parameterId: ${info.originalParameterId || 'none'})`,
-          );
-        });
-        if (largeIds.length > 5) {
-          console.log(`      ... and ${largeIds.length - 5} more`);
-        }
-      }
-    }
-
     return parameterMapping;
   }
 
   private extractAutomationEnvelopes(
     trackElement: Element,
-    deviceName: string,
-    trackNumber: number,
     parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
   ): {
     parameterName: string;
@@ -540,13 +438,7 @@ export class ALSParser {
     const automationElements = trackElement.querySelectorAll('AutomationEnvelope');
 
     automationElements.forEach((envElement, index) => {
-      const envelope = this.parseAutomationEnvelope(
-        envElement,
-        deviceName,
-        trackNumber,
-        index,
-        parameterMapping,
-      );
+      const envelope = this.parseAutomationEnvelope(envElement, parameterMapping);
       if (envelope) {
         envelopes.push(envelope);
       }
@@ -557,9 +449,6 @@ export class ALSParser {
 
   private parseAutomationEnvelope(
     envElement: Element,
-    deviceName: string,
-    trackNumber: number,
-    index: number,
     parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
   ): {
     parameterName: string;

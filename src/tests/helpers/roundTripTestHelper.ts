@@ -73,7 +73,10 @@ const createFileDatabaseForScenario = async (testName: string, suffix: string) =
 /**
  * Helper: Compare two databases using DuckDB EXCEPT queries
  */
-const compareDatabases = async (originalFile: string, roundTripFile: string): Promise<StructuralComparison> => {
+const compareDatabases = async (
+  originalFile: string,
+  roundTripFile: string,
+): Promise<StructuralComparison> => {
   // Create a raw DuckDB instance for comparison
   const comparisonAdapter = new NativeDuckDBAdapter();
   await comparisonAdapter.initialize();
@@ -94,7 +97,7 @@ const compareDatabases = async (originalFile: string, roundTripFile: string): Pr
       parametersOnlyInOriginal: [],
       parametersOnlyInRoundTrip: [],
       automationPointsOnlyInOriginal: [],
-      automationPointsOnlyInRoundTrip: []
+      automationPointsOnlyInRoundTrip: [],
     };
 
     // Compare devices (excluding generated IDs and timestamps)
@@ -112,15 +115,15 @@ const compareDatabases = async (originalFile: string, roundTripFile: string): Pr
 
     // Compare tracks (excluding generated IDs and timestamps)
     differences.tracksOnlyInOriginal = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM original.tracks
+      SELECT * EXCLUDE (id, device_id, created_at) FROM original.tracks
       EXCEPT
-      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM roundtrip.tracks
+      SELECT * EXCLUDE (id, device_id, created_at) FROM roundtrip.tracks
     `);
 
     differences.tracksOnlyInRoundTrip = await comparisonAdapter.execute(`
-      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM roundtrip.tracks
+      SELECT * EXCLUDE (id, device_id, created_at) FROM roundtrip.tracks
       EXCEPT
-      SELECT * EXCLUDE (id, device_id, created_at, last_edit_time) FROM original.tracks
+      SELECT * EXCLUDE (id, device_id, created_at) FROM original.tracks
     `);
 
     // Compare parameters (excluding generated IDs and timestamps)
@@ -158,7 +161,6 @@ const compareDatabases = async (originalFile: string, roundTripFile: string): Pr
     `);
 
     return differences;
-
   } finally {
     await comparisonAdapter.close();
   }
@@ -169,13 +171,19 @@ const compareDatabases = async (originalFile: string, roundTripFile: string): Pr
  */
 export async function runRoundTripTest(
   testName: string,
-  editFunction: (db: AutomationDatabase) => Promise<void>
+  editFunction: (db: AutomationDatabase) => Promise<void>,
 ): Promise<RoundTripTestResult> {
   console.log(`🧪 Testing scenario: ${testName}`);
 
   // Step 1: Create file-based databases for testing
-  const { db: originalDb, filePath: originalFile } = await createFileDatabaseForScenario(testName, 'original');
-  const { db: roundTripDb, filePath: roundTripFile } = await createFileDatabaseForScenario(testName, 'roundtrip');
+  const { db: originalDb, filePath: originalFile } = await createFileDatabaseForScenario(
+    testName,
+    'original',
+  );
+  const { db: roundTripDb, filePath: roundTripFile } = await createFileDatabaseForScenario(
+    testName,
+    'roundtrip',
+  );
 
   const parser = new ALSParser();
   const writer = new ALSWriter(originalDb);
@@ -207,28 +215,42 @@ export async function runRoundTripTest(
     // Common assertions that every round-trip test should pass
 
     // Should preserve exact structure - no spurious entities
-    expect(structuralComparison.devicesOnlyInOriginal.length, 'Should not lose any devices').toBe(0);
-    expect(structuralComparison.devicesOnlyInRoundTrip.length, 'Should not create spurious devices').toBe(0);
+    expect(structuralComparison.devicesOnlyInOriginal.length, 'Should not lose any devices').toBe(
+      0,
+    );
+    expect(
+      structuralComparison.devicesOnlyInRoundTrip.length,
+      'Should not create spurious devices',
+    ).toBe(0);
     expect(structuralComparison.tracksOnlyInOriginal.length, 'Should not lose any tracks').toBe(0);
-    expect(structuralComparison.tracksOnlyInRoundTrip.length, 'Should not create spurious tracks').toBe(0);
-    expect(structuralComparison.parametersOnlyInOriginal.length, 'Should not lose any parameters').toBe(0);
-    expect(structuralComparison.parametersOnlyInRoundTrip.length, 'Should not create spurious parameters').toBe(0);
+    expect(
+      structuralComparison.tracksOnlyInRoundTrip.length,
+      'Should not create spurious tracks',
+    ).toBe(0);
+    expect(
+      structuralComparison.parametersOnlyInOriginal.length,
+      'Should not lose any parameters',
+    ).toBe(0);
+    expect(
+      structuralComparison.parametersOnlyInRoundTrip.length,
+      'Should not create spurious parameters',
+    ).toBe(0);
 
     return {
-      structuralComparison
+      structuralComparison,
     };
-
   } finally {
     await originalDb.close();
     await roundTripDb.close();
   }
 }
 
-
 /**
  * Helper to find parameters with automation points for testing
  */
-export async function findParametersWithPoints(db: AutomationDatabase): Promise<Array<{parameter: any, points: any[]}>> {
+export async function findParametersWithPoints(
+  db: AutomationDatabase,
+): Promise<Array<{ parameter: any; points: any[] }>> {
   const devices = await db.devices.getDevicesWithTracks();
   const parametersWithPoints = [];
 
@@ -341,11 +363,7 @@ export async function verifyXMLDifferences(testName: string, expectedDifferences
         }
 
         // Recursively compare child elements
-        const childDiffs = compareXMLNodes(
-          origElement,
-          editedElement,
-          `${path}${tagName}[${i}]/`,
-        );
+        const childDiffs = compareXMLNodes(origElement, editedElement, `${path}${tagName}[${i}]/`);
         differences.push(...childDiffs);
       }
 

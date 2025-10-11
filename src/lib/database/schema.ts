@@ -33,8 +33,6 @@ export interface Track {
   deviceId: string; // Foreign key to devices
   trackNumber: number; // Track number within device (1, 2, 3...)
   trackName: string; // Original track name from ALS
-  isMuted: boolean; // Mute state
-  lastEditTime?: Date; // Last automation edit timestamp
   createdAt: Date;
 }
 
@@ -114,8 +112,6 @@ export const CREATE_TABLES = {
       device_id VARCHAR NOT NULL,
       track_number INTEGER NOT NULL,
       track_name VARCHAR NOT NULL,
-      is_muted BOOLEAN NOT NULL DEFAULT false,
-      last_edit_time TIMESTAMP,
       created_at TIMESTAMP NOT NULL,
       FOREIGN KEY (device_id) REFERENCES devices(id)
     )

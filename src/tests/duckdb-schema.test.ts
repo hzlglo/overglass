@@ -40,9 +40,7 @@ describe('DuckDB Schema Tests', () => {
       deviceId: 'test-device-1',
       trackName: 'Test Device Track 1',
       trackNumber: 1,
-      isMuted: false,
       createdAt: new Date(),
-      lastEditTime: new Date(),
     };
 
     const testParameter = {

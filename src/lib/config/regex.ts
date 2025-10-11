@@ -43,7 +43,7 @@ export class RegexMatcher {
   }
 
   // Check if parameter is a mute parameter and extract track number
-  parsemuteParameter(parameterName: string): { isMute: boolean; trackNumber: number | null } {
+  parseMuteParameter(parameterName: string): { isMute: boolean; trackNumber: number | null } {
     const match = parameterName.match(this.config.muteParameterPattern);
     if (match && match[1]) {
       const trackNum = parseInt(match[1], 10);

@@ -17,8 +17,6 @@ export class TracksService {
         t.device_id,
         t.track_number,
         t.track_name,
-        t.is_muted,
-        t.last_edit_time,
         t.created_at,
         d.device_name,
         COUNT(DISTINCT p.id) as parameter_count,
@@ -27,7 +25,7 @@ export class TracksService {
       LEFT JOIN devices d ON t.device_id = d.id
       LEFT JOIN parameters p ON t.id = p.track_id
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
-      GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.is_muted, t.last_edit_time, t.created_at, d.device_name
+      GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.created_at, d.device_name
       ORDER BY d.device_name, t.track_number
     `;
     return await this.db.run(sql.sql, sql.values);
@@ -52,8 +50,6 @@ export class TracksService {
         t.device_id,
         t.track_number,
         t.track_name,
-        t.is_muted,
-        t.last_edit_time,
         t.created_at,
         COUNT(DISTINCT p.id) as parameter_count,
         COUNT(ap.id) as automation_point_count
@@ -61,7 +57,7 @@ export class TracksService {
       LEFT JOIN parameters p ON t.id = p.track_id
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE t.device_id = ${deviceId}
-      GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.is_muted, t.last_edit_time, t.created_at
+      GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.created_at
       ORDER BY t.track_number
     `;
     return await this.db.run(sql.sql, sql.values);
@@ -134,8 +130,6 @@ export class TracksService {
         t.device_id,
         t.track_number,
         t.track_name,
-        t.is_muted,
-        t.last_edit_time,
         t.created_at,
         d.device_name,
         COUNT(DISTINCT p.id) as parameter_count,
@@ -145,7 +139,7 @@ export class TracksService {
       LEFT JOIN parameters p ON t.id = p.track_id
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE t.id = ${trackId}
-      GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.is_muted, t.last_edit_time, t.created_at, d.device_name
+      GROUP BY t.id, t.device_id, t.track_number, t.track_name, t.created_at, d.device_name
     `;
     const tracks = await this.db.run(sql.sql, sql.values);
 
