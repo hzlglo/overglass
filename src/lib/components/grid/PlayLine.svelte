@@ -2,6 +2,7 @@
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
   import { playState } from '../play/playState.svelte';
+  import { max } from 'lodash';
 
   let { height }: { height: number } = $props();
 
@@ -13,7 +14,8 @@
 
   let drag = $derived(
     d3.drag().on('drag', (event, d) => {
-      playState.setPlayPoint(xScale.invert(event.x));
+      const newPlayPoint = max([xScale.invert(event.x), 0]);
+      playState.setPlayPoint(newPlayPoint);
     }),
   );
 

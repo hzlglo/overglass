@@ -3,7 +3,6 @@
   import { appConfigStore } from '$lib/stores/customization.svelte';
   import { sharedGridState } from '../grid/sharedGridState.svelte';
   import LaneControl from './LaneControl.svelte';
-  import TrackParamMidiMapper from './TrackParamMidiMapper.svelte';
 
   interface AutomationParameterProps {
     parameterId: string;
@@ -33,11 +32,7 @@
     onToggleExpanded={() => sharedGridState.toggleParameterExpansion(parameterId)}
     laneId={parameterId}
     color={trackConfig?.color}
-  >
-    {#snippet actions()}
-      <TrackParamMidiMapper device={parameterState.device} parameter={parameterState.parameter} />
-    {/snippet}
-  </LaneControl>
+  ></LaneControl>
 {:else}
   <div class="text-error">Parameter not found</div>
 {/if}

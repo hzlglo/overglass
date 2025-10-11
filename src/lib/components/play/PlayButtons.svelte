@@ -1,17 +1,16 @@
 <script lang="ts">
-  import { ElektronNameMatcher } from '$lib/config/regex';
+  import type { MidiMapping } from '$lib/database/schema';
   import { MidiPlayer } from '$lib/database/services/midiPlayer';
-  import { MUTE_PARAMETER_NAME } from '$lib/stores/midiMapping';
-  import { midiStore } from '$lib/stores/midiStore.svelte';
   import { trackDb, useTrackDbQuery } from '$lib/stores/trackDb.svelte';
-  import Tooltip from '../core/Tooltip.svelte';
   import { CircleQuestionMarkIcon, PlayIcon, SquareIcon } from '@lucide/svelte';
-  import { has, keyBy } from 'lodash';
-  import { WebMidi, type Output } from 'webmidi';
-  import { playState } from './playState.svelte';
   import classNames from 'classnames';
+  import { has } from 'lodash';
+  import { WebMidi, type Output } from 'webmidi';
   import Popover from '../core/Popover.svelte';
+  import Tooltip from '../core/Tooltip.svelte';
   import DeviceMapper from './DeviceMapper.svelte';
+  import { sendMidiControlChange } from './midiHelpers';
+  import { playState } from './playState.svelte';
 
   let midiOutputs = $state<Output[]>([]);
   let trackDevicesStore = useTrackDbQuery((trackDb) => trackDb.devices.getDevicesWithTracks(), []);
@@ -50,19 +49,10 @@
     isBeginningPlay: boolean;
   };
 
-  let playFunctions: ((args: PlayFunctionArgs) => Promise<void>)[] = $state.raw([]);
+  let playFunctions: ((args: PlayFunctionArgs) => Promise<any>)[] = $state.raw([]);
 
-  const LOOKAHEAD = 0.1;
-  const GRANULARITY = 0.02;
-
-  async function sendMidiControlChange(
-    output: Output,
-    args: Parameters<Output['sendControlChange']>,
-    logMessage: string,
-  ) {
-    console.log('Sending MIDI control change', output.name, logMessage, args);
-    output.sendControlChange(...args);
-  }
+  const LOOKAHEAD = 0.5;
+  const GRANULARITY = 0.1;
 
   async function handlePlay() {
     playState.setHasClickedPlay(true);
@@ -70,97 +60,86 @@
     await WebMidi.enable();
     midiOutputs = WebMidi.outputs;
 
-    const [parameters, tracks] = await Promise.all([
-      trackDb.get().tracks.getAllParameters(),
-      trackDb.get().tracks.getAllTracks(),
-    ]);
-    const tracksById = keyBy(tracks, 'id');
     const midiPlayer = new MidiPlayer(trackDb.get());
 
-    // add mute transitions to play functions
-    tracks.forEach((t) => {
-      const muteMapping = midiStore.getMidiChannel(t.deviceName, MUTE_PARAMETER_NAME);
-      if (!muteMapping) {
-        console.error('Failed to play mute transitions for track - no mapping found', t);
-        return;
-      }
-      let midiOutput = deviceToMidiOutput[t.deviceName];
-      if (!midiOutput) {
-        console.error('Failed to play mute transitions for track - no midi output found', t);
-        return;
-      }
-      playFunctions.push(async ({ startTime, endTime, isBeginningPlay }) => {
-        const muteTransitions = await midiPlayer.getMuteTransitionsToPlay(
-          t.id,
-          startTime,
-          endTime,
-          isBeginningPlay,
-        );
-        for (const m of muteTransitions) {
-          sendMidiControlChange(
-            midiOutput,
-            [
-              muteMapping,
-              m.isMuted ? 127 : 0,
-              {
-                channels: t.trackNumber,
-                time: m.timePosition,
-              },
-            ],
-            'mute control change',
-          );
-        }
-        return;
-      });
-    });
+    const midiMappings: (MidiMapping & {
+      id: string;
+      trackId: string;
+      trackNumber: number;
+      deviceName: string;
+      isMute: boolean;
+    })[] = await trackDb.get().run(`
+      SELECT 
+        parameters.id as id,
+        tracks.id as track_id,
+        tracks.track_number as track_number,
+        devices.device_name as device_name,
+        parameters.is_mute,
+        midi_mappings.*,
+      FROM parameters
+      JOIN tracks on parameters.track_id = tracks.id
+      JOIN devices on tracks.device_id = devices.id
+      JOIN midi_mappings on parameters.original_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
+      `);
 
-    // add automation to play functions
-    parameters
-      .filter((p) => !p.isMute)
-      .forEach((p) => {
-        const track = tracksById[p.trackId];
-        if (!track) {
-          console.error('Failed to play automation for parameter - no track found', p);
-          return;
-        }
-        const mapping = midiStore.getMidiChannel(
-          track.deviceName,
-          ElektronNameMatcher.cleanParameterName(p.parameterName),
-        );
-        if (!mapping) {
-          console.error('Failed to play automation for parameter - no mapping found', p);
-          return;
-        }
-        let midiOutput = deviceToMidiOutput[track.deviceName];
+    await Promise.all(
+      midiMappings.map(async (midiMapping) => {
+        const midiOutput = deviceToMidiOutput[midiMapping.deviceName];
         if (!midiOutput) {
-          console.error('Failed to play automation for parameter - no midi output found', p);
+          console.error(
+            'Failed to play mute transitions for track - no midi output found',
+            midiMapping,
+          );
           return;
         }
-        playFunctions.push(async ({ startTime, endTime, isBeginningPlay }: PlayFunctionArgs) => {
-          const automation = await midiPlayer.getInterpolatedValuesToPlay({
-            parameterId: p.id,
-            startTime: startTime,
-            endTime: endTime,
-            granularity: GRANULARITY,
-            isBeginningPlay: isBeginningPlay,
-          });
-          for (const a of automation) {
-            sendMidiControlChange(
-              midiOutput,
-              [
-                mapping,
-                Math.round(a.value * 127),
-                {
-                  channels: track.trackNumber,
-                  time: a.timePosition,
-                },
-              ],
-              'automation control change',
+
+        if (midiMapping.isMute) {
+          playFunctions.push(async ({ startTime, endTime, isBeginningPlay }) => {
+            const muteTransitions = await midiPlayer.getMuteTransitionsToPlay(
+              midiMapping.trackId,
+              startTime,
+              endTime,
+              isBeginningPlay,
             );
-          }
-          return;
-        });
-      });
+            if (midiMapping.trackNumber === 11) {
+              console.log('Mute transitions', muteTransitions);
+            }
+            return Promise.all(
+              muteTransitions.map(async (m) =>
+                sendMidiControlChange({
+                  output: midiOutput,
+                  midiMapping,
+                  value: m.isMuted ? 1 : 0,
+                  channel: midiMapping.trackNumber,
+                  time: m.timePosition,
+                }),
+              ),
+            );
+          });
+        } else {
+          playFunctions.push(async ({ startTime, endTime, isBeginningPlay }: PlayFunctionArgs) => {
+            const automation = await midiPlayer.getInterpolatedValuesToPlay({
+              parameterId: midiMapping.id,
+              startTime: startTime,
+              endTime: endTime,
+              granularity: GRANULARITY,
+              isBeginningPlay: isBeginningPlay,
+            });
+            return Promise.all(
+              automation.map(async (a) =>
+                sendMidiControlChange({
+                  output: midiOutput,
+                  midiMapping,
+                  value: a.value,
+                  channel: midiMapping.trackNumber,
+                  time: a.timePosition,
+                }),
+              ),
+            );
+          });
+        }
+      }),
+    );
 
     // Create audio context clock
     playState.setIsPlaying(true);
@@ -227,7 +206,11 @@
 
     // Keep looping until stopped
     if (isPlaying) {
-      setTimeout(() => scheduleLoop(), (LOOKAHEAD - latency) * 1000);
+      if (latency > LOOKAHEAD) {
+        scheduleLoop();
+      } else {
+        setTimeout(() => scheduleLoop(), (LOOKAHEAD - latency) * 1000);
+      }
     }
   }
 
@@ -300,6 +283,7 @@
             <li>Has MIDI enabled</li>
             <li>Has Transport Receive enabled</li>
             <li>Has Clock Receive disabled</li>
+            <li>Each track is mapped to the corresponding MIDI channel</li>
           </ul>
         </div>
       {/snippet}
