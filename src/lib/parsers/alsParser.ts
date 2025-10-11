@@ -243,16 +243,15 @@ export class ALSParser {
       number,
       {
         parameterName: string;
-        originalPointeeId?: string;
-        originalParameterId?: string;
+        originalPointeeId: string;
+        originalParameterId: string;
         points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
       }[]
     >();
 
     allEnvelopes.forEach((envelope) => {
       // Extract track number from parameter name (e.g., "T1 Mute" -> 1, "T3 Filter Frequency" -> 3)
-      const trackNumberMatch = envelope.parameterName.match(/^T(\d+)\s+/);
-      const trackNumber = trackNumberMatch ? parseInt(trackNumberMatch[1]) : 0;
+      const trackNumber = this.regexMatcher.extractTrackNumber(envelope.parameterName) ?? 0;
 
       if (!envelopesByTrack.has(trackNumber)) {
         envelopesByTrack.set(trackNumber, []);
@@ -416,11 +415,9 @@ export class ALSParser {
 
   private buildParameterMapping(
     trackElement: Element,
-  ): Record<string, { parameterName: string; originalParameterId?: string }> {
-    const parameterMapping: Record<
-      string,
-      { parameterName: string; originalParameterId?: string }
-    > = {};
+  ): Record<string, { parameterName: string; originalParameterId: string }> {
+    const parameterMapping: Record<string, { parameterName: string; originalParameterId: string }> =
+      {};
 
     // Find PluginFloatParameter elements in the DeviceChain
     const pluginFloatParams = trackElement.querySelectorAll('PluginFloatParameter');
@@ -525,17 +522,17 @@ export class ALSParser {
     trackElement: Element,
     deviceName: string,
     trackNumber: number,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
+    parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
   ): {
     parameterName: string;
-    originalPointeeId?: string;
-    originalParameterId?: string;
+    originalPointeeId: string;
+    originalParameterId: string;
     points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
   }[] {
     const envelopes: {
       parameterName: string;
-      originalPointeeId?: string;
-      originalParameterId?: string;
+      originalPointeeId: string;
+      originalParameterId: string;
       points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
     }[] = [];
 
@@ -563,22 +560,20 @@ export class ALSParser {
     deviceName: string,
     trackNumber: number,
     index: number,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
+    parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
   ): {
     parameterName: string;
-    originalPointeeId?: string;
-    originalParameterId?: string;
+    originalPointeeId: string;
+    originalParameterId: string;
     points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
   } | null {
     // Extract parameter name and original PointeeId from automation target using the parameter mapping
     const extractedInfo = this.extractParameterInfo(envElement, parameterMapping);
     if (this.debug) console.log(`🎯 extractParameterInfo returned:`, extractedInfo);
 
-    const parameterInfo = extractedInfo || {
-      parameterName: `Param ${index + 1}`,
-      originalPointeeId: undefined,
-      originalParameterId: undefined,
-    };
+    if (!extractedInfo) {
+      return null;
+    }
 
     // Extract automation points
     const points = this.extractAutomationPoints(envElement);
@@ -588,17 +583,17 @@ export class ALSParser {
     }
 
     return {
-      parameterName: parameterInfo.parameterName,
-      originalPointeeId: parameterInfo.originalPointeeId,
-      originalParameterId: parameterInfo.originalParameterId,
+      parameterName: extractedInfo.parameterName,
+      originalPointeeId: extractedInfo.originalPointeeId,
+      originalParameterId: extractedInfo.originalParameterId,
       points,
     };
   }
 
   private extractParameterInfo(
     envElement: Element,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
-  ): { parameterName: string; originalPointeeId?: string; originalParameterId?: string } | null {
+    parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
+  ): { parameterName: string; originalPointeeId: string; originalParameterId: string } | null {
     if (this.debug) console.log(`🔍 Extracting parameter info for envelope`);
     if (this.debug) {
       console.log(`    🔍 Extracting parameter info for envelope:`);
@@ -656,146 +651,6 @@ export class ALSParser {
       if (this.debug) console.log(`❌ No PointeeId element found`);
     }
 
-    // Fall back to other extraction methods but without PointeeId
-    const paramInfo = this.extractParameterName(envElement, parameterMapping);
-    if (paramInfo) {
-      return {
-        parameterName: paramInfo.parameterName,
-        originalPointeeId: undefined,
-        originalParameterId: paramInfo.originalParameterId,
-      };
-    }
-
-    return null;
-  }
-
-  private extractParameterName(
-    envElement: Element,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId?: string }>,
-  ): { parameterName: string; originalParameterId?: string } | null {
-    if (this.debug) {
-      console.log(`    🔍 Extracting parameter name for envelope:`);
-    }
-
-    // Look for EnvelopeTarget to get the parameter reference
-    const targetElement = envElement.querySelector('EnvelopeTarget');
-    if (!targetElement) {
-      if (this.debug) {
-        console.log(`    ❌ No EnvelopeTarget found`);
-      }
-      return null;
-    }
-
-    if (this.debug) {
-      console.log(`    📍 EnvelopeTarget found with attributes:`);
-      if (targetElement.attributes && targetElement.attributes.length > 0) {
-        for (let i = 0; i < targetElement.attributes.length; i++) {
-          const attr = targetElement.attributes[i];
-          console.log(`      ${attr.name}="${attr.value}"`);
-        }
-      } else {
-        console.log(`      No attributes found`);
-      }
-
-      // Show child elements
-      console.log(`    📍 EnvelopeTarget children:`);
-      const children = [];
-      for (let i = 0; i < targetElement.childNodes.length; i++) {
-        const node = targetElement.childNodes[i];
-        if (node.nodeType === 1) {
-          // ELEMENT_NODE
-          children.push((node as Element).tagName);
-        }
-      }
-      if (children.length > 0) {
-        console.log(`      ${children.join(', ')}`);
-      } else {
-        console.log(`      No child elements found`);
-      }
-    }
-
-    // Check for PointeeId child element first (most direct)
-    const pointeeIdElement = targetElement.querySelector('PointeeId');
-    if (pointeeIdElement) {
-      const pointeeId =
-        pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
-      if (pointeeId && parameterMapping[pointeeId]) {
-        const paramInfo = parameterMapping[pointeeId];
-        if (this.debug) {
-          console.log(
-            `    ✅ Found parameter via PointeeId child: "${pointeeId}" → "${paramInfo.parameterName}"`,
-          );
-        }
-        return paramInfo;
-      } else {
-        if (this.debug) {
-          console.log(`    ❌ PointeeId "${pointeeId}" not found in parameter mapping`);
-          console.log(
-            `    🗂️  Available parameter IDs: ${Object.keys(parameterMapping).slice(0, 5).join(', ')}...`,
-          );
-        }
-      }
-    }
-
-    // Check all attributes on EnvelopeTarget for parameter references
-    if (targetElement.attributes) {
-      for (let i = 0; i < targetElement.attributes.length; i++) {
-        const attr = targetElement.attributes[i];
-        if (parameterMapping[attr.value]) {
-          const paramInfo = parameterMapping[attr.value];
-          if (this.debug) {
-            console.log(
-              `    ✅ Found parameter via ${attr.name}: "${attr.value}" → "${paramInfo.parameterName}"`,
-            );
-          }
-          return paramInfo;
-        }
-      }
-    }
-
-    // Try to extract parameter ID from Path element
-    const pathElement = targetElement.querySelector('Path');
-    if (pathElement) {
-      const path = pathElement.getAttribute('Value') || pathElement.textContent || '';
-
-      if (this.debug) {
-        console.log(`    📁 Found Path element with value: "${path}"`);
-      }
-
-      // Extract numeric ID from path (e.g., "Device/Parameter/17" -> "17")
-      const numericMatch = path.match(/(\d+)$/);
-      if (numericMatch) {
-        const paramId = numericMatch[1];
-        if (this.debug) {
-          console.log(`    🔢 Extracted parameter ID: "${paramId}"`);
-          console.log(
-            `    🗂️  Parameter mapping has key "${paramId}": ${parameterMapping[paramId] ? 'YES' : 'NO'}`,
-          );
-        }
-
-        if (parameterMapping[paramId]) {
-          const paramInfo = parameterMapping[paramId];
-          if (this.debug) {
-            console.log(
-              `    ✅ Found parameter via Path extraction: "${paramId}" → "${paramInfo.parameterName}"`,
-            );
-          }
-          return paramInfo;
-        }
-      } else {
-        if (this.debug) {
-          console.log(`    ❌ No numeric ID found in path: "${path}"`);
-        }
-      }
-    } else {
-      if (this.debug) {
-        console.log(`    ❌ No Path element found in EnvelopeTarget`);
-      }
-    }
-
-    if (this.debug) {
-      console.log(`    ❌ No parameter name found for envelope`);
-    }
     return null;
   }
 
