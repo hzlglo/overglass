@@ -18,17 +18,6 @@ export class ALSParser {
     this.debug = enabled;
   }
 
-  private elektron_device_names = [
-    // Order matters - check longer names first to avoid partial matches
-    'Digitakt II',
-    'Digitakt',
-    'Digitone II',
-    'Digitone',
-    'Analog Four',
-    'Analog Rytm',
-    'Octatrack',
-  ];
-
   async parseALSFile(file: File): Promise<ParsedALS> {
     // Read the file as ArrayBuffer
     const buffer = await file.arrayBuffer();
@@ -122,20 +111,20 @@ export class ALSParser {
     console.log(`Found ${trackElements.length} total tracks`);
 
     trackElements.forEach((trackElement, index) => {
-      const trackName = this.getTrackName(trackElement);
-      console.log(`Track ${index}: "${trackName}"`);
+      const deviceElement = this.getFirstDeviceFromTrack(trackElement);
+      if (!deviceElement) return;
 
-      const elektron_device = this.identifyElektronDevice(trackName);
-
-      if (elektron_device) {
-        console.log(`  -> Identified as ${elektron_device}`);
+      // Check if this is an Elektron device by examining the BrowserContentPath
+      if (this.isElektronDevice(deviceElement)) {
+        const trackName = this.getTrackName(deviceElement);
+        console.log(`Track ${index}: "${trackName}"`);
 
         // Find or create device
-        let device = devices.find((d) => d.deviceName === elektron_device);
+        let device = devices.find((d) => d.deviceName === trackName);
         if (!device) {
           device = {
             id: this.generateId(),
-            deviceName: elektron_device,
+            deviceName: trackName,
             deviceType: 'elektron',
             createdAt: new Date(),
           };
@@ -143,93 +132,116 @@ export class ALSParser {
         }
 
         // Parse track data directly into database entities
-        this.parseElektronTrackToDB(
+        this.parseElektronTrackToDB({
           trackElement,
-          elektron_device,
+          deviceElement,
+          deviceName: trackName,
           device,
           tracks,
           parameters,
           automationPoints,
           muteTransitions,
           trackIdMapping,
-        );
+        });
       }
     });
 
     console.log(`Found ${devices.length} Elektron devices`);
   }
 
-  private getTrackName(trackElement: Element): string {
-    // Try different possible name locations, checking attributes too
-    let name = '';
-
-    // First try EffectiveName Value attribute
-    let nameElement = trackElement.querySelector('Name EffectiveName');
-    if (nameElement) {
-      name = nameElement.getAttribute('Value') || nameElement.textContent || '';
-    }
-
-    // Then try UserName Value attribute
-    if (!name) {
-      nameElement = trackElement.querySelector('Name UserName');
-      if (nameElement) {
-        name = nameElement.getAttribute('Value') || nameElement.textContent || '';
-      }
-    }
-
-    // Try direct EffectiveName
-    if (!name) {
-      nameElement = trackElement.querySelector('EffectiveName');
-      if (nameElement) {
-        name = nameElement.getAttribute('Value') || nameElement.textContent || '';
-      }
-    }
-
-    // Try direct UserName
-    if (!name) {
-      nameElement = trackElement.querySelector('UserName');
-      if (nameElement) {
-        name = nameElement.getAttribute('Value') || nameElement.textContent || '';
-      }
-    }
-
-    return name;
-  }
-
-  private identifyElektronDevice(trackName: string): string | null {
-    const lowerTrackName = trackName.toLowerCase();
-
-    for (const device of this.elektron_device_names) {
-      const lowerDevice = device.toLowerCase();
-      if (
-        lowerTrackName.includes(lowerDevice) ||
-        lowerTrackName.includes('ob ' + lowerDevice) ||
-        lowerTrackName.includes(lowerDevice.replace(' ', '')) ||
-        lowerTrackName.includes('overbridge ' + lowerDevice)
-      ) {
-        return device;
+  /**
+   * Get direct child element by tag name (not descendants)
+   */
+  private getDirectChild(parent: Element, tagName: string): Element | null {
+    for (let i = 0; i < parent.children.length; i++) {
+      if (parent.children[i].tagName === tagName) {
+        return parent.children[i];
       }
     }
     return null;
   }
 
-  private parseElektronTrackToDB(
-    trackElement: Element,
-    deviceName: string,
-    device: Device,
-    tracks: Track[],
-    parameters: Parameter[],
-    automationPoints: AutomationPoint[],
-    muteTransitions: MuteTransition[],
-    trackIdMapping?: Record<string, string>,
-  ): void {
+  /**
+   * Navigate through a path of direct children
+   * Example: getViaPath(element, ['PluginDesc', 'Vst3PluginInfo', 'Name'])
+   */
+  private getViaPath(parent: Element, path: string[]): Element | null {
+    let current: Element | null = parent;
+    for (const tagName of path) {
+      if (!current) return null;
+      current = this.getDirectChild(current, tagName);
+    }
+    return current;
+  }
+
+  /**
+   * Extract the device name from PluginDesc > Vst3PluginInfo > Name element
+   */
+  private getTrackName(deviceElement: Element): string {
+    const nameElement = this.getViaPath(deviceElement, ['PluginDesc', 'Vst3PluginInfo', 'Name']);
+    if (!nameElement) return 'Unknown device';
+
+    const name = nameElement.getAttribute('Value');
+    return name || 'Unknown device';
+  }
+
+  /**
+   * Get the first PluginDevice from a track
+   * Path: MidiTrack > DeviceChain > DeviceChain > Devices > PluginDevice
+   */
+  private getFirstDeviceFromTrack(trackElement: Element): Element | null {
+    return this.getViaPath(trackElement, ['DeviceChain', 'DeviceChain', 'Devices', 'PluginDevice']);
+  }
+
+  /**
+   * Check if a device is an Elektron device by examining the BrowserContentPath
+   * Path: PluginDevice > SourceContext > Value > BranchSourceContext > BrowserContentPath
+   * Expected format: "query:Plugins#VST3:Elektron%20Music%20Machines:Digitakt%20II"
+   */
+  private isElektronDevice(deviceElement: Element): boolean {
+    const browserContentPath = this.getViaPath(deviceElement, [
+      'SourceContext',
+      'Value',
+      'BranchSourceContext',
+      'BrowserContentPath',
+    ]);
+    if (!browserContentPath) return false;
+
+    const pathValue = browserContentPath.getAttribute('Value');
+    if (!pathValue) return false;
+
+    // Check if it contains the Elektron string
+    return pathValue.includes('Elektron%20Music%20Machines');
+  }
+
+  private parseElektronTrackToDB({
+    trackElement,
+    deviceElement,
+    deviceName,
+    device,
+    tracks,
+    parameters,
+    automationPoints,
+    muteTransitions,
+    trackIdMapping,
+  }: {
+    trackElement: Element;
+    deviceElement: Element;
+    deviceName: string;
+    device: Device;
+    tracks: Track[];
+    parameters: Parameter[];
+    automationPoints: AutomationPoint[];
+    muteTransitions: MuteTransition[];
+    trackIdMapping?: Record<string, string>;
+  }): void {
     // The structure of an ableton file is: each device has parameters,
     // each parameter has an ID and name and AutomationTarget.Id.
     // If there is automation, AutomationTarget.Id will match up with
     // AutomationEnvelope.EnvelopeTarget.PointeeId
 
     // Build parameter mapping from PluginFloatParameter elements
-    const parameterMapping = this.buildParameterMapping(trackElement);
+    const parameterMapping = this.buildParameterMapping(deviceElement);
 
     // Extract ALL automation envelopes first
     const allEnvelopes = this.extractAutomationEnvelopes(trackElement, parameterMapping);
@@ -382,24 +394,30 @@ export class ALSParser {
   }
 
   private buildParameterMapping(
-    trackElement: Element,
+    deviceElement: Element,
   ): Record<string, { parameterName: string; originalParameterId: string }> {
     const parameterMapping: Record<string, { parameterName: string; originalParameterId: string }> =
       {};
 
     // Find PluginFloatParameter elements in the DeviceChain
-    const pluginFloatParams = trackElement.querySelectorAll('PluginFloatParameter');
+    const pluginFloatParam = this.getDirectChild(deviceElement, 'ParameterList');
+    if (!pluginFloatParam) {
+      console.log('❌ No PluginFloatParameter found');
+      return parameterMapping;
+    }
 
-    pluginFloatParams.forEach((param, index) => {
+    Array.from(pluginFloatParam.children).forEach((param, index) => {
+      const node = param;
       // Look for ParameterName child
-      const parameterNameElement = param.querySelector('ParameterName');
+      const parameterNameElement = this.getDirectChild(node, 'ParameterName');
       const paramName = parameterNameElement?.getAttribute('Value') || `Param ${index + 1}`;
 
       // Look for ParameterId child element
-      const parameterIdElement = param.querySelector('ParameterId');
+      const parameterIdElement = this.getDirectChild(node, 'ParameterId');
       const parameterId = parameterIdElement?.getAttribute('Value');
 
-      let automationTargetElement = param.querySelector('AutomationTarget');
+      // Look for AutomationTarget child element
+      const automationTargetElement = this.getViaPath(node, ['ParameterValue', 'AutomationTarget']);
       const automationTargetId = automationTargetElement?.getAttribute('Id');
 
       if (automationTargetId && parameterId) {

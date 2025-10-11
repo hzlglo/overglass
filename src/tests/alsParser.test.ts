@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { ALSParser } from '../lib/parsers/alsParser';
-import { ALSDebugger } from '../lib/utils/alsDebugger';
 
 describe('ALS Parser', () => {
   let testFile: File;
@@ -19,17 +18,6 @@ describe('ALS Parser', () => {
         buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
     } as File;
     parser = new ALSParser();
-  });
-
-  it('should load and decompress the test.als file', async () => {
-    expect(testFile).toBeDefined();
-    expect(testFile.size).toBeGreaterThan(0);
-
-    // Test that we can decompress and get XML
-    const xml = await ALSDebugger.exportXML(testFile);
-    expect(xml).toBeDefined();
-    expect(typeof xml).toBe('string');
-    expect(xml?.length).toBeGreaterThan(0);
   });
 
   it('should parse XML without errors', async () => {
@@ -51,9 +39,6 @@ describe('ALS Parser', () => {
   });
 
   it('should identify Elektron devices', async () => {
-    console.log('=== DEBUGGING TEST.ALS FILE ===');
-    await ALSDebugger.debugALSFile(testFile);
-
     const result = await parser.parseALSFile(testFile);
     const entities = parser.extractDatabaseEntities(result);
 
@@ -105,24 +90,6 @@ describe('ALS Parser', () => {
     // We expect to find at least some devices
     expect(entities.devices.length).toBeGreaterThanOrEqual(0);
     expect(Array.isArray(entities.devices)).toBe(true);
-  });
-
-  it('should handle device name variations', () => {
-    const testCases = [
-      { input: 'Digitakt II Track 1', expected: 'Digitakt II' },
-      { input: 'digitone ii track 2', expected: 'Digitone II' },
-      { input: 'OB Digitakt Track 3', expected: 'Digitakt' },
-      { input: 'Overbridge Digitone Track 4', expected: 'Digitone' },
-      { input: 'Regular Track', expected: null },
-    ];
-
-    // Access the private method through a test-specific approach
-    const parserAny = parser as any;
-
-    testCases.forEach(({ input, expected }) => {
-      const result = parserAny.identifyElektronDevice(input);
-      expect(result).toBe(expected);
-    });
   });
 
   it('should extract proper parameter names instead of generic names', async () => {
@@ -280,12 +247,17 @@ describe('ALS Parser', () => {
     expect(entities.muteTransitions.length).toBeGreaterThan(0);
 
     // Find mute parameters
-    const muteParameters = entities.parameters.filter(param => param.isMute);
-    console.log(`Found ${muteParameters.length} mute parameters:`, muteParameters.map(p => p.parameterName));
+    const muteParameters = entities.parameters.filter((param) => param.isMute);
+    console.log(
+      `Found ${muteParameters.length} mute parameters:`,
+      muteParameters.map((p) => p.parameterName),
+    );
 
     // Verify mute transitions structure
     entities.muteTransitions.forEach((transition, index) => {
-      console.log(`  Transition ${index + 1}: time=${transition.timePosition}, muted=${transition.isMuted}`);
+      console.log(
+        `  Transition ${index + 1}: time=${transition.timePosition}, muted=${transition.isMuted}`,
+      );
 
       expect(transition.id).toBeDefined();
       expect(transition.trackId).toBeDefined();
@@ -295,15 +267,15 @@ describe('ALS Parser', () => {
       expect(transition.createdAt).toBeInstanceOf(Date);
 
       // Verify the mute parameter reference exists
-      const muteParam = entities.parameters.find(p => p.id === transition.muteParameterId);
+      const muteParam = entities.parameters.find((p) => p.id === transition.muteParameterId);
       expect(muteParam).toBeDefined();
       expect(muteParam?.isMute).toBe(true);
     });
 
     // Verify that mute parameters with binary values don't create automation points
-    const muteParameterIds = muteParameters.map(p => p.id);
-    const automationPointsForMuteParams = entities.automationPoints.filter(point =>
-      muteParameterIds.includes(point.parameterId)
+    const muteParameterIds = muteParameters.map((p) => p.id);
+    const automationPointsForMuteParams = entities.automationPoints.filter((point) =>
+      muteParameterIds.includes(point.parameterId),
     );
 
     console.log(`Automation points for mute parameters: ${automationPointsForMuteParams.length}`);
