@@ -23,7 +23,7 @@
   </Select.Trigger>
   <Select.Portal>
     <Select.Content
-      class="menu rounded-box bg-base-100 border-base-content/20 z-[100] max-h-[200px] overflow-y-auto border"
+      class="menu rounded-box bg-base-100 border-base-content/20 z-[100] max-h-[200px] w-[var(--bits-select-anchor-width)] overflow-y-auto border"
     >
       <Select.Viewport class="flex flex-col gap-1">
         {#each options as { label, value } (label)}

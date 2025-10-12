@@ -122,7 +122,6 @@ const getSharedGridState = () => {
         }
         lanesByTrackInner.push(trackLanesDisplay);
       }
-      console.log('sharedGridState', { lanesByTrackInner, lanesInner });
       return { lanes: lanesInner, lanesByTrack: lanesByTrackInner };
     });
 

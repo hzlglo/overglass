@@ -100,19 +100,13 @@ export const useTrackDbQuery = <T>(
   let result = $state<T>(initialValue);
   $effect(() => {
     if (!trackDb.isInitialized()) {
-      if (initialValue === 'abc') {
-        console.log('useTrackDbQuery abc: not initialized');
-      }
       return;
     }
     query(trackDb.get()).then((r) => {
-      if (initialValue === 'abc') {
-        console.log('useTrackDbQuery abc:', result, r);
-      }
       if (isEqual(result, r)) {
         return;
       }
-      console.log('useTrackDbQuery: result changed', r, result);
+      // console.log('useTrackDbQuery: result changed', r, result);
       result = r;
     });
   });

@@ -8,7 +8,6 @@
   } from '../grid/sharedGridState.svelte';
   import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
   import SizeObserver from '../core/SizeObserver.svelte';
-  import { flip } from 'svelte/animate';
   import { keyBy, uniq } from 'lodash';
   import { SearchIcon } from '@lucide/svelte';
   import TrackParamControl from './TrackParamControl.svelte';
@@ -107,7 +106,6 @@
           <div
             class="min-h-0"
             data-is-dnd-shadow-item-hint={track[SHADOW_ITEM_MARKER_PROPERTY_NAME]}
-            animate:flip={{ duration: 150 }}
           >
             {#if trackLanes}
               {#if trackLanes.trackLane}

@@ -227,7 +227,11 @@
   }
   let playContainerListeners = (_ref: any) => {
     if (!document) return;
-    document.addEventListener('keydown', async (event) => {
+    document.addEventListener('keydown', async (event: KeyboardEvent) => {
+      const isTyping =
+        event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+
+      if (isTyping) return;
       if (event.code.toLowerCase() === 'space') {
         if (isPlaying) {
           await stopPlayback();

@@ -54,7 +54,7 @@ const getSharedXScale = () => {
   );
 
   let lastZoomEvent = $state(null);
-  let currentZoomTransform = $state(null);
+  let currentZoomTransform = $state<d3.ZoomTransform | null>(null);
 
   let zoomedXScale = $derived(
     currentZoomTransform ? currentZoomTransform.rescaleX(xScale) : xScale,
@@ -123,6 +123,7 @@ const getSharedXScale = () => {
     getXAxisBars: () => xAxisBars,
     getLoopTicks: () => loopTicks,
     getSnapPointToGrid: () => snapPointToGrid,
+    getCurrentZoomTransform: () => currentZoomTransform,
     // getLoopLength: () => loopLength,
     // setLoopLength: (loopLengthInner: number) => {
     //   loopLength = loopLengthInner;

@@ -43,12 +43,12 @@
   let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
 
   let rectYPadding = 4;
-  let clipRects = $derived.by(() => {
+  let { clipRects, muteDragHandles } = $derived.by(() => {
     if (!svgGroup) {
-      return undefined;
+      return { clipRects: undefined, muteDragHandles: undefined };
     }
     const getClipStart = (dStart: number): number => max([xScale(dStart), 0]) ?? 0;
-    return svgGroup
+    const clipRects = svgGroup
       .selectAll('.clip')
       .data(clips, (d) => d.id)
       .join(
@@ -68,13 +68,8 @@
       .attr('stroke', color)
       .attr('stroke-width', 1)
       .attr('rx', 2);
-  });
 
-  let muteDragHandles = $derived.by(() => {
-    if (!svgGroup) {
-      return undefined;
-    }
-    const rects = svgGroup
+    const muteDragHandles = svgGroup
       .selectAll('.mute-drag-handle')
       .data(muteTransitions, (d: MuteTransition) => d.id)
       .join(
@@ -83,7 +78,7 @@
         (exit) => exit.remove(),
       );
     const width = 6;
-    rects
+    muteDragHandles
       ?.attr('x', (d) => xScale(d.timePosition) - width / 2)
       .attr('y', 0)
       .attr('class', 'mute-drag-handle')
@@ -95,7 +90,7 @@
       .attr('stroke-opacity', 1)
       .attr('rx', 2)
       .style('cursor', 'grab');
-    return rects;
+    return { clipRects, muteDragHandles };
   });
 
   $effect(() => {

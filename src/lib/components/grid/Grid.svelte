@@ -18,7 +18,6 @@
   import GridContextMenu from './GridContextMenu.svelte';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
   import PlayLine from './PlayLine.svelte';
-  import { playState } from '../play/playState.svelte';
   import VirtualizedLane from './VirtualizedLane.svelte';
 
   let { gridScroll = $bindable() }: { gridScroll: number } = $props();
@@ -50,21 +49,30 @@
   // Setup SVG structure with zoom
   let svgElement = $state<SVGElement>();
   let svg = $derived(svgElement ? d3.select(svgElement) : undefined);
-  let trackGroupElement = $state<SVGGElement>();
-  let trackGroup = $derived(trackGroupElement ? d3.select(trackGroupElement) : undefined);
 
   const scroll = $derived((dy: number) => {
     gridScroll = clamp(gridScroll + dy, 0, innerGridHeight - clippedGridHeight);
   });
 
   $effect(() => {
-    let zoom = sharedXScale.getZoom();
     if (!svg) {
       return;
     }
+    let zoom = sharedXScale.getZoom();
 
     const pan = (event: WheelEvent) => {
-      zoom.translateBy(svg.transition().duration(50), -event.deltaX, 0);
+      console.log('pan', event.deltaX, sharedXScale.getDataDeltaForScreenDelta(event.deltaX));
+      const currentZoomTransform = sharedXScale.getCurrentZoomTransform();
+
+      // Adjust scroll speed inversely proportional to zoom
+      const scaleFactor = currentZoomTransform ? 1 / currentZoomTransform.k : 1; // smaller movement when zoomed in
+
+      zoom.translateBy(
+        svg, //.transition().duration(5),
+        // -event.deltaX,
+        -event.deltaX * scaleFactor,
+        0,
+      );
       scroll(event.deltaY);
       event.preventDefault();
     };
@@ -81,13 +89,15 @@
   let xAxisBars = $derived(sharedXScale.getXAxisBars());
 
   // Draw grid lines
+  let ticksGroupElement = $state<SVGGElement>();
+  let ticksGroup = $derived(ticksGroupElement ? d3.select(ticksGroupElement) : undefined);
   $effect(() => {
-    if (trackGroup && width > 0 && innerGridHeight > 0) {
+    if (ticksGroup && width > 0 && innerGridHeight > 0) {
       // Remove existing grid
-      trackGroup.selectAll('.x-grid').remove();
+      ticksGroup.selectAll('.x-grid').remove();
 
       // X-axis grid
-      trackGroup
+      ticksGroup
         .append('g')
         .attr('class', 'x-grid')
         .call(xAxisBars.tickSize(-innerGridHeight).tickFormat(() => ''))
@@ -95,9 +105,9 @@
         .style('opacity', 0.3);
 
       // Y-axis grid
-      trackGroup.selectAll('.y-grid').remove();
+      ticksGroup.selectAll('.y-grid').remove();
       if (lanes.length > 0) {
-        trackGroup
+        ticksGroup
           .append('g')
           .attr('class', 'y-grid')
           .selectAll('line')
@@ -114,8 +124,8 @@
       }
     }
     $effect(() => {
-      if (!trackGroup) return;
-      trackGroup
+      if (!ticksGroup) return;
+      ticksGroup
         .selectAll('.loop-marker')
         .data(sharedXScale.getLoopTicks())
         .join(
@@ -172,36 +182,40 @@
           <rect x={0} y={0} {width} height={clippedGridHeight} />
         </clipPath>
         <g clip-path="url(#grid-clip)">
-          <g bind:this={trackGroupElement} transform={`translate(0,${-gridScroll})`}>
+          <g transform={`translate(0,${-gridScroll})`}>
+            <g bind:this={ticksGroupElement}></g>
+
             <GridBrush
               {muteTransitionsByTrackId}
               {automationPointsByParameterId}
               height={innerGridHeight}
               {width}
             />
-            {#each lanes as lane (lane.id)}
-              <VirtualizedLane
-                height={sharedGridState.getLaneHeight(lane.id)}
-                {width}
-                yPosition={lane.top}
-                {gridScroll}
-                gridHeight={height}
-              >
-                {#if lane.type === 'track'}
-                  <MuteClipsWrapper
-                    {lane}
-                    {width}
-                    muteTransitions={muteTransitionsByTrackId[lane.id]}
-                  />
-                {:else if lane.type === 'parameter'}
-                  <AutomationCurveWrapper
-                    {lane}
-                    {width}
-                    automationPoints={automationPointsByParameterId[lane.id]}
-                  />
-                {/if}
-              </VirtualizedLane>
-            {/each}
+            <g>
+              {#each lanes as lane (lane.id)}
+                <VirtualizedLane
+                  height={sharedGridState.getLaneHeight(lane.id)}
+                  {width}
+                  yPosition={lane.top}
+                  {gridScroll}
+                  gridHeight={height}
+                >
+                  {#if lane.type === 'track'}
+                    <MuteClipsWrapper
+                      {lane}
+                      {width}
+                      muteTransitions={muteTransitionsByTrackId[lane.id] ?? []}
+                    />
+                  {:else if lane.type === 'parameter'}
+                    <AutomationCurveWrapper
+                      {lane}
+                      {width}
+                      automationPoints={automationPointsByParameterId[lane.id] ?? []}
+                    />
+                  {/if}
+                </VirtualizedLane>
+              {/each}
+            </g>
           </g>
         </g>
       </g>
