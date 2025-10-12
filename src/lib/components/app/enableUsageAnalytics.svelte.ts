@@ -5,9 +5,8 @@ const getEnableUsageAnalytics = () => {
 
   return {
     getEnableUsageAnalytics: () => enableUsageAnalytics,
-    setEnableUsageAnalytics: (enableUsageAnalytics: boolean) => {
-      console.log('setEnableUsageAnalytics', enableUsageAnalytics);
-      enableUsageAnalytics = enableUsageAnalytics;
+    setEnableUsageAnalytics: (enableUsageAnalyticsInner: boolean) => {
+      enableUsageAnalytics = enableUsageAnalyticsInner;
       if (!enableUsageAnalytics) {
         posthog.opt_out_capturing();
       } else {

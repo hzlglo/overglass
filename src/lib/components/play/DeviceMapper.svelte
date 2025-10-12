@@ -14,9 +14,12 @@
   } = $props();
 </script>
 
-<div
-  class="bg-base-100 border-base-content/20 rounded-box flex w-[500px] flex-1 flex-col gap-2 border p-4"
->
+<div class="flex w-[500px] flex-1 flex-col gap-2">
+  <div class="flex flex-1 flex-row flex-nowrap items-center justify-between">
+    <span>Track device</span>
+
+    <span>MIDI device</span>
+  </div>
   {#each trackDevices as trackDevice}
     <div class="flex flex-1 flex-row flex-nowrap items-center justify-between">
       {trackDevice.deviceName}

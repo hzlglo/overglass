@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
+  import { playState } from '../play/playState.svelte';
 
   let { width, height }: { width: number; height: number } = $props();
 
@@ -44,6 +45,12 @@
         .style('stroke-dasharray', '2,2')
         .style('opacity', 0.3);
     }
+  });
+  $effect(() => {
+    gGroup?.on('click', (event) => {
+      if (playState.getIsPlaying()) return;
+      playState.setPlayPoint(sharedXScale.getZoomedXScale().invert(event.offsetX));
+    });
   });
 </script>
 

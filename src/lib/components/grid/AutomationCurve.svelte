@@ -3,9 +3,10 @@
   import type { AutomationPoint, Parameter } from '../../database/schema';
   import { sharedXScale } from './sharedXScale.svelte';
   import { sharedDragSelect } from './sharedDragSelect.svelte';
-  import { sortBy } from 'lodash';
+  import { last, sortBy } from 'lodash';
   import { actionsDispatcher } from './actionsDispatcher.svelte';
   import { getAutomationLaneYAxis } from './laneConstants';
+  import { v4 } from 'uuid';
 
   interface AutomationCurveProps {
     parameterId: string;
@@ -98,6 +99,18 @@
       })),
       (p) => p.timePosition,
     );
+    const maxX = sharedXScale.getZoomedXScale().domain()[1];
+    const lastPoint = last(updatedAutomationPoints);
+    if (lastPoint && lastPoint.timePosition < maxX) {
+      updatedAutomationPoints.push({
+        id: v4(),
+        parameterId,
+        timePosition: maxX,
+        value: lastPoint.value,
+        createdAt: new Date(),
+      });
+    }
+    updatedAutomationPoints.push();
     area.datum(updatedAutomationPoints).attr('d', areaFn);
     line.datum(updatedAutomationPoints).attr('d', lineFn);
   };

@@ -67,23 +67,11 @@
       // Adjust scroll speed inversely proportional to zoom
       const scaleFactor = currentZoomTransform ? 1 / currentZoomTransform.k : 1; // smaller movement when zoomed in
 
-      zoom.translateBy(
-        svg, //.transition().duration(5),
-        // -event.deltaX,
-        -event.deltaX * scaleFactor,
-        0,
-      );
+      zoom.translateBy(svg, -event.deltaX * scaleFactor, 0);
       scroll(event.deltaY);
       event.preventDefault();
     };
     svg.call(zoom).on('wheel', pan);
-  });
-
-  $effect(() => {
-    // trackGroup?.on('click', (event) => {
-    //   if (playState.getIsPlaying()) return;
-    //   playState.setPlayPoint(sharedXScale.getZoomedXScale().invert(event.offsetX));
-    // });
   });
 
   let xAxisBars = $derived(sharedXScale.getXAxisBars());

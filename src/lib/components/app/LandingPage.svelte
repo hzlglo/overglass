@@ -4,22 +4,9 @@
   import FileChooser from './FileChooser.svelte';
   import HelpModal from './HelpModal.svelte';
   import ThemeController from './ThemeController.svelte';
-  import { enableUsageAnalyticsStore } from './enableUsageAnalytics.svelte';
+  import UsageAnalyticsCheckbox from './UsageAnalyticsCheckbox.svelte';
 </script>
 
-<!-- File chooser card -->
-<!-- <div class="hero bg-base-200 min-h-screen">
-  <div class="hero-content text-center">
-    <div class="max-w-md">
-      <h1 class="text-5xl font-bold">Hello there</h1>
-      <p class="py-6">
-        Provident cupiditate voluptatem et in. Quaerat fugiat ut assumenda excepturi exercitationem
-        quasi. In deleniti eaque aut repudiandae et a id nisi.
-      </p>
-      <button class="btn btn-primary">Get Started</button>
-    </div>
-  </div>
-</div> -->
 <div class="relative">
   <div class="absolute top-4 right-4 flex flex-row gap-2">
     <HelpModal />
@@ -57,17 +44,7 @@
           <div class="divider"></div>
           <div class="mt-10 flex flex-col gap-4 text-xs">
             <EmailSubscribe />
-            <div class="flex flex-row gap-2">
-              <input
-                type="checkbox"
-                checked={enableUsageAnalyticsStore.getEnableUsageAnalytics()}
-                onchange={(event) =>
-                  enableUsageAnalyticsStore.setEnableUsageAnalytics(
-                    (event.target as HTMLInputElement).checked,
-                  )}
-              />
-              <p>Enable usage analytics to help make this app better</p>
-            </div>
+            <UsageAnalyticsCheckbox />
           </div>
         </div>
       </div>

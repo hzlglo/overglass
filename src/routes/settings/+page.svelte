@@ -5,6 +5,7 @@
   import Tab from '$lib/components/core/Tab.svelte';
   import Tabs from '$lib/components/core/Tabs.svelte';
   import { ArrowLeftIcon } from '@lucide/svelte';
+  import Settings from '$lib/components/app/Settings.svelte';
 </script>
 
 <PageWrapper>
@@ -14,7 +15,14 @@
       Back
     </button>
   {/snippet}
-  <Tabs options={[{ value: 'Debugger' }]} value="Debugger" class="min-h-0 overflow-y-auto">
+  <Tabs
+    options={[{ value: 'Settings' }, { value: 'Debugger' }]}
+    value="Settings"
+    class="min-h-0 overflow-y-auto"
+  >
+    <Tab value="Settings">
+      <Settings />
+    </Tab>
     <Tab value="Debugger">
       <Debugger />
     </Tab>

@@ -43,6 +43,9 @@
   let clips = $derived(MuteTransitionService.deriveClipsFromTransitions(muteTransitions));
 
   let rectYPadding = 4;
+
+  const dragHandleWidth = 6;
+
   let { clipRects, muteDragHandles } = $derived.by(() => {
     if (!svgGroup) {
       return { clipRects: undefined, muteDragHandles: undefined };
@@ -70,19 +73,18 @@
       .attr('rx', 2);
 
     const muteDragHandles = svgGroup
-      .selectAll('.mute-drag-handle')
+      .selectAll<SVGRectElement, MuteTransition>('.mute-drag-handle')
       .data(muteTransitions, (d: MuteTransition) => d.id)
       .join(
         (enter) => enter.append('rect'),
         (update) => update,
         (exit) => exit.remove(),
       );
-    const width = 6;
     muteDragHandles
-      ?.attr('x', (d) => xScale(d.timePosition) - width / 2)
+      ?.attr('x', (d) => xScale(d.timePosition) - dragHandleWidth / 2)
       .attr('y', 0)
       .attr('class', 'mute-drag-handle')
-      .attr('width', width)
+      .attr('width', dragHandleWidth)
       .attr('height', innerHeight)
       .attr('fill-opacity', 1)
       .attr('stroke', color)
@@ -95,7 +97,7 @@
 
   $effect(() => {
     sharedDragSelect.registerDragHandler(trackId, () => {
-      muteDragHandles?.attr('x', (d) => xScale(d.timePosition) - 2);
+      muteDragHandles?.attr('x', (d) => xScale(d.timePosition) - dragHandleWidth / 2);
     });
   });
 

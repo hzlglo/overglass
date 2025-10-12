@@ -2,7 +2,7 @@
   import type { MidiMapping } from '$lib/database/schema';
   import { MidiPlayer } from '$lib/database/services/midiPlayer';
   import { trackDb, useTrackDbQuery } from '$lib/stores/trackDb.svelte';
-  import { CircleQuestionMarkIcon, PlayIcon, SquareIcon } from '@lucide/svelte';
+  import { PlayIcon, SquareIcon } from '@lucide/svelte';
   import classNames from 'classnames';
   import { has } from 'lodash';
   import { WebMidi, type Output } from 'webmidi';
@@ -264,7 +264,7 @@
       }}
     >
       <PlayIcon />
-      Enable MIDI playback
+      Enable playback
     </button>
   {:else}
     <button
@@ -282,7 +282,7 @@
 
   <Popover>
     {#snippet content()}
-      <div class="bg-base-100 border-base-content/20 border p-2 text-sm">
+      <div class="bg-base-100 border-base-content/20 border p-4 text-sm">
         <p>If you encounter any issues, please ensure your device</p>
         <ul class="list-inside list-disc">
           <li>Is connected via USB</li>
@@ -291,6 +291,7 @@
           <li>Has Clock Receive disabled</li>
           <li>Each track is mapped to the corresponding MIDI channel</li>
         </ul>
+        <p class="my-4 font-semibold">Available MIDI devices:</p>
         <DeviceMapper {midiOutputs} {trackDevices} deviceToMidiOutput={deviceToMidiOutputMapping} />
       </div>
     {/snippet}
@@ -300,7 +301,7 @@
         {midiOutputs.length === 1 ? 'device' : 'devices'} found
       </span>
     {:else}
-      <CircleQuestionMarkIcon />
+      <button class="btn btn-ghost btn-sm">MIDI help</button>
     {/if}
   </Popover>
 </div>

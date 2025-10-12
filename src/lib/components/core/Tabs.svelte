@@ -15,9 +15,9 @@
 </script>
 
 <Tabs.Root class={className} bind:value>
-  <Tabs.List class="tabs">
+  <Tabs.List class="tabs tabs-border px-2">
     {#each options as option}
-      <Tabs.Trigger value={option.value} class="tab data-[state=active]:tab-active "
+      <Tabs.Trigger value={option.value} class="tab data-[state=active]:tab-active mr-2 "
         >{option.label ?? option.value}</Tabs.Trigger
       >
     {/each}
