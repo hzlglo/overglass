@@ -93,6 +93,7 @@
           dropFromOthersDisabled: true,
           // if we're searching, disable dragging because reordering a filtered list is confusing
           dragDisabled: !!laneSearch,
+          dropTargetStyle: { outline: 'var(--color-accent) solid 2px' },
         }}
         onconsider={(e) => {
           trackOrder = e.detail.items;

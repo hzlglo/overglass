@@ -53,6 +53,7 @@
         items: parameters,
         flipDurationMs: 150,
         dropFromOthersDisabled: true,
+        dropTargetStyle: { outline: 'var(--color-accent) solid 2px' },
       }}
       onconsider={(e) => {
         parameters = e.detail.items;

@@ -125,7 +125,7 @@
   <div class="mt-4 flex flex-col gap-4">
     {#if fileName}
       <button
-        class="btn btn-primary btn-lg justify-start"
+        class="btn btn-primary btn-lg w-fit justify-start"
         onclick={loadSelectedFile}
         disabled={loading}
       >
@@ -138,7 +138,7 @@
         {/if}
       </button>
       <button
-        class="btn btn-error btn-sm btn-ghost mx-0 justify-start pl-[22px]"
+        class="btn btn-error btn-sm btn-ghost mx-0 w-fit justify-start pl-[21px]"
         onclick={() => (fileName = '')}
       >
         <ArrowLeftIcon />

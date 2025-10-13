@@ -174,6 +174,14 @@ const createCustomizationStore = () => {
     getFileCount(): number {
       return Object.keys(state.fileCustomizations).length;
     },
+    copyConfigToNewfile(fileName: string) {
+      if (!currentFile) {
+        return;
+      }
+      const newFile = { ...state.fileCustomizations[currentFile] };
+      state.fileCustomizations[fileName] = newFile;
+      saveStateToStorage(state);
+    },
   };
 };
 

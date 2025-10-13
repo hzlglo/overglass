@@ -2,6 +2,7 @@ import { AutomationDatabase } from '../database/duckdb';
 import { WasmDuckDBAdapter } from '../database/adapters/wasm';
 import type { ParsedALS } from '../database/schema';
 import { isEqual } from 'lodash';
+import { page } from '$app/state';
 
 /**
  * Database that stores the parsed ableton project data
@@ -52,10 +53,10 @@ const createTrackDbStore = () => {
       await database.loadALSData(parsedALS, trackToName);
       await database.run('INSTALL httpfs; LOAD httpfs;');
       await database.run(
-        'INSERT INTO midi_mappings (SELECT * from "http://localhost:1420/midi-maps/Digitakt II.csv")',
+        `INSERT INTO midi_mappings (SELECT * from "${page.url.origin}/midi-maps/Digitakt II.csv")`,
       );
       await database.run(
-        'INSERT INTO midi_mappings (SELECT * from "http://localhost:1420/midi-maps/Digitone II.csv")',
+        `INSERT INTO midi_mappings (SELECT * from "${page.url.origin}/midi-maps/Digitone II.csv")`,
       );
       await refreshData();
       return;

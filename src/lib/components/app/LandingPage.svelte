@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GithubIcon } from '@lucide/svelte';
+  import { GithubIcon, SquareActivity } from '@lucide/svelte';
   import EmailSubscribe from './EmailSubscribe.svelte';
   import FileChooser from './FileChooser.svelte';
   import ThemeController from './ThemeController.svelte';
@@ -20,7 +20,10 @@
   <div class="hero">
     <div class="hero-content">
       <div class="flex flex-col gap-4">
-        <h1 class="text-5xl font-bold">Overglass</h1>
+        <div class="flex flex-row gap-2">
+          <SquareActivity class=" h-12 w-12" />
+          <h1 class="text-5xl font-bold">Overglass</h1>
+        </div>
 
         <p>Simplify your Elektron + Ableton workflow</p>
         <div class="divider divider-neutral"></div>

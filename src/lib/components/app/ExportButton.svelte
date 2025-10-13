@@ -2,7 +2,8 @@
   import { trackDb } from '../../stores/trackDb.svelte';
   import { appStore } from '../../stores/app.svelte';
   import { ALSWriter } from '../../parsers/alsWriter';
-
+  import { filenameTimestamp } from '../../utils/utils';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
   interface ExportButtonProps {
     class?: string;
   }
@@ -31,8 +32,9 @@
 
       // Export the current database state back to ALS format
       // This uses the edited data, not the original
-      const exportFileName = `${loadedFile.name}_edited.als`;
+      const exportFileName = `${loadedFile.name}_overglass_${filenameTimestamp()}.als`;
       const exportedFile = await writer.writeALSFile(loadedFile, exportFileName);
+      appConfigStore.copyConfigToNewfile(exportFileName);
 
       // Create download link and trigger download
       const url = URL.createObjectURL(exportedFile);
@@ -43,6 +45,7 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      appStore.setHasUnsavedChanges(false);
 
       console.log(`✅ Export completed: ${exportFileName}`);
     } catch (error) {
@@ -52,8 +55,31 @@
       isExporting = false;
     }
   }
+
+  // https://stackoverflow.com/questions/10311341/confirmation-before-closing-of-tab-browser
+  function onBeforeUnload(e: BeforeUnloadEvent) {
+    console.log('onBeforeUnload', appStore.getHasUnsavedChanges());
+    if (appStore.getHasUnsavedChanges()) {
+      e.preventDefault();
+      e.returnValue = '';
+      return;
+    }
+
+    delete e['returnValue'];
+  }
+  $effect(() => {
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  });
 </script>
 
-<button class={className} onclick={handleExport} disabled={isExporting || !fileMetadata}>
+<button
+  title="Export the current project as a new .als file"
+  class={className}
+  onclick={handleExport}
+  disabled={isExporting || !fileMetadata}
+>
   {isExporting ? 'Exporting...' : 'Export ALS'}
 </button>

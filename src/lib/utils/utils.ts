@@ -32,3 +32,15 @@ export function transpose<T>(array: T[][]) {
 export function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${value}`);
 }
+export function filenameTimestamp(date = new Date()) {
+  return date
+    .toLocaleString(undefined, {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    .replace(/[/:,\s]+/g, '-');
+}

@@ -4,7 +4,9 @@
 </script>
 
 <Modal titleString="How to use Overglass">
-  <InfoIcon />
+  <button class="btn btn-ghost btn-sm btn-square" title="Show documentation" onclick={() => {}}>
+    <InfoIcon />
+  </button>
   {#snippet content()}
     <div class="prose">
       <div class="p-2">

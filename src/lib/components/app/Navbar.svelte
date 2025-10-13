@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { SettingsIcon } from '@lucide/svelte';
+  import { SettingsIcon, SquareActivity } from '@lucide/svelte';
   import type { Snippet } from 'svelte';
   import { appStore } from '../../stores/app.svelte';
   import Popover from '../core/Popover.svelte';
@@ -24,19 +24,10 @@
 
 <div class="navbar border-base-content/20 flex flex-row justify-between border-b">
   <!-- Left side - Project info -->
-  <div class="flex h-full min-w-0 shrink items-center">
+  <div class="flex min-w-0 shrink items-center gap-4">
     {@render backAction?.()}
 
-    <div class="divider divider-horizontal"></div>
-
-    <h3
-      class="max-w-[300px] min-w-[50px] flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
-      title={projectName}
-    >
-      {projectName}
-    </h3>
-  </div>
-  <div class="flex shrink-0 items-center gap-2">
+    <SquareActivity class="h-6 w-6" />
     <Popover>
       {#snippet content()}
         <div class="bg-base-100 border-base-content/20 flex w-[250px] flex-col gap-2 border p-4">
@@ -85,18 +76,29 @@
           </p>
         </div>
       {/snippet}
-      <span class="text-base-content/60 w-fit">
-        {bpm} BPM
-      </span>
-      <span class="text-base-content/60 w-fit">
-        {timeSignatureToString(timeSignature)}
-      </span>
+      <div class="flex cursor-pointer flex-row flex-nowrap gap-2">
+        <span class="w-fit text-nowrap">
+          {bpm} BPM
+        </span>
+        <span class="w-fit">
+          {timeSignatureToString(timeSignature)}
+        </span>
+      </div>
     </Popover>
+  </div>
+
+  <div class="flex shrink-0 items-center gap-4">
+    <h3
+      class="text-base-content/70 max-w-[300px] min-w-[50px] flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
+      title={projectName}
+    >
+      {projectName}
+    </h3>
+    <div class="divider divider-horizontal"></div>
 
     <!-- <span class="text-base-content/60 w-fit">
         {loopLength} bars per loop
       </span> -->
-    <div class="divider divider-horizontal"></div>
     <PlayButtons />
   </div>
 
@@ -108,6 +110,7 @@
 
     <button
       class="btn btn-ghost btn-sm btn-square"
+      title="Settings"
       onclick={() => {
         if (window.location.pathname.endsWith('/settings')) {
           goto('/');

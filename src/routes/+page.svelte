@@ -19,7 +19,7 @@
         goto('/');
       }}
     >
-      <ArrowLeftIcon />
+      <ArrowLeftIcon class="h-4 w-4" />
       Load a different file
     </button>
   {/snippet}

@@ -19,18 +19,12 @@
       document.documentElement.setAttribute('data-theme', 'emerald');
     }
   });
-  $effect(() => {
-    let _x = isDarkMode;
-    tick().then(() => {
-      regenerateColorOptions();
-      appConfigStore.randomizeTrackColors();
-    });
-  });
 </script>
 
 <label class="swap swap-rotate btn-square btn btn-ghost btn-sm">
   <input
     type="checkbox"
+    title="Toggle light/dark mode"
     class="theme-controller"
     value={isDarkMode ? 'overglass-dark' : 'emerald'}
     onchange={() => {
@@ -39,6 +33,8 @@
         'data-theme',
         isDarkMode ? 'overglass-dark' : 'emerald',
       );
+      regenerateColorOptions();
+      appConfigStore.randomizeTrackColors();
 
       localStorage.setItem(themeStorageKey, isDarkMode.toString());
     }}

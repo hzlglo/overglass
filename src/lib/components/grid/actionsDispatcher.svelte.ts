@@ -3,6 +3,7 @@ import { trackDb } from '$lib/stores/trackDb.svelte';
 import { MuteTransitionService } from '$lib/database/services/muteTransitionService';
 import { sharedDragSelect } from './sharedDragSelect.svelte';
 import { assertNever } from '$lib/utils/utils';
+import { appStore } from '$lib/stores/app.svelte';
 
 // Action types and their required inputs
 export type GridAction =
@@ -230,6 +231,7 @@ const getActionsDispatcher = () => {
 
   const dispatchAction = async (action: GridAction) => {
     console.log('dispatchAction', action);
+    appStore.setHasUnsavedChanges(true);
     switch (action.type) {
       case 'mergeClips':
         if (action.muteTransitions.length < 2) return;

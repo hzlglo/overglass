@@ -244,10 +244,11 @@
   };
 </script>
 
-<div class="flex w-[300px] flex-row items-center gap-2">
+<div class="flex flex-row items-center">
   {#if midiOutputs.length === 0}
     <button
-      class="btn btn-sm btn-ghost btn-success"
+      class="btn btn-square btn-outline btn-success"
+      title="Play the project via MIDI"
       onclick={async () => {
         await WebMidi.enable();
         midiOutputs = WebMidi.outputs;
@@ -261,15 +262,16 @@
             deviceToMidiOutputMapping[matchingDevice.deviceName] = midiOutput.name;
           }
         });
+        handlePlay();
       }}
     >
       <PlayIcon />
-      Enable playback
     </button>
   {:else}
     <button
-      class={classNames('btn btn-sm btn-square', isPlaying ? 'btn-success' : 'btn-ghost')}
+      class={classNames('btn btn-square btn-success btn-outline')}
       onclick={() => (isPlaying ? stopPlayback() : handlePlay())}
+      title={isPlaying ? 'Stop playback' : 'Play the project via MIDI'}
       use:playContainerListeners
     >
       {#if isPlaying}
@@ -283,7 +285,7 @@
   <Popover>
     {#snippet content()}
       <div class="bg-base-100 border-base-content/20 border p-4 text-sm">
-        <p>If you encounter any issues, please ensure your device</p>
+        <p>If you encounter any playback issues, please ensure your device</p>
         <ul class="list-inside list-disc">
           <li>Is connected via USB</li>
           <li>Has MIDI enabled</li>
@@ -295,13 +297,12 @@
         <DeviceMapper {midiOutputs} {trackDevices} deviceToMidiOutput={deviceToMidiOutputMapping} />
       </div>
     {/snippet}
-    {#if midiOutputs.length > 0}
-      <span class="text-success">
-        {midiOutputs.length}
-        {midiOutputs.length === 1 ? 'device' : 'devices'} found
-      </span>
-    {:else}
-      <button class="btn btn-ghost btn-sm">MIDI help</button>
-    {/if}
+    <button class="btn btn-link text-base-content btn-sm"
+      >{#if midiOutputs.length > 0}
+        <span class="status status-success"></span>{midiOutputs.length}
+        {midiOutputs.length === 1 ? 'device' : 'devices'}
+      {:else}MIDI Setup
+      {/if}</button
+    >
   </Popover>
 </div>

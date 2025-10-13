@@ -6,6 +6,7 @@ import { groupBy, keyBy, keys, clamp } from 'lodash';
 import type { MuteTransition } from '$lib/database/schema';
 import { trackDb } from '$lib/stores/trackDb.svelte';
 import { MuteTransitionService } from '$lib/database/services/muteTransitionService';
+import { appStore } from '$lib/stores/app.svelte';
 
 const getSharedDragSelect = () => {
   let brushSelection: null | { x0: number; y0: number; x1: number; y1: number } = $state(null);
@@ -115,6 +116,7 @@ const getSharedDragSelect = () => {
     dragEnd: async () => {
       await trackDb.get().automation.bulkSetAutomationPoints(selectedPoints);
       await trackDb.get().muteTransitions.updateMuteTransitions(selectedMuteTransitions);
+      appStore.setHasUnsavedChanges(true);
       await trackDb.refreshData();
       clear();
     },
