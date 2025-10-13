@@ -99,9 +99,6 @@
               endTime,
               isBeginningPlay,
             );
-            if (midiMapping.trackNumber === 11) {
-              console.log('Mute transitions', muteTransitions);
-            }
             return Promise.all(
               muteTransitions.map(async (m) =>
                 sendMidiControlChange({

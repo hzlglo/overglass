@@ -58,7 +58,6 @@
 
   // https://stackoverflow.com/questions/10311341/confirmation-before-closing-of-tab-browser
   function onBeforeUnload(e: BeforeUnloadEvent) {
-    console.log('onBeforeUnload', appStore.getHasUnsavedChanges());
     if (appStore.getHasUnsavedChanges()) {
       e.preventDefault();
       e.returnValue = '';

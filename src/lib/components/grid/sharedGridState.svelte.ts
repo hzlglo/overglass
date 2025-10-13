@@ -167,13 +167,6 @@ const getSharedGridState = () => {
         );
       }
     }
-    console.log('syncWithDb finished', {
-      trackLaneStates: $state.snapshot(trackLaneStates),
-      parameterLaneStates: $state.snapshot(parameterLaneStates),
-      trackOrder: $state.snapshot(trackOrder),
-      parameterOrder: $state.snapshot(parameterOrder),
-      laneHeights: $state.snapshot(laneHeights),
-    });
   }
 
   function toggleTrackExpansion(trackId: string) {
