@@ -74,7 +74,8 @@ const getSharedXScale = () => {
     const [minBar, maxBar] = zoomedXScaleBars.domain();
     const roughGranularityTarget = 64;
     const nearestPowerOfTwo = previousPowerOfTwo(maxBar - minBar) / roughGranularityTarget;
-    return Math.round(timePosition / nearestPowerOfTwo) * nearestPowerOfTwo;
+    // add 1 since the bars are 1-indexed
+    return 1 + Math.round((timePosition - 1) / nearestPowerOfTwo) * nearestPowerOfTwo;
   });
 
   let xAxisBars = $derived(
