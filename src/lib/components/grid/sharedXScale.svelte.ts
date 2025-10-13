@@ -24,7 +24,7 @@ export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarg
   for (let i = firstTick; i <= lastTick; i += distanceBetweenTicks) {
     result.push(
       // add 1 since the bars are 1-indexed
-      i,
+      i + 1,
     );
   }
   return result;
