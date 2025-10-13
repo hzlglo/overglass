@@ -80,7 +80,6 @@ export const regenerateColorOptions = () => {
     themePrimaryHex: getThemeColor('primary'),
   });
 };
-regenerateColorOptions();
 
 export const getRandomColor = (index: number) => {
   return colorOptions[index % colorOptions.length][random(colorOptions[0].length - 1)];

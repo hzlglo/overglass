@@ -19,6 +19,11 @@
       document.documentElement.setAttribute('data-theme', 'emerald');
     }
   });
+  $effect(() => {
+    tick().then(() => {
+      regenerateColorOptions();
+    });
+  });
 </script>
 
 <label class="swap swap-rotate btn-square btn btn-ghost btn-sm">
