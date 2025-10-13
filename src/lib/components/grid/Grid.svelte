@@ -61,7 +61,6 @@
     let zoom = sharedXScale.getZoom();
 
     const pan = (event: WheelEvent) => {
-      console.log('pan', event.deltaX, sharedXScale.getDataDeltaForScreenDelta(event.deltaX));
       const currentZoomTransform = sharedXScale.getCurrentZoomTransform();
 
       // Adjust scroll speed inversely proportional to zoom

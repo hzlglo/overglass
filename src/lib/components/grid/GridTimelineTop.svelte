@@ -54,4 +54,4 @@
   });
 </script>
 
-<g bind:this={gElement} {width} {height} class="allow-pan block cursor-grab"></g>
+<g bind:this={gElement} {width} {height} class="allow-pan block cursor-pointer"></g>

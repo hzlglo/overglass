@@ -2,14 +2,12 @@
   import { GithubIcon } from '@lucide/svelte';
   import EmailSubscribe from './EmailSubscribe.svelte';
   import FileChooser from './FileChooser.svelte';
-  import HelpModal from './HelpModal.svelte';
   import ThemeController from './ThemeController.svelte';
   import UsageAnalyticsCheckbox from './UsageAnalyticsCheckbox.svelte';
 </script>
 
-<div class="relative">
-  <div class="absolute top-4 right-4 flex flex-row gap-2">
-    <HelpModal />
+<div class="bg-base-200 min-h-screen w-screen">
+  <div class="flex flex-row justify-end gap-2 p-2">
     <a
       class="btn btn-ghost btn-sm btn-square"
       href="https://github.com/hzlglo/overglass"
@@ -19,19 +17,19 @@
     </a>
     <ThemeController />
   </div>
-  <div class="hero bg-base-200 min-h-screen">
-    <div class="hero-content text-center">
-      <div class="flex max-w-lg flex-col gap-4">
+  <div class="hero">
+    <div class="hero-content">
+      <div class="flex flex-col gap-4">
         <h1 class="text-5xl font-bold">Overglass</h1>
 
         <p>Simplify your Elektron + Ableton workflow</p>
-        <div class="divider"></div>
-        <div class="mt-4 flex flex-col justify-start gap-4 text-left">
+        <div class="divider divider-neutral"></div>
+        <div class="flex flex-col justify-start gap-4 text-left">
           <div>
             <p>Overglass makes it easier to edit automation recorded from Overbridge.</p>
           </div>
           <FileChooser />
-          <p>
+          <p class="text-base-content/70 text-sm">
             Your file won't leave your computer. Overglass runs entirely in your browser.
             <a
               class="link"
@@ -42,7 +40,7 @@
             </a>
           </p>
           <div class="divider"></div>
-          <div class="mt-10 flex flex-col gap-4 text-xs">
+          <div class="flex flex-col gap-4 text-xs">
             <EmailSubscribe />
             <UsageAnalyticsCheckbox />
           </div>

@@ -4,6 +4,7 @@
     action="https://gumroad.com/follow_from_embed_form"
     method="post"
     id="gumroad-follow-form-embed"
+    class="flex flex-row gap-2"
   >
     <input type="hidden" name="seller_id" value="2964133388302" /><input
       id="gumroad-follow-form-embed-input"

@@ -50,7 +50,7 @@
 
   let playFunctions: ((args: PlayFunctionArgs) => Promise<any>)[] = $state.raw([]);
 
-  const LOOKAHEAD = 0.5;
+  const LOOKAHEAD = 0.25;
   const GRANULARITY = 0.1;
 
   async function handlePlay() {

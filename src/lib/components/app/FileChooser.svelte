@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appConfigStore } from '$lib/stores/customization.svelte';
-  import { ArrowLeftIcon, ArrowRightIcon, XIcon } from '@lucide/svelte';
+  import { ArrowLeftIcon, ArrowRightIcon } from '@lucide/svelte';
   import { fromPairs, toPairs } from 'lodash';
   import { ALSParser } from '../../parsers/alsParser';
   import { appStore } from '../../stores/app.svelte';
@@ -86,7 +86,7 @@
   }
 </script>
 
-<div class="">
+<div>
   <p class="mt-8">
     <span class="font-bold">To start, choose a .als file.</span>
   </p>
