@@ -56,9 +56,25 @@
         dropTargetStyle: { outline: 'var(--color-accent) solid 2px' },
       }}
       onconsider={(e) => {
+        if (e.detail.items.length !== parameters.length) {
+          console.log(
+            'Preventing drag reorder because length mismatch',
+            e.detail.items,
+            parameters,
+          );
+          return;
+        }
         parameters = e.detail.items;
       }}
       onfinalize={(e) => {
+        if (e.detail.items.length !== parameters.length) {
+          console.log(
+            'Preventing drag reorder because length mismatch',
+            e.detail.items,
+            parameters,
+          );
+          return;
+        }
         sharedGridState.setParameterOrder(trackId, uniq(e.detail.items.map((t) => t.id)));
       }}
     >

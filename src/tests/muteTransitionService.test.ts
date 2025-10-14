@@ -775,6 +775,170 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       console.log('✅ Handled adding clip with only initial UNMUTED transition');
     });
+
+    it('should add both start and end when adding before existing clip', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing transitions
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:MUTED, 10:UNMUTED, 20:MUTED, 30:UNMUTED (infinite)
+      // This creates clips: [10-20] and [30-∞]
+      await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      await service.createMuteTransition(trackId, 30, false, muteParameterId);
+
+      console.log('Created pattern: MUTED initial, clip [10-20], infinite clip [30-∞]');
+      console.log('Adding clip at time 5 (before first clip)');
+
+      // Add clip at time 5 (before first clip)
+      // Expected: Toggle initial to UNMUTED, then create a clip [5:MUTED, 7:UNMUTED]
+      // This should create BOTH start and end, not just one transition
+      await service.addMuteTransitionClip(trackId, 5);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const sortedRemaining = remaining.sort((a, b) => a.timePosition - b.timePosition);
+
+      console.log('Remaining transitions:', sortedRemaining.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // Verify alternating pattern is maintained
+      for (let i = 1; i < sortedRemaining.length; i++) {
+        expect(sortedRemaining[i].isMuted).not.toBe(
+          sortedRemaining[i - 1].isMuted,
+          `Pattern broken at index ${i}: ${sortedRemaining[i - 1].timePosition}:${sortedRemaining[i - 1].isMuted ? 'MUTED' : 'UNMUTED'} → ${sortedRemaining[i].timePosition}:${sortedRemaining[i].isMuted ? 'MUTED' : 'UNMUTED'}`,
+        );
+      }
+
+      console.log('✅ Added both start and end when adding before existing clip');
+    });
+
+    it('should add both start and end with initial UNMUTED state and multiple clips', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing transitions
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern with initial UNMUTED: -60000:UNMUTED, 10:MUTED, 20:UNMUTED, 30:MUTED
+      // This creates muted sections: [10-20] and [30-∞] (unmuted from start to 10, then 20-30)
+      await service.createMuteTransition(trackId, -60000, false, muteParameterId);
+      await service.createMuteTransition(trackId, 10, true, muteParameterId);
+      await service.createMuteTransition(trackId, 20, false, muteParameterId);
+      await service.createMuteTransition(trackId, 30, true, muteParameterId);
+
+      console.log('Created pattern: UNMUTED initial, muted [10-20], muted [30-∞]');
+      console.log('Attempting to add clip at time 5 (in unmuted space before first muted section)');
+
+      // Add clip at time 5 (in unmuted space)
+      // Since we're in unmuted space, this should add a MUTED section
+      await service.addMuteTransitionClip(trackId, 5);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const sortedRemaining = remaining.sort((a, b) => a.timePosition - b.timePosition);
+
+      console.log('Remaining transitions:', sortedRemaining.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // Verify alternating pattern is maintained
+      for (let i = 1; i < sortedRemaining.length; i++) {
+        expect(sortedRemaining[i].isMuted).not.toBe(
+          sortedRemaining[i - 1].isMuted,
+          `Pattern broken at index ${i}: ${sortedRemaining[i - 1].timePosition}:${sortedRemaining[i - 1].isMuted ? 'MUTED' : 'UNMUTED'} → ${sortedRemaining[i].timePosition}:${sortedRemaining[i].isMuted ? 'MUTED' : 'UNMUTED'}`,
+        );
+      }
+
+      console.log('After first addition - attempting second clip at time 15 (between first muted section)');
+
+      // Now try adding another clip at time 15 (in the middle of muted space [10-20])
+      // This should split the muted section
+      await service.addMuteTransitionClip(trackId, 15);
+
+      const remaining2 = await service.getMuteTransitionsForTrack(trackId);
+      const sortedRemaining2 = remaining2.sort((a, b) => a.timePosition - b.timePosition);
+
+      console.log('Remaining transitions after 2nd add:', sortedRemaining2.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // Verify alternating pattern is still maintained
+      for (let i = 1; i < sortedRemaining2.length; i++) {
+        expect(sortedRemaining2[i].isMuted).not.toBe(
+          sortedRemaining2[i - 1].isMuted,
+          `Pattern broken at index ${i} after 2nd add: ${sortedRemaining2[i - 1].timePosition}:${sortedRemaining2[i - 1].isMuted ? 'MUTED' : 'UNMUTED'} → ${sortedRemaining2[i].timePosition}:${sortedRemaining2[i].isMuted ? 'MUTED' : 'UNMUTED'}`,
+        );
+      }
+
+      console.log('✅ Maintained alternating pattern with initial UNMUTED and multiple operations');
+    });
+
+    it('should handle multiple additions in same muted section near infinite clip', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing transitions
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Recreate the exact state from the bug report
+      await service.createMuteTransition(trackId, -63072000, false, muteParameterId);
+      await service.createMuteTransition(trackId, 36.08, true, muteParameterId);
+      await service.createMuteTransition(trackId, 67.50, false, muteParameterId);
+      await service.createMuteTransition(trackId, 69.50, true, muteParameterId);
+      await service.createMuteTransition(trackId, 79.72, false, muteParameterId);
+      await service.createMuteTransition(trackId, 81.72, true, muteParameterId);
+      await service.createMuteTransition(trackId, 96.10, false, muteParameterId);
+
+      console.log('Created pattern matching bug report state');
+      const initial = await service.getMuteTransitionsForTrack(trackId);
+      console.log('Initial:', initial.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // First addition at 92.26 (in muted space [81.72-96.10])
+      console.log('Adding clip at 92.26 (in muted space before infinite clip)');
+      await service.addMuteTransitionClip(trackId, 92.26);
+
+      const afterFirst = await service.getMuteTransitionsForTrack(trackId);
+      const sortedFirst = afterFirst.sort((a, b) => a.timePosition - b.timePosition);
+      console.log('After 1st add:', sortedFirst.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // Verify alternating pattern after first add
+      for (let i = 1; i < sortedFirst.length; i++) {
+        expect(sortedFirst[i].isMuted).not.toBe(
+          sortedFirst[i - 1].isMuted,
+          `Pattern broken at index ${i} after 1st add: ${sortedFirst[i - 1].timePosition}:${sortedFirst[i - 1].isMuted ? 'MUTED' : 'UNMUTED'} → ${sortedFirst[i].timePosition}:${sortedFirst[i].isMuted ? 'MUTED' : 'UNMUTED'}`,
+        );
+      }
+
+      // Second addition at 95.12 (also in muted space, after 92.26's additions)
+      console.log('Adding clip at 95.12 (THIS CAUSED THE BUG)');
+      await service.addMuteTransitionClip(trackId, 95.12);
+
+      const afterSecond = await service.getMuteTransitionsForTrack(trackId);
+      const sortedSecond = afterSecond.sort((a, b) => a.timePosition - b.timePosition);
+      console.log('After 2nd add:', sortedSecond.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // Verify alternating pattern after second add
+      for (let i = 1; i < sortedSecond.length; i++) {
+        expect(sortedSecond[i].isMuted).not.toBe(
+          sortedSecond[i - 1].isMuted,
+          `Pattern broken at index ${i} after 2nd add: ${sortedSecond[i - 1].timePosition}:${sortedSecond[i - 1].isMuted ? 'MUTED' : 'UNMUTED'} → ${sortedSecond[i].timePosition}:${sortedSecond[i].isMuted ? 'MUTED' : 'UNMUTED'}`,
+        );
+      }
+
+      console.log('✅ Handled multiple additions in same muted section near infinite clip');
+    });
   });
 
   describe('updateMuteTransitions', () => {
