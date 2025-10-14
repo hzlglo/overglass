@@ -7,7 +7,7 @@ function nextPowerOfTwo(n: number) {
 function previousPowerOfTwo(n: number) {
   return Math.pow(2, Math.floor(Math.log2(n)));
 }
-export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarget: number = 16) {
+function getTicksForBarSpan0Indexed(minBar: number, maxBar: number, roughTickTarget: number = 16) {
   // Generate ticks at base-2 intervals (e.g., 0.5, 1, 2, 4, 8, 16, ...)
   // Try to get ~8-12 ticks within the span
   // subtract 1 from both since the bars are 1-indexed
@@ -22,12 +22,13 @@ export function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarg
   }
   const result = [];
   for (let i = firstTick; i <= lastTick; i += distanceBetweenTicks) {
-    result.push(
-      // add 1 since the bars are 1-indexed
-      i + 1,
-    );
+    result.push(i);
   }
   return result;
+}
+// translate to 1-indexed bars
+function getTicksForBarSpan(minBar: number, maxBar: number, roughTickTarget: number = 16) {
+  return getTicksForBarSpan0Indexed(minBar - 1, maxBar - 1, roughTickTarget).map((t) => t + 1);
 }
 
 const getSharedXScale = () => {
