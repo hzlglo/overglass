@@ -227,6 +227,21 @@ export class MuteTransitionService {
       lastPositive && deletingIds.has(lastPositive.id) && deletingIds.size === 1;
 
     if (deletingFirstPositive && negativeTransition) {
+      // Check if we're deleting a complete first clip (both start and end)
+      // If so, use regular clip deletion instead of toggling initial state
+      const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
+      const firstClip = clips.find((clip) => clip.startTransition.id === firstPositive.id);
+
+      if (firstClip && firstClip.endTransition) {
+        // We have a first clip with an end transition
+        const deletingFirstClipEnd = deletingIds.has(firstClip.endTransition.id);
+        if (deletingFirstClipEnd) {
+          // Deleting complete first clip - use regular deletion, don't toggle
+          return 'delete-clips';
+        }
+      }
+
+      // Deleting first positive but not complete clip - toggle initial state
       return 'toggle-initial-and-delete-clips';
     }
     if (deletingOnlyLast) {
@@ -558,35 +573,50 @@ export class MuteTransitionService {
       if (positiveTransitions.length === 0 || timePosition < positiveTransitions[0].timePosition) {
         // Adding at the beginning - toggle initial state and add transitions
         const negativeTransition = sortedTransitions.find((t) => t.timePosition < 0);
+        let newInitialState = negativeTransition?.isMuted ?? true;
+
         if (negativeTransition) {
+          newInitialState = !negativeTransition.isMuted;
           await this.updateMuteTransitionValues(
             negativeTransition.id,
             negativeTransition.timePosition,
-            !negativeTransition.isMuted,
+            newInitialState,
           );
         }
 
-        // If there are no positive transitions, we need to create both start and end of clip
+        // If there are no positive transitions, check the new initial state
         if (positiveTransitions.length === 0) {
-          const startTransition = await this.createMuteTransition(
-            trackId,
-            timePosition,
-            false,
-            muteParameterId,
-          );
-          const endTransition = await this.createMuteTransition(
-            trackId,
-            timePosition + 2,
-            true,
-            muteParameterId,
-          );
-          createdTransitions.push(startTransition, endTransition);
+          if (newInitialState) {
+            // Initial state is MUTED, so we're in muted space - create an unmuted clip
+            const startTransition = await this.createMuteTransition(
+              trackId,
+              timePosition,
+              false,
+              muteParameterId,
+            );
+            const endTransition = await this.createMuteTransition(
+              trackId,
+              timePosition + 2,
+              true,
+              muteParameterId,
+            );
+            createdTransitions.push(startTransition, endTransition);
+          } else {
+            // Initial state is UNMUTED, so we're in unmuted space - add a MUTED transition to end it
+            const endTransition = await this.createMuteTransition(
+              trackId,
+              timePosition,
+              true,
+              muteParameterId,
+            );
+            createdTransitions.push(endTransition);
+          }
         } else {
           // If there are positive transitions, just add one transition that inverts from the initial state
           const newTransition = await this.createMuteTransition(
             trackId,
             timePosition,
-            !negativeTransition?.isMuted || true,
+            !newInitialState,
             muteParameterId,
           );
           createdTransitions.push(newTransition);
