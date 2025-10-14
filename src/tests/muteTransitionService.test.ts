@@ -151,6 +151,161 @@ describe('MuteTransitionService - Clip-Based Operations', () => {
 
       console.log(`✅ Deleted entire clip: remaining times [${remainingTimes.join(', ')}]`);
     });
+
+    it('should handle deleting first positive with other transitions using clip logic', async () => {
+      // This test exposes the bug where Case 1 doesn't use clip-based logic for other transitions
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create known pattern
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:MUTED, 10:UNMUTED, 20:MUTED, 30:UNMUTED, 40:MUTED
+      // This creates clips: [10-20] and [30-40]
+      await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      const clip2Start = await service.createMuteTransition(trackId, 30, false, muteParameterId);
+      const clip2End = await service.createMuteTransition(trackId, 40, true, muteParameterId);
+
+      console.log('Created pattern: MUTED initial, clips [10-20], [30-40]');
+      console.log('Deleting first positive (10) + clip2Start (30) - should maintain alternating pattern');
+
+      // Delete first positive (10) and clip2Start (30)
+      // This should:
+      // 1. Toggle initial state to UNMUTED
+      // 2. Delete the entire first clip (10, 20)
+      // 3. Delete clip2Start's entire clip (30, 40) using clip logic
+      await service.deleteMuteTransitions([clip1Start.id, clip2Start.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const sortedRemaining = remaining.sort((a, b) => a.timePosition - b.timePosition);
+      const remainingTimes = sortedRemaining.map((t) => t.timePosition);
+
+      console.log(`Remaining times: [${remainingTimes.join(', ')}]`);
+      console.log('Remaining states:', sortedRemaining.map((t) => `${t.timePosition}:${t.isMuted ? 'MUTED' : 'UNMUTED'}`).join(', '));
+
+      // Verify alternating pattern is maintained
+      for (let i = 1; i < sortedRemaining.length; i++) {
+        expect(sortedRemaining[i].isMuted).not.toBe(
+          sortedRemaining[i - 1].isMuted,
+          `Pattern broken at index ${i}: ${sortedRemaining[i - 1].timePosition}:${sortedRemaining[i - 1].isMuted} → ${sortedRemaining[i].timePosition}:${sortedRemaining[i].isMuted}`,
+        );
+      }
+
+      console.log('✅ Maintained alternating pattern after complex deletion');
+    });
+
+    it('should handle deleting first and last transitions together', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create pattern
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:MUTED, 10:UNMUTED, 20:MUTED, 30:UNMUTED
+      await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const first = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      const last = await service.createMuteTransition(trackId, 30, false, muteParameterId);
+
+      console.log('Created pattern with first and last, deleting both');
+
+      // Delete first and last together
+      await service.deleteMuteTransitions([first.id, last.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const sortedRemaining = remaining.sort((a, b) => a.timePosition - b.timePosition);
+
+      // Verify alternating pattern is maintained
+      for (let i = 1; i < sortedRemaining.length; i++) {
+        expect(sortedRemaining[i].isMuted).not.toBe(sortedRemaining[i - 1].isMuted);
+      }
+
+      console.log('✅ Handled deleting first and last together');
+    });
+
+    it('should handle deleting all positive transitions', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create pattern
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:MUTED, 10:UNMUTED, 20:MUTED
+      const initial = await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const t1 = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const t2 = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+
+      console.log('Created pattern, deleting all positive transitions');
+
+      // Delete all positive transitions
+      await service.deleteMuteTransitions([t1.id, t2.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+
+      // Should only have the initial transition left, with toggled state
+      expect(remaining.length).toBe(1);
+      expect(remaining[0].timePosition).toBe(-60000);
+      expect(remaining[0].isMuted).toBe(false); // Should be toggled from initial MUTED
+
+      console.log('✅ Handled deleting all positive transitions');
+    });
+
+    it('should handle deleting entire first clip (both start and end)', async () => {
+      const tracks = await database.run('SELECT id FROM tracks LIMIT 1');
+      const trackId = tracks[0].id;
+      const params = await database.run('SELECT id FROM parameters WHERE is_mute = true LIMIT 1');
+      const muteParameterId = params[0].id;
+
+      // Clear existing and create pattern
+      const existing = await service.getMuteTransitionsForTrack(trackId);
+      for (const t of existing) {
+        await service.deleteMuteTransition(t.id);
+      }
+
+      // Create pattern: -60000:MUTED, 10:UNMUTED, 20:MUTED, 30:UNMUTED, 40:MUTED
+      await service.createMuteTransition(trackId, -60000, true, muteParameterId);
+      const clip1Start = await service.createMuteTransition(trackId, 10, false, muteParameterId);
+      const clip1End = await service.createMuteTransition(trackId, 20, true, muteParameterId);
+      await service.createMuteTransition(trackId, 30, false, muteParameterId);
+      await service.createMuteTransition(trackId, 40, true, muteParameterId);
+
+      console.log('Created pattern, deleting entire first clip [10-20]');
+
+      // Delete both transitions of the first clip
+      await service.deleteMuteTransitions([clip1Start.id, clip1End.id]);
+
+      const remaining = await service.getMuteTransitionsForTrack(trackId);
+      const sortedRemaining = remaining.sort((a, b) => a.timePosition - b.timePosition);
+      const remainingTimes = sortedRemaining.map((t) => t.timePosition);
+
+      // Should have deleted the entire clip [10-20] and the duplicate state at 30
+      // Remaining: -60000:UNMUTED, 40:MUTED
+      expect(remainingTimes).toEqual([-60000, 40]);
+
+      // Verify alternating pattern is maintained
+      for (let i = 1; i < sortedRemaining.length; i++) {
+        expect(sortedRemaining[i].isMuted).not.toBe(sortedRemaining[i - 1].isMuted);
+      }
+
+      console.log('✅ Handled deleting entire first clip');
+    });
   });
 
   describe('mergeMuteTransitionClips', () => {

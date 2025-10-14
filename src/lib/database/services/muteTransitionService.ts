@@ -163,7 +163,35 @@ export class MuteTransitionService {
   async deleteMuteTransitions(transitionIds: string[]): Promise<void> {
     if (transitionIds.length === 0) return;
 
-    // Get all transitions to delete and group by track
+    const transitionsByTrack = await this.groupTransitionsByTrack(transitionIds);
+
+    for (const [trackId, transitionsToDelete] of transitionsByTrack) {
+      const allTransitions = await this.getMuteTransitionsForTrack(trackId);
+      const strategy = MuteTransitionService.determineDeletionStrategy(
+        transitionsToDelete,
+        allTransitions,
+      );
+
+      switch (strategy) {
+        case 'toggle-initial-and-delete-clips':
+          await this.deleteWithInitialToggle(trackId, transitionsToDelete, allTransitions);
+          break;
+        case 'delete-only-last':
+          await this.deleteLastTransition(transitionsToDelete);
+          break;
+        case 'delete-clips':
+          await this.deleteClips(transitionsToDelete, allTransitions);
+          break;
+      }
+    }
+  }
+
+  /**
+   * Group transitions by track ID (helper for deleteMuteTransitions)
+   */
+  private async groupTransitionsByTrack(
+    transitionIds: string[],
+  ): Promise<Map<string, MuteTransition[]>> {
     const transitionsByTrack = new Map<string, MuteTransition[]>();
 
     for (const id of transitionIds) {
@@ -176,66 +204,153 @@ export class MuteTransitionService {
       }
     }
 
-    // Process each track separately
-    for (const [trackId, transitionsToDelete] of transitionsByTrack) {
-      const allTransitions = await this.getMuteTransitionsForTrack(trackId);
-      const sortedAll = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
+    return transitionsByTrack;
+  }
 
-      // Find negative-time transition (initial state)
-      const negativeTransition = sortedAll.find((t) => t.timePosition < 0);
-      const positiveTransitions = sortedAll.filter((t) => t.timePosition >= 0);
+  /**
+   * Determine which deletion strategy to use based on what's being deleted
+   */
+  private static determineDeletionStrategy(
+    transitionsToDelete: MuteTransition[],
+    allTransitions: MuteTransition[],
+  ): 'toggle-initial-and-delete-clips' | 'delete-only-last' | 'delete-clips' {
+    const sortedAll = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
+    const positiveTransitions = sortedAll.filter((t) => t.timePosition >= 0);
+    const negativeTransition = sortedAll.find((t) => t.timePosition < 0);
+    const deletingIds = new Set(transitionsToDelete.map((t) => t.id));
 
-      // Check special cases
-      const deletingIds = transitionsToDelete.map((t) => t.id);
-      const firstPositive = positiveTransitions[0];
-      const lastPositive = positiveTransitions[positiveTransitions.length - 1];
+    const firstPositive = positiveTransitions[0];
+    const lastPositive = positiveTransitions[positiveTransitions.length - 1];
 
-      const deletingFirstPositive = firstPositive && deletingIds.includes(firstPositive.id);
-      const deletingLastPositive = lastPositive && deletingIds.includes(lastPositive.id);
-      const deletingOnlyLast = deletingLastPositive && deletingIds.length === 1;
+    const deletingFirstPositive = firstPositive && deletingIds.has(firstPositive.id);
+    const deletingOnlyLast =
+      lastPositive && deletingIds.has(lastPositive.id) && deletingIds.size === 1;
 
-      if (deletingFirstPositive && negativeTransition) {
-        // Delete first positive transition and toggle initial state
-        await this.deleteMuteTransition(firstPositive.id);
-        await this.updateMuteTransitionValues(
-          negativeTransition.id,
-          negativeTransition.timePosition,
-          !negativeTransition.isMuted,
-        );
+    if (deletingFirstPositive && negativeTransition) {
+      return 'toggle-initial-and-delete-clips';
+    }
+    if (deletingOnlyLast) {
+      return 'delete-only-last';
+    }
+    return 'delete-clips';
+  }
 
-        // Delete other selected transitions (except the first positive one we already handled)
-        const remainingToDelete = transitionsToDelete.filter((t) => t.id !== firstPositive.id);
-        for (const transition of remainingToDelete) {
+  /**
+   * Get IDs of transitions that should be deleted using clip-based logic (pure function)
+   * IMPORTANT: Never returns negative-time transitions (initial state)
+   */
+  private static getTransitionsToDeleteFromClips(
+    transitionsToDelete: MuteTransition[],
+    allTransitions: MuteTransition[],
+  ): Set<string> {
+    const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
+    const affectedClips = clips.filter((clip) =>
+      transitionsToDelete.some(
+        (t) => t.timePosition >= clip.start && (clip.end === null || t.timePosition <= clip.end),
+      ),
+    );
+
+    const idsToDelete = new Set<string>();
+    for (const clip of affectedClips) {
+      // Only add transitions with positive time (never delete initial state)
+      if (clip.startTransition.timePosition >= 0) {
+        idsToDelete.add(clip.startTransition.id);
+      }
+      if (clip.endTransition && clip.endTransition.timePosition >= 0) {
+        idsToDelete.add(clip.endTransition.id);
+      }
+    }
+
+    return idsToDelete;
+  }
+
+  /**
+   * Strategy 1: Delete first positive transition, toggle initial state, and delete remaining clips
+   */
+  private async deleteWithInitialToggle(
+    trackId: string,
+    transitionsToDelete: MuteTransition[],
+    allTransitions: MuteTransition[],
+  ): Promise<void> {
+    const sortedAll = allTransitions.sort((a, b) => a.timePosition - b.timePosition);
+    const positiveTransitions = sortedAll.filter((t) => t.timePosition >= 0);
+    const negativeTransition = sortedAll.find((t) => t.timePosition < 0);
+
+    if (!negativeTransition) return;
+
+    const firstPositive = positiveTransitions[0];
+    if (!firstPositive) return;
+
+    // Delete first positive transition and toggle initial state
+    await this.deleteMuteTransition(firstPositive.id);
+    await this.updateMuteTransitionValues(
+      negativeTransition.id,
+      negativeTransition.timePosition,
+      !negativeTransition.isMuted,
+    );
+
+    // Handle remaining transitions with clip-based logic
+    const remainingToDelete = transitionsToDelete.filter((t) => t.id !== firstPositive.id);
+
+    if (remainingToDelete.length > 0) {
+      // Get updated transitions after first deletion and initial state toggle
+      const updatedAllTransitions = await this.getMuteTransitionsForTrack(trackId);
+
+      // Use clip-based logic to find all transitions to delete
+      const idsToDelete = MuteTransitionService.getTransitionsToDeleteFromClips(
+        remainingToDelete,
+        updatedAllTransitions,
+      );
+
+      // Delete transitions that are part of clips
+      for (const transitionId of idsToDelete) {
+        await this.deleteMuteTransition(transitionId);
+      }
+
+      // Delete orphaned transitions (not part of any clip after initial state toggle)
+      // BUT: Never delete the negative/initial transition
+      for (const transition of remainingToDelete) {
+        if (!idsToDelete.has(transition.id) && transition.timePosition >= 0) {
           await this.deleteMuteTransition(transition.id);
         }
-      } else if (deletingOnlyLast) {
-        // Delete only the last transition
-        await this.deleteMuteTransition(lastPositive.id);
-      } else {
-        // General case: delete entire clips
-        // Find all clips that contain any of the transitions to delete
-        const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);
-        const affectedClips = clips.filter((clip) =>
-          transitionsToDelete.some(
-            (t) =>
-              t.timePosition >= clip.start && (clip.end === null || t.timePosition <= clip.end),
-          ),
-        );
-
-        // Collect all transitions to delete from affected clips
-        const transitionsToDeleteFromClips = new Set<string>();
-        for (const clip of affectedClips) {
-          transitionsToDeleteFromClips.add(clip.startTransition.id);
-          if (clip.endTransition) {
-            transitionsToDeleteFromClips.add(clip.endTransition.id);
-          }
-        }
-
-        // Delete all transitions that are part of affected clips
-        for (const transitionId of transitionsToDeleteFromClips) {
-          await this.deleteMuteTransition(transitionId);
-        }
       }
+
+      // After all deletions, check if first positive transition creates duplicate state with initial
+      // This can happen when deleting clips that span from the initial state
+      const finalTransitions = await this.getMuteTransitionsForTrack(trackId);
+      const sortedFinal = finalTransitions.sort((a, b) => a.timePosition - b.timePosition);
+      const finalNegative = sortedFinal.find((t) => t.timePosition < 0);
+      const finalFirstPositive = sortedFinal.find((t) => t.timePosition >= 0);
+
+      if (finalNegative && finalFirstPositive && finalNegative.isMuted === finalFirstPositive.isMuted) {
+        await this.deleteMuteTransition(finalFirstPositive.id);
+      }
+    }
+  }
+
+  /**
+   * Strategy 2: Delete only the last transition (simple case)
+   */
+  private async deleteLastTransition(transitionsToDelete: MuteTransition[]): Promise<void> {
+    if (transitionsToDelete.length > 0) {
+      await this.deleteMuteTransition(transitionsToDelete[0].id);
+    }
+  }
+
+  /**
+   * Strategy 3: Delete entire clips (general case)
+   */
+  private async deleteClips(
+    transitionsToDelete: MuteTransition[],
+    allTransitions: MuteTransition[],
+  ): Promise<void> {
+    const idsToDelete = MuteTransitionService.getTransitionsToDeleteFromClips(
+      transitionsToDelete,
+      allTransitions,
+    );
+
+    for (const transitionId of idsToDelete) {
+      await this.deleteMuteTransition(transitionId);
     }
   }
 
