@@ -9,12 +9,12 @@
 export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
   id: string;
   element: Element;
-  events: Array<{ time: number; value: number; curveType?: string }>;
+  events: Array<{ time: number; value: number }>;
 }> {
   const envelopes: Array<{
     id: string;
     element: Element;
-    events: Array<{ time: number; value: number; curveType?: string }>;
+    events: Array<{ time: number; value: number }>;
   }> = [];
 
   const automationEnvelopes = xmlDoc.querySelectorAll('AutomationEnvelope');
@@ -36,15 +36,14 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
     }
 
     // Extract existing events - ALS uses 'Automation > FloatEvent', not 'Events > FloatEvent'
-    const events: Array<{ time: number; value: number; curveType?: string }> = [];
+    const events: Array<{ time: number; value: number }> = [];
     const eventElements = envelope.querySelectorAll('Automation FloatEvent');
 
     for (const eventElement of eventElements) {
       const time = parseFloat(eventElement.getAttribute('Time') || '0');
       const value = parseFloat(eventElement.getAttribute('Value') || '0');
-      const curveType = eventElement.getAttribute('CurveType') || 'linear';
 
-      events.push({ time, value, curveType });
+      events.push({ time, value });
     }
 
     envelopes.push({
@@ -62,7 +61,7 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
  */
 export function updateAutomationEvents(
   envelopeElement: Element,
-  newEvents: Array<{ time: number; value: number; curveType?: string }>,
+  newEvents: Array<{ time: number; value: number }>,
 ): void {
   // Find the Automation element
   let automationElement = envelopeElement.querySelector('Automation');
@@ -91,10 +90,6 @@ export function updateAutomationEvents(
     eventElement.setAttribute('Id', (index + 1).toString()); // Use 1-indexed IDs
     eventElement.setAttribute('Time', String(event.time));
     eventElement.setAttribute('Value', String(event.value));
-    // Only add CurveType if it's not the default 'linear' to match original ALS format
-    if (event.curveType && event.curveType !== 'linear') {
-      eventElement.setAttribute('CurveType', event.curveType);
-    }
 
     eventsElement.appendChild(eventElement);
   }
@@ -140,7 +135,7 @@ export function createAutomationEnvelope(
   xmlDoc: Document,
   parameterId: string,
   parameterPath: string,
-  events: Array<{ time: number; value: number; curveType?: string }>,
+  events: Array<{ time: number; value: number }>,
 ): Element {
   const envelope = xmlDoc.createElement('AutomationEnvelope');
 

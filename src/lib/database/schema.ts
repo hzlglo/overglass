@@ -52,7 +52,6 @@ export interface AutomationPoint {
   parameterId: string; // Foreign key to parameters
   timePosition: number; // Time in beats/samples
   value: number; // Automation value (normalized 0-1)
-  curveType?: string; // Linear, bezier, etc. (future)
   createdAt: Date;
   updatedAt?: Date;
 }

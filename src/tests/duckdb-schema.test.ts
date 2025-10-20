@@ -57,7 +57,6 @@ describe('DuckDB Schema Tests', () => {
       parameterId: 'test-param-1',
       timePosition: 0.0,
       value: 0.5,
-      curveType: 'linear',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -67,7 +66,6 @@ describe('DuckDB Schema Tests', () => {
       parameterId: 'test-param-1',
       timePosition: 100.0,
       value: 0.8,
-      curveType: 'linear',
       createdAt: new Date(),
       updatedAt: new Date(),
     };

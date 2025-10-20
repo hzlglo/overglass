@@ -152,7 +152,6 @@ export class ALSWriter {
                   parameterId: muteParameterId,
                   timePosition: transition.timePosition,
                   value: transition.isMuted ? 1 : 0,
-                  curveType: 'linear' as const,
                   createdAt: transition.createdAt,
                   updatedAt: transition.updatedAt,
                 };
@@ -166,7 +165,6 @@ export class ALSWriter {
                   parameterId: muteParameterId,
                   timePosition: transition.timePosition,
                   value: prevTransition.isMuted ? 1 : 0, // Previous state value
-                  curveType: 'linear' as const,
                   createdAt: transition.createdAt,
                   updatedAt: transition.updatedAt,
                 };
@@ -178,7 +176,6 @@ export class ALSWriter {
                   parameterId: muteParameterId,
                   timePosition: transition.timePosition,
                   value: transition.isMuted ? 1 : 0, // New state value
-                  curveType: 'linear' as const,
                   createdAt: transition.createdAt,
                   updatedAt: transition.updatedAt,
                 };
@@ -317,7 +314,6 @@ export class ALSWriter {
         const events = automationPoints.map((point: any) => ({
           time: point.timePosition,
           value: point.value,
-          curveType: point.curveType || 'linear',
         }));
 
         updateAutomationEvents(envelopeElement, events);
