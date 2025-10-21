@@ -161,4 +161,70 @@ describe('ALS Round-Trip Integration Test', () => {
     // Verify that only 2 changes were made to the XML structure (mute transitions create 2 FloatEvents)
     await verifyXMLDifferences('mute_edit', 2);
   });
+
+  it('should add new parameters and edit existing parameters in the same operation', async () => {
+    await runRoundTripTest('add_and_edit_parameters', async (db) => {
+      // Find parameters to work with
+      const parametersWithPoints = await findParametersWithPoints(db);
+      expect(parametersWithPoints.length).toBeGreaterThan(0);
+
+      // Edit an existing parameter
+      const { parameter: existingParam, points } = parametersWithPoints[0];
+      if (points.length > 0) {
+        const existingPoint = points[0];
+        const originalValue = existingPoint.value;
+        const newValue = originalValue === 0 ? 0.8 : 0.2;
+
+        await db.automation.updateAutomationPoint(
+          existingPoint.id,
+          existingParam.id,
+          existingPoint.timePosition,
+          newValue,
+        );
+
+        console.log(
+          `✅ Edited existing parameter "${existingParam.parameterName}": ${originalValue} → ${newValue}`,
+        );
+      }
+
+      // Get the track for adding new parameters
+      const track = await db.tracks.getTrackById(existingParam.trackId);
+      expect(track).not.toBeNull();
+
+      // Create two new parameters
+      const newParam1 = {
+        id: 'new-test-param-1',
+        trackId: track!.id,
+        parameterName: `T${track!.trackNumber} New Param 1`,
+        originalParameterId: '888888881',
+        originalPointeeId: '',
+        isMute: false,
+        createdAt: new Date(),
+      };
+
+      const newParam2 = {
+        id: 'new-test-param-2',
+        trackId: track!.id,
+        parameterName: `T${track!.trackNumber} New Param 2`,
+        originalParameterId: '888888882',
+        originalPointeeId: '',
+        isMute: false,
+        createdAt: new Date(),
+      };
+
+      await db.tracks.createParameter(newParam1);
+      await db.tracks.createParameter(newParam2);
+
+      // Add automation points for the new parameters
+      await db.automation.createAutomationPoint(newParam1.id, -63072000, 0.3);
+      await db.automation.createAutomationPoint(newParam1.id, 5.0, 0.7);
+
+      await db.automation.createAutomationPoint(newParam2.id, -63072000, 0.6);
+      await db.automation.createAutomationPoint(newParam2.id, 10.0, 0.4);
+
+      console.log(
+        `✅ Created 2 new parameters: "${newParam1.parameterName}" and "${newParam2.parameterName}"`,
+      );
+    });
+  });
 });

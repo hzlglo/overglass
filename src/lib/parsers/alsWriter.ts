@@ -2,7 +2,16 @@ import type { ParsedALS } from '../database/schema';
 import type { AutomationDatabase } from '../database/duckdb';
 import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { gzipXmlHelpers } from '../utils/gzipXmlHelpers';
-import { extractAutomationEnvelopes, updateAutomationEvents } from './alsXmlHelpers';
+import {
+  extractAutomationEnvelopes,
+  updateAutomationEvents,
+  getNextAutomationEnvelopeId,
+  createNewParameterAutomationEnvelope,
+  findPlaceholderPluginFloatParameter,
+  updatePluginFloatParameter,
+  getNextVisualIndex,
+} from './alsXmlHelpers';
+import { getViaPath, getDirectChild, getDirectChildren } from './xmlUtils';
 
 export class ALSWriter {
   constructor(private db: AutomationDatabase) {}
@@ -239,94 +248,166 @@ export class ALSWriter {
 
   /**
    * Update automation envelopes in the XML document with current database values
+   * This handles both updating existing parameters and creating new ones
    */
   private async updateAutomationInXML(xmlDoc: Document, dbData: Map<string, any>) {
     console.log('🔄 Updating XML automation envelopes with database values...');
 
-    // Extract all existing automation envelopes from XML
-    const existingEnvelopes = extractAutomationEnvelopes(xmlDoc);
-    console.log(`Found ${existingEnvelopes.length} existing automation envelopes in XML`);
+    let updatedCount = 0;
+    let createdCount = 0;
 
-    // Build parameter mapping by originalPointeeId for reliable matching
-    const parameterPointeeIdMap = new Map<string, any>();
-    const parameterIdMap = new Map<string, any>(); // Keep ID map for parameters without originalPointeeId
+    // Find all MidiTracks/AudioTracks that contain devices
+    const trackElements = xmlDoc.querySelectorAll('MidiTrack, AudioTrack');
 
-    for (const [deviceId, deviceInfo] of dbData) {
-      for (const [trackId, trackInfo] of deviceInfo.tracks) {
+    for (const trackElement of trackElements) {
+      // Get the device from this track
+      const deviceElement = getViaPath(trackElement, [
+        'DeviceChain',
+        'DeviceChain',
+        'Devices',
+        'PluginDevice',
+      ]);
+      if (!deviceElement) continue;
+
+      const deviceNameElement = getViaPath(deviceElement, [
+        'PluginDesc',
+        'Vst3PluginInfo',
+        'Name',
+      ]);
+      if (!deviceNameElement) continue;
+
+      const deviceName = deviceNameElement.getAttribute('Value');
+      if (!deviceName) continue;
+
+      // Find this device in our database data
+      let deviceData = null;
+      for (const [deviceId, deviceInfo] of dbData) {
+        if (deviceInfo.device.deviceName === deviceName) {
+          deviceData = deviceInfo;
+          break;
+        }
+      }
+
+      if (!deviceData) continue;
+
+      console.log(`📝 Processing device "${deviceName}"`);
+
+      // Get key XML structures for this track
+      const deviceChain = getViaPath(trackElement, ['DeviceChain', 'DeviceChain']);
+      const envelopesContainer = getViaPath(trackElement, ['AutomationEnvelopes', 'Envelopes']);
+
+      if (!deviceChain || !envelopesContainer) {
+        console.log(`❌ Missing required XML structure for device "${deviceName}"`);
+        continue;
+      }
+
+      // Build a map of existing AutomationEnvelopes by their PointeeId
+      const envelopesByPointeeId = new Map<string, Element>();
+      const existingEnvelopes = getDirectChildren(envelopesContainer, 'AutomationEnvelope');
+      for (const envelope of existingEnvelopes) {
+        const targetElement = getDirectChild(envelope, 'EnvelopeTarget');
+        const pointeeIdElement = targetElement ? getDirectChild(targetElement, 'PointeeId') : null;
+        const pointeeId = pointeeIdElement?.getAttribute('Value');
+        if (pointeeId) {
+          envelopesByPointeeId.set(pointeeId, envelope);
+        }
+      }
+
+      // Process each parameter for this device
+      for (const [trackId, trackInfo] of deviceData.tracks) {
         for (const [parameterId, parameterInfo] of trackInfo.parameters) {
-          parameterIdMap.set(parameterInfo.parameter.id, parameterInfo);
+          const { parameter, automationPoints } = parameterInfo;
 
-          // If parameter has an originalPointeeId, use that for matching
-          if (parameterInfo.parameter.originalPointeeId) {
-            parameterPointeeIdMap.set(parameterInfo.parameter.originalPointeeId, parameterInfo);
+          // Skip parameters without automation points
+          if (!automationPoints || automationPoints.length === 0) continue;
+
+          const events = automationPoints.map((point: any) => ({
+            time: point.timePosition,
+            value: point.value,
+          }));
+
+          // Check if we have an existing envelope for this parameter (via originalPointeeId)
+          const existingEnvelope = parameter.originalPointeeId
+            ? envelopesByPointeeId.get(parameter.originalPointeeId)
+            : null;
+
+          if (existingEnvelope) {
+            // Update existing envelope
+            updateAutomationEvents(existingEnvelope, events);
+            updatedCount++;
+            console.log(
+              `✅ Updated envelope for existing parameter "${parameter.parameterName}" with ${events.length} events`,
+            );
+          } else {
+            // This is a NEW parameter - need to create envelope and update PluginFloatParameter
+            // Find a placeholder PluginFloatParameter (ParameterId="-1")
+            const placeholder = findPlaceholderPluginFloatParameter(deviceChain);
+            if (!placeholder) {
+              console.log(
+                `⚠️  No placeholder PluginFloatParameter available for "${parameter.parameterName}" - skipping`,
+              );
+              continue;
+            }
+
+            // Get the PointeeId from the placeholder's AutomationTarget
+            const paramValue = getDirectChild(placeholder.element, 'ParameterValue');
+            const automationTarget = paramValue
+              ? getDirectChild(paramValue, 'AutomationTarget')
+              : null;
+            const pointeeId = automationTarget?.getAttribute('Id');
+
+            if (!pointeeId) {
+              console.log(
+                `⚠️  No AutomationTarget Id found for placeholder - skipping "${parameter.parameterName}"`,
+              );
+              continue;
+            }
+
+            // Create new AutomationEnvelope
+            const nextEnvelopeId = getNextAutomationEnvelopeId(trackElement);
+            const newEnvelope = createNewParameterAutomationEnvelope(
+              xmlDoc,
+              nextEnvelopeId,
+              pointeeId,
+              events,
+            );
+            envelopesContainer.appendChild(newEnvelope);
+
+            // Update the placeholder PluginFloatParameter
+            const nextVisualIndex = getNextVisualIndex(placeholder.parameterList);
+            const manualValue = events.length > 0 ? events[0].value : 0.5;
+
+            updatePluginFloatParameter(
+              placeholder.element,
+              parameter.parameterName,
+              parameter.originalParameterId,
+              nextVisualIndex,
+              manualValue,
+            );
+
+            // Update the parameter's originalPointeeId and parameter_path in the database
+            // so they match what will be parsed when reading back
+            if (!parameter.originalPointeeId || parameter.originalPointeeId === '') {
+              // Generate parameter_path that matches what the parser creates
+              const parameterPath = `/${deviceName}/${parameter.parameterName}`;
+
+              await this.db.run(
+                'UPDATE parameters SET original_pointee_id = ?, parameter_path = ? WHERE id = ?',
+                [pointeeId, parameterPath, parameter.id],
+              );
+            }
+
+            createdCount++;
+            console.log(
+              `✅ Created new parameter "${parameter.parameterName}" with ${events.length} events (EnvelopeId=${nextEnvelopeId}, VisualIndex=${nextVisualIndex})`,
+            );
           }
         }
       }
     }
 
     console.log(
-      `Parameter mapping: ${parameterIdMap.size} total parameters, ${parameterPointeeIdMap.size} with original PointeeId, ${existingEnvelopes.length} envelopes`,
+      `✅ XML automation update complete: ${updatedCount} updated, ${createdCount} created`,
     );
-
-    // Build envelope-to-parameter mapping using PointeeId (same logic as parser)
-    const envelopeParameterMap = new Map<Element, any>();
-    const processedParameterIds = new Set<string>();
-
-    for (const envelope of existingEnvelopes) {
-      // Look for EnvelopeTarget > PointeeId to match with parameter originalPointeeId
-      const targetElement = envelope.element.querySelector('EnvelopeTarget');
-      if (targetElement) {
-        const pointeeIdElement = targetElement.querySelector('PointeeId');
-        if (pointeeIdElement) {
-          const pointeeId =
-            pointeeIdElement.getAttribute('Value') || pointeeIdElement.textContent || '';
-
-          // Check if this PointeeId matches any of our parameters' originalPointeeId
-          if (pointeeId && parameterPointeeIdMap.has(pointeeId)) {
-            const parameterInfo = parameterPointeeIdMap.get(pointeeId)!;
-            envelopeParameterMap.set(envelope.element, parameterInfo);
-            processedParameterIds.add(parameterInfo.parameter.id);
-            console.log(
-              `✅ Matched envelope ${envelope.id} to parameter "${parameterInfo.parameter.parameterName}" via PointeeId "${pointeeId}"`,
-            );
-          } else {
-            console.log(
-              `⚠️  Envelope ${envelope.id} has PointeeId "${pointeeId}" but no matching parameter found`,
-            );
-          }
-        } else {
-          console.log(`⚠️  Envelope ${envelope.id} has no PointeeId element`);
-        }
-      } else {
-        console.log(`⚠️  Envelope ${envelope.id} has no EnvelopeTarget element`);
-      }
-    }
-
-    console.log(`Successfully matched ${envelopeParameterMap.size} envelopes to parameters`);
-
-    let updatedCount = 0;
-
-    // Update existing matched envelopes
-    for (const [envelopeElement, parameterInfo] of envelopeParameterMap) {
-      const { automationPoints } = parameterInfo;
-
-      if (automationPoints && automationPoints.length > 0) {
-        const events = automationPoints.map((point: any) => ({
-          time: point.timePosition,
-          value: point.value,
-        }));
-
-        updateAutomationEvents(envelopeElement, events);
-        updatedCount++;
-        console.log(
-          `Updated matched envelope with ${events.length} events for parameter "${parameterInfo.parameter.parameterName}"`,
-        );
-      }
-    }
-
-    // Note: We only update existing envelopes, we don't create new ones
-    // The writer should only edit timeseries data, not add new XML structure
-
-    console.log(`✅ XML automation update complete: ${updatedCount} updated`);
   }
 }
