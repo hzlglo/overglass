@@ -209,7 +209,7 @@ describe('ALS Round-Trip Integration Test', () => {
         trackId: track!.id,
         parameterName: `T${track!.trackNumber} New Param 1`,
         vstParameterId: '888888881',
-        originalPointeeId: '',
+        originalPointeeId: null,
         isMute: false,
         createdAt: new Date(),
       };
@@ -219,7 +219,7 @@ describe('ALS Round-Trip Integration Test', () => {
         trackId: track!.id,
         parameterName: `T${track!.trackNumber} New Param 2`,
         vstParameterId: '888888882',
-        originalPointeeId: '',
+        originalPointeeId: null,
         isMute: false,
         createdAt: new Date(),
       };

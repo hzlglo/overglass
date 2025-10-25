@@ -42,7 +42,9 @@ export interface Parameter {
   parameterName: string; // e.g., "Filter Cutoff", "Volume"
   parameterPath?: string; // Full automation target path from ALS
   vstParameterId: string; // Parameter ID defined by the VST
-  originalPointeeId: string; // Original PointeeId from ALS XML for envelope matching
+  // Original PointeeId from ALS XML, which corresponds to AutomationEnvelope.
+  // Null if the parameter was added in Overglass
+  originalPointeeId: string | null;
   isMute: boolean; // Whether this parameter is a mute parameter
   createdAt: Date;
 }
