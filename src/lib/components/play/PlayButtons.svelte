@@ -77,7 +77,7 @@
       FROM parameters
       JOIN tracks on parameters.track_id = tracks.id
       JOIN devices on tracks.device_id = devices.id
-      JOIN midi_mappings on parameters.original_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
+      JOIN midi_mappings on parameters.vst_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
       `);
 
     await Promise.all(

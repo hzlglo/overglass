@@ -269,11 +269,7 @@ export class ALSWriter {
       ]);
       if (!deviceElement) continue;
 
-      const deviceNameElement = getViaPath(deviceElement, [
-        'PluginDesc',
-        'Vst3PluginInfo',
-        'Name',
-      ]);
+      const deviceNameElement = getViaPath(deviceElement, ['PluginDesc', 'Vst3PluginInfo', 'Name']);
       if (!deviceNameElement) continue;
 
       const deviceName = deviceNameElement.getAttribute('Value');
@@ -380,7 +376,7 @@ export class ALSWriter {
             updatePluginFloatParameter(
               placeholder.element,
               parameter.parameterName,
-              parameter.originalParameterId,
+              parameter.vstParameterId,
               nextVisualIndex,
               manualValue,
             );

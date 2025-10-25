@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { runRoundTripTest, findParametersWithPoints, verifyXMLDifferences } from './helpers/roundTripTestHelper';
+import {
+  runRoundTripTest,
+  findParametersWithPoints,
+  verifyXMLDifferences,
+} from './helpers/roundTripTestHelper';
 import { MuteTransitionService } from '../lib/database/services/muteTransitionService';
 
 describe('ALS Round-Trip Integration Test', () => {
@@ -122,7 +126,7 @@ describe('ALS Round-Trip Integration Test', () => {
           const transitions = await db.muteTransitions.getMuteTransitionsForTrack(track.id);
 
           // Find a transition that's not at the beginning of time (which we can meaningfully edit)
-          const editableTransition = transitions.find(t => t.timePosition > -60000000);
+          const editableTransition = transitions.find((t) => t.timePosition > -60000000);
 
           if (editableTransition) {
             const originalTime = editableTransition.timePosition;
@@ -133,14 +137,22 @@ describe('ALS Round-Trip Integration Test', () => {
             const parameterName = parameter?.parameterName || 'Unknown';
 
             // Move the mute transition by 1 second using the new API
-            const allTrackTransitions = await db.muteTransitions.getMuteTransitionsForTrack(editableTransition.trackId);
-            const movedTransitions = MuteTransitionService.getMovedMuteTransitions([editableTransition], allTrackTransitions, 1.0);
+            const allTrackTransitions = await db.muteTransitions.getMuteTransitionsForTrack(
+              editableTransition.trackId,
+            );
+            const movedTransitions = MuteTransitionService.getMovedMuteTransitions(
+              [editableTransition],
+              allTrackTransitions,
+              1.0,
+            );
             if (movedTransitions.length > 0) {
               const actualNewTime = movedTransitions[0].timePosition;
-              await db.muteTransitions.updateMuteTransitions([{
-                id: editableTransition.id,
-                timePosition: actualNewTime
-              }]);
+              await db.muteTransitions.updateMuteTransitions([
+                {
+                  id: editableTransition.id,
+                  timePosition: actualNewTime,
+                },
+              ]);
 
               console.log(
                 `✅ Edited mute transition: ${parameterName} at time ${originalTime.toFixed(3)} → ${actualNewTime.toFixed(3)}`,
@@ -196,7 +208,7 @@ describe('ALS Round-Trip Integration Test', () => {
         id: 'new-test-param-1',
         trackId: track!.id,
         parameterName: `T${track!.trackNumber} New Param 1`,
-        originalParameterId: '888888881',
+        vstParameterId: '888888881',
         originalPointeeId: '',
         isMute: false,
         createdAt: new Date(),
@@ -206,7 +218,7 @@ describe('ALS Round-Trip Integration Test', () => {
         id: 'new-test-param-2',
         trackId: track!.id,
         parameterName: `T${track!.trackNumber} New Param 2`,
-        originalParameterId: '888888882',
+        vstParameterId: '888888882',
         originalPointeeId: '',
         isMute: false,
         createdAt: new Date(),

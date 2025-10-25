@@ -73,7 +73,7 @@ export class TracksService {
         p.track_id,
         p.parameter_name,
         p.parameter_path,
-        p.original_parameter_id,
+        p.vst_parameter_id,
         p.original_pointee_id,
         p.is_mute,
         p.created_at,
@@ -85,7 +85,7 @@ export class TracksService {
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE p.track_id = ${trackId}
-      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_parameter_id, p.original_pointee_id, p.is_mute, p.created_at
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.vst_parameter_id, p.original_pointee_id, p.is_mute, p.created_at
       ORDER BY p.parameter_name
     `;
     const parameters = await this.db.run(sql.sql, sql.values);
@@ -100,7 +100,7 @@ export class TracksService {
         p.track_id,
         p.parameter_name,
         p.parameter_path,
-        p.original_parameter_id,
+        p.vst_parameter_id,
         p.original_pointee_id,
         p.is_mute,
         p.created_at,
@@ -112,7 +112,7 @@ export class TracksService {
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE p.id = ${parameterId}
-      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_parameter_id, p.original_pointee_id, p.is_mute, p.created_at
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.vst_parameter_id, p.original_pointee_id, p.is_mute, p.created_at
     `;
     const parameters = await this.db.run(sql.sql, sql.values);
     return parameters.length > 0 ? parameters[0] : null;

@@ -41,7 +41,7 @@ export interface Parameter {
   trackId: string; // Foreign key to tracks
   parameterName: string; // e.g., "Filter Cutoff", "Volume"
   parameterPath?: string; // Full automation target path from ALS
-  originalParameterId: string; // Original parameter ID from ALS XML for matching to MIDI controls
+  vstParameterId: string; // Parameter ID defined by the VST
   originalPointeeId: string; // Original PointeeId from ALS XML for envelope matching
   isMute: boolean; // Whether this parameter is a mute parameter
   createdAt: Date;
@@ -122,7 +122,7 @@ export const CREATE_TABLES = {
       track_id VARCHAR NOT NULL,
       parameter_name VARCHAR NOT NULL,
       parameter_path VARCHAR,
-      original_parameter_id VARCHAR,
+      vst_parameter_id VARCHAR,
       original_pointee_id VARCHAR,
       is_mute BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMP NOT NULL,
