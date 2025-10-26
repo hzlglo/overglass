@@ -5,6 +5,7 @@
   import { safeConcat } from '$lib/utils/utils';
   import type { ColDef } from 'ag-grid-community';
   import Modal from '../../core/Modal.svelte';
+  import { createParameters } from '$lib/database/services/utils';
 
   let {
     initialName = $bindable(''),
@@ -90,7 +91,7 @@
         <button
           class="btn btn-primary"
           onclick={async () => {
-            await trackDb.get().createParameters(selectedRows);
+            await createParameters(trackDb.get(), selectedRows);
             isOpen = false;
           }}>Add</button
         >
