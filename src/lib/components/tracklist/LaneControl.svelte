@@ -107,7 +107,7 @@
     </div>
 
     {#if isExpanded}
-      <div class="ml-7 flex flex-col">
+      <div class="ml-7 flex flex-row gap-2">
         {#if subtitle}
           <div class="text-base-content/60 text-sm">
             {subtitle}

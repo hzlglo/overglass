@@ -16,6 +16,7 @@ export interface TrackCustomization {
 export interface FileCustomization {
   trackCustomizations: Record<string, TrackCustomization>; // trackId -> customization
   lastOpened: Date;
+  trackOrder: string[];
 }
 
 export interface CustomizationState {
@@ -80,6 +81,12 @@ const createCustomizationStore = () => {
         }
       });
     },
+    setTrackOrder(trackOrder: string[]) {
+      if (!currentFile) {
+        throw new Error('No file is currently loaded. Call initializeFile() first.');
+      }
+      state.fileCustomizations[currentFile].trackOrder = trackOrder;
+    },
     randomizeTrackColors() {
       if (!currentFile) {
         return;
@@ -96,6 +103,7 @@ const createCustomizationStore = () => {
         state.fileCustomizations[fileName] = {
           trackCustomizations: {},
           lastOpened: new Date(),
+          trackOrder: [],
         };
       } else {
         state.fileCustomizations[fileName].lastOpened = new Date();

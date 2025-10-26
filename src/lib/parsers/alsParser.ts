@@ -3,15 +3,21 @@ import { sortBy, reverse, uniqBy } from 'lodash';
 import type { ParsedALS } from '../database/schema';
 import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { RegexMatcher, createRegexConfig } from '../config/regex';
+import { v5 as uuidv5, v4 as uuidv4 } from 'uuid';
+
+const APP_NAMESPACE = uuidv5('overglass', uuidv5.DNS);
 
 export class ALSParser {
   private regexMatcher = new RegexMatcher(createRegexConfig('elektron'));
   private debug = false;
 
-  private generateId(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-    );
+  private generateId(prefix?: string, name?: string): string {
+    if (prefix && name) {
+      const key = prefix + ':' + name;
+      console.log('Generating UUID for', key);
+      return uuidv5(key, APP_NAMESPACE);
+    }
+    return uuidv4();
   }
 
   setDebug(enabled: boolean): void {
@@ -123,7 +129,7 @@ export class ALSParser {
         let device = devices.find((d) => d.deviceName === trackName);
         if (!device) {
           device = {
-            id: this.generateId(),
+            id: this.generateId('device', trackName),
             deviceName: trackName,
             deviceType: 'elektron',
             createdAt: new Date(),
@@ -286,7 +292,7 @@ export class ALSParser {
 
       if (trackParams) {
         // Find the matching parameter by originalPointeeId and add the automation points
-        const param = trackParams.find(p => p.originalPointeeId === envelope.originalPointeeId);
+        const param = trackParams.find((p) => p.originalPointeeId === envelope.originalPointeeId);
         if (param) {
           param.points = envelope.points;
         }
@@ -297,7 +303,7 @@ export class ALSParser {
     parametersByTrack.forEach((trackParameters, trackNumber) => {
       // Create track entity
       const trackName = `${deviceName} Track ${trackNumber}`;
-      const trackId = trackIdMapping?.[trackName] || this.generateId();
+      const trackId = trackIdMapping?.[trackName] || this.generateId('track', trackName);
       const track: Track = {
         id: trackId,
         deviceId: device.id,
@@ -321,7 +327,7 @@ export class ALSParser {
       let hasCreatedMuteTransitions = false;
 
       trackParameters.forEach(({ parameterName, originalPointeeId, vstParameterId, points }) => {
-        const parameterId = this.generateId();
+        const parameterId = this.generateId('parameter', parameterName);
 
         if (originalPointeeId) {
           console.log(

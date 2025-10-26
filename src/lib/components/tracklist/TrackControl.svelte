@@ -52,7 +52,9 @@
         onclick={() => {
           appModalState.setModal({
             type: 'newLane',
-            props: { initialName: trackState.track.trackName },
+            props: {
+              initialName: `${trackState.device.deviceName} T${trackState.track.trackNumber}`,
+            },
           });
         }}
       >

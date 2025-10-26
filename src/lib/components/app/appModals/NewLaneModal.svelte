@@ -7,6 +7,7 @@
   import Modal from '../../core/Modal.svelte';
   import { createParameters } from '$lib/database/services/utils';
   import { sharedGridState } from '$lib/components/grid/sharedGridState.svelte';
+  import { appConfigStore } from '$lib/stores/customization.svelte';
 
   let {
     initialName = $bindable(''),
@@ -94,6 +95,8 @@
           onclick={async () => {
             await createParameters(trackDb.get(), selectedRows);
             await sharedGridState.syncWithDb(trackDb.get());
+            const tracks = await trackDb.get().tracks.getAllTracks();
+            await appConfigStore.initializeTrackCustomizations(tracks);
             isOpen = false;
           }}>Add</button
         >

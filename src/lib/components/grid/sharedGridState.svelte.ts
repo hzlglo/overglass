@@ -122,10 +122,6 @@ const getSharedGridState = () => {
         }
         lanesByTrackInner.push(trackLanesDisplay);
       }
-      console.log('sharedGridState: lanes', {
-        lanes: lanesInner,
-        lanesByTrack: lanesByTrackInner,
-      });
       return { lanes: lanesInner, lanesByTrack: lanesByTrackInner };
     });
 
@@ -135,6 +131,7 @@ const getSharedGridState = () => {
       trackLaneStates: $state.snapshot(trackLaneStates),
       tracks,
     });
+    trackOrder = appConfigStore.get()?.trackOrder ?? [];
     if (tracks.length > 0) {
       // Expand all parameters for each track
       for (const track of tracks) {
@@ -224,6 +221,7 @@ const getSharedGridState = () => {
     getParameterOrder: () => parameterOrder,
     setTrackOrder: (order: string[]) => {
       trackOrder = order;
+      appConfigStore.setTrackOrder(order);
     },
     setParameterOrder: (trackId: string, order: string[]) => {
       parameterOrder[trackId] = order;

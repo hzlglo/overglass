@@ -230,6 +230,7 @@
 
       if (isTyping) return;
       if (event.code.toLowerCase() === 'space') {
+        console.log('Space pressed', event);
         if (isPlaying) {
           await stopPlayback();
         } else {
