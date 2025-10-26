@@ -44,7 +44,7 @@ describe('ALS Structure Verification', () => {
     expect(devices[0].deviceType).toBe('elektron');
   });
 
-  it('should have exactly 3 tracks (T1, T3, T6)', async () => {
+  it('should have exactly 16 tracks (T1-T16)', async () => {
     const devices = await db.devices.getDevicesWithTracks();
     const device = devices[0];
 
@@ -53,15 +53,15 @@ describe('ALS Structure Verification', () => {
     console.log('Tracks found:', tracks);
     console.log('Device ID used:', device.id);
 
-    expect(tracks).toHaveLength(3);
+    expect(tracks).toHaveLength(16);
 
     // Check track numbers
-    const trackNumbers = tracks.map((t) => t.trackNumber).sort();
-    expect(trackNumbers).toEqual([1, 3, 6]);
+    const trackNumbers = tracks.map((t) => t.trackNumber).sort((a, b) => a - b);
+    expect(trackNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
 
-    // Verify track names contain the expected track numbers
+    // Verify track names contain track numbers
     tracks.forEach((track) => {
-      expect(track.trackName).toMatch(/Track [136]/);
+      expect(track.trackName).toMatch(/Track \d+/);
     });
   });
 
@@ -84,7 +84,7 @@ describe('ALS Structure Verification', () => {
     expect(t1Params).toHaveLength(1);
     expect(t1Params[0].parameterName).toMatch(/mute/i);
 
-    // T3 should have 1 automated parameter
+    // T3 should have 2 parameters (Mute + Filter Frequency)
     const t3 = sortedTracks.find((t) => t.trackNumber === 3);
     expect(t3).toBeDefined();
     const t3Params = await db.tracks.getParametersForTrack(t3!.id);
@@ -92,9 +92,9 @@ describe('ALS Structure Verification', () => {
       'T3 parameters:',
       t3Params.map((p) => p.parameterName),
     );
-    expect(t3Params).toHaveLength(1);
+    expect(t3Params).toHaveLength(2);
 
-    // T6 should have 3 automated parameters
+    // T6 should have 3 parameters
     const t6 = sortedTracks.find((t) => t.trackNumber === 6);
     expect(t6).toBeDefined();
     const t6Params = await db.tracks.getParametersForTrack(t6!.id);
@@ -155,8 +155,8 @@ describe('ALS Structure Verification', () => {
         );
       });
 
-      expect(tracks).toHaveLength(3);
-      expect(tracks.map((t) => t.trackNumber).sort()).toEqual([1, 3, 6]);
+      expect(tracks).toHaveLength(16);
+      expect(tracks.map((t) => t.trackNumber).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     }
   });
 });

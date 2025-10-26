@@ -6,6 +6,7 @@
   import type { ColDef } from 'ag-grid-community';
   import Modal from '../../core/Modal.svelte';
   import { createParameters } from '$lib/database/services/utils';
+  import { sharedGridState } from '$lib/components/grid/sharedGridState.svelte';
 
   let {
     initialName = $bindable(''),
@@ -92,6 +93,7 @@
           class="btn btn-primary"
           onclick={async () => {
             await createParameters(trackDb.get(), selectedRows);
+            await sharedGridState.syncWithDb(trackDb.get());
             isOpen = false;
           }}>Add</button
         >

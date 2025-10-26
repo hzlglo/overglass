@@ -5,6 +5,7 @@ import {
   verifyXMLDifferences,
 } from './helpers/roundTripTestHelper';
 import { MuteTransitionService } from '../lib/database/services/muteTransitionService';
+import { createParameters } from '$lib/database/services/utils';
 
 describe('ALS Round-Trip Integration Test', () => {
   console.log('🚀 Starting ALS Round-Trip Integration Test');
@@ -178,6 +179,7 @@ describe('ALS Round-Trip Integration Test', () => {
     await runRoundTripTest('add_and_edit_parameters', async (db) => {
       // Find parameters to work with
       const parametersWithPoints = await findParametersWithPoints(db);
+      console.log('parametersWithPoints', parametersWithPoints);
       expect(parametersWithPoints.length).toBeGreaterThan(0);
 
       // Edit an existing parameter
@@ -198,44 +200,41 @@ describe('ALS Round-Trip Integration Test', () => {
           `✅ Edited existing parameter "${existingParam.parameterName}": ${originalValue} → ${newValue}`,
         );
       }
+      // create new parameters
 
-      // Get the track for adding new parameters
-      const track = await db.tracks.getTrackById(existingParam.trackId);
-      expect(track).not.toBeNull();
+      await db.run(`
+        INSERT INTO midi_mappings (SELECT gen_random_uuid(), * FROM "./static/midi-maps/Digitakt II.csv")
+        `);
 
-      // Create two new parameters
-      const newParam1 = {
-        id: 'new-test-param-1',
-        trackId: track!.id,
-        parameterName: `T${track!.trackNumber} New Param 1`,
-        vstParameterId: '888888881',
-        originalPointeeId: null,
-        isMute: false,
-        createdAt: new Date(),
-      };
+      let midiMappingToCreate = (
+        await db.run(`
+        SELECT * FROM midi_mappings
+        WHERE device = 'Digitakt II'
+        AND name = 'T12 Filter Frequency'
+      `)
+      )[0];
+      console.log('midiMappingToCreate', midiMappingToCreate);
+      const newParam = (await createParameters(db, [midiMappingToCreate]))[0];
 
-      const newParam2 = {
-        id: 'new-test-param-2',
-        trackId: track!.id,
-        parameterName: `T${track!.trackNumber} New Param 2`,
-        vstParameterId: '888888882',
-        originalPointeeId: null,
-        isMute: false,
-        createdAt: new Date(),
-      };
-
-      await db.tracks.createParameter(newParam1);
-      await db.tracks.createParameter(newParam2);
+      midiMappingToCreate = (
+        await db.run(`
+        SELECT * FROM midi_mappings
+        WHERE device = 'Digitakt II'
+        AND name = 'T12 Mute'
+      `)
+      )[0];
+      console.log('midiMappingToCreate', midiMappingToCreate);
+      const existingMuteParam = (await createParameters(db, [midiMappingToCreate]))[0];
+      console.log('newParameters', newParam, existingMuteParam);
 
       // Add automation points for the new parameters
-      await db.automation.createAutomationPoint(newParam1.id, -63072000, 0.3);
-      await db.automation.createAutomationPoint(newParam1.id, 5.0, 0.7);
+      await db.automation.createAutomationPoint(newParam.id, -63072000, 0.3);
+      await db.automation.createAutomationPoint(newParam.id, 5.0, 0.7);
 
-      await db.automation.createAutomationPoint(newParam2.id, -63072000, 0.6);
-      await db.automation.createAutomationPoint(newParam2.id, 10.0, 0.4);
+      await db.muteTransitions.addMuteTransitionClip(existingMuteParam.trackId, 10.0);
 
       console.log(
-        `✅ Created 2 new parameters: "${newParam1.parameterName}" and "${newParam2.parameterName}"`,
+        `✅ Created 2 new parameters: "${newParam.parameterName}" and "${existingMuteParam.parameterName}"`,
       );
     });
   });

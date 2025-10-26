@@ -334,8 +334,27 @@ export class ALSWriter {
             console.log(
               `✅ Updated envelope for existing parameter "${parameter.parameterName}" with ${events.length} events`,
             );
+          } else if (parameter.originalPointeeId) {
+            // Parameter exists in the ALS file but has no automation envelope yet
+            // Create a new envelope using the existing parameter's PointeeId
+            const pointeeId = parameter.originalPointeeId;
+
+            // Create new AutomationEnvelope
+            const nextEnvelopeId = getNextAutomationEnvelopeId(trackElement);
+            const newEnvelope = createNewParameterAutomationEnvelope(
+              xmlDoc,
+              nextEnvelopeId,
+              pointeeId,
+              events,
+            );
+            envelopesContainer.appendChild(newEnvelope);
+
+            createdCount++;
+            console.log(
+              `✅ Created envelope for existing parameter "${parameter.parameterName}" with ${events.length} events (EnvelopeId=${nextEnvelopeId})`,
+            );
           } else {
-            // This is a NEW parameter - need to create envelope and update PluginFloatParameter
+            // This is a completely NEW parameter - need to create envelope and update PluginFloatParameter
             // Find a placeholder PluginFloatParameter (ParameterId="-1")
             const placeholder = findPlaceholderPluginFloatParameter(deviceChain);
             if (!placeholder) {

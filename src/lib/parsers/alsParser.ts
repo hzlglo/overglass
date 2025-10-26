@@ -246,35 +246,55 @@ export class ALSParser {
     // Extract ALL automation envelopes first
     const allEnvelopes = this.extractAutomationEnvelopes(trackElement, parameterMapping);
 
-    // Group envelopes by track number found in parameter names
-    const envelopesByTrack = new Map<
+    // Group parameters by track number - include ALL parameters from parameterMapping
+    const parametersByTrack = new Map<
       number,
       {
         parameterName: string;
         originalPointeeId: string;
         vstParameterId: string;
-        points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
+        points?: Pick<AutomationPoint, 'timePosition' | 'value'>[];
       }[]
     >();
 
-    allEnvelopes.forEach((envelope) => {
-      // Extract track number from parameter name (e.g., "T1 Mute" -> 1, "T3 Filter Frequency" -> 3)
-      const trackNumber = this.regexMatcher.extractTrackNumber(envelope.parameterName) ?? 0;
-
-      if (!envelopesByTrack.has(trackNumber)) {
-        envelopesByTrack.set(trackNumber, []);
+    // First, add all parameters from the parameter mapping (regardless of automation)
+    // Filter out parameters with vstParameterId == "-1" as these are not real VST parameters
+    Object.entries(parameterMapping).forEach(([automationTargetId, paramInfo]) => {
+      // Skip parameters that don't have a valid VST parameter ID
+      if (paramInfo.vstParameterId === '-1') {
+        return;
       }
 
-      envelopesByTrack.get(trackNumber)!.push({
-        parameterName: envelope.parameterName,
-        originalPointeeId: envelope.originalPointeeId,
-        vstParameterId: envelope.vstParameterId,
-        points: envelope.points,
+      const trackNumber = this.regexMatcher.extractTrackNumber(paramInfo.parameterName) ?? 0;
+
+      if (!parametersByTrack.has(trackNumber)) {
+        parametersByTrack.set(trackNumber, []);
+      }
+
+      parametersByTrack.get(trackNumber)!.push({
+        parameterName: paramInfo.parameterName,
+        originalPointeeId: automationTargetId,
+        vstParameterId: paramInfo.vstParameterId,
+        points: undefined, // Will be filled in if automation exists
       });
     });
 
+    // Then, overlay automation envelope data for parameters that have automation
+    allEnvelopes.forEach((envelope) => {
+      const trackNumber = this.regexMatcher.extractTrackNumber(envelope.parameterName) ?? 0;
+      const trackParams = parametersByTrack.get(trackNumber);
+
+      if (trackParams) {
+        // Find the matching parameter by originalPointeeId and add the automation points
+        const param = trackParams.find(p => p.originalPointeeId === envelope.originalPointeeId);
+        if (param) {
+          param.points = envelope.points;
+        }
+      }
+    });
+
     // Create database entities for each track number found
-    envelopesByTrack.forEach((trackParameters, trackNumber) => {
+    parametersByTrack.forEach((trackParameters, trackNumber) => {
       // Create track entity
       const trackName = `${deviceName} Track ${trackNumber}`;
       const trackId = trackIdMapping?.[trackName] || this.generateId();
@@ -305,11 +325,11 @@ export class ALSParser {
 
         if (originalPointeeId) {
           console.log(
-            `📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}", vstParameterId: "${vstParameterId || 'none'}"`,
+            `📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}", vstParameterId: "${vstParameterId || 'none'}", hasAutomation: ${!!points}`,
           );
         } else {
           console.log(
-            `📝 Creating parameter "${parameterName}" with NO originalPointeeId, vstParameterId: "${vstParameterId || 'none'}"`,
+            `📝 Creating parameter "${parameterName}" with NO originalPointeeId, vstParameterId: "${vstParameterId || 'none'}", hasAutomation: ${!!points}`,
           );
         }
 
@@ -331,6 +351,12 @@ export class ALSParser {
             `🔍 Parameter object created with originalPointeeId: "${originalPointeeId}", vstParameterId: "${vstParameterId}"`,
           );
         parameters.push(parameter);
+
+        // Only process automation if points exist
+        if (!points || points.length === 0) {
+          console.log(`ℹ️  Parameter "${parameterName}" has no automation data`);
+          return;
+        }
 
         // Check if this is a mute parameter with only 0/1 values - if so, create mute transitions instead of automation points
         // But only use the first mute parameter per track for transitions, others become normal automation

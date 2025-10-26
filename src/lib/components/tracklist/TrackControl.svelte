@@ -22,12 +22,9 @@
   let parameters: { id: string }[] = $state([]);
   $effect(() => {
     parameters =
-      sharedGridState
-        .getParameterOrder()
-        .get(trackId)
-        ?.map((p) => ({
-          id: p,
-        })) ?? [];
+      sharedGridState.getParameterOrder()[trackId]?.map((p) => ({
+        id: p,
+      })) ?? [];
   });
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
 </script>

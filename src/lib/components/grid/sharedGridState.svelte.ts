@@ -50,12 +50,12 @@ export type TrackLanesDisplay = {
 
 const getSharedGridState = () => {
   // Reactive state for expansion
-  let trackLaneStates = $state<SvelteMap<string, TrackLaneState>>(new SvelteMap());
-  let parameterLaneStates = $state<SvelteMap<string, ParameterLaneState>>(new SvelteMap());
+  let trackLaneStates = $state<Record<string, TrackLaneState>>({});
+  let parameterLaneStates = $state<Record<string, ParameterLaneState>>({});
   let trackOrder = $state<string[]>([]);
-  let parameterOrder = $state<SvelteMap<string, string[]>>(new SvelteMap());
+  let parameterOrder = $state<Record<string, string[]>>({});
   // store both track and parameter heights
-  let laneHeights = $state<SvelteMap<string, number>>(new SvelteMap());
+  let laneHeights = $state<Record<string, number>>({});
   let laneSearch = $state<string>('');
   let { lanes, lanesByTrack }: { lanes: LaneDisplay[]; lanesByTrack: TrackLanesDisplay[] } =
     $derived.by(() => {
@@ -64,7 +64,7 @@ const getSharedGridState = () => {
       let y = 0;
       const customizations = appConfigStore.get();
       for (const trackId of trackOrder) {
-        const trackLaneState = trackLaneStates.get(trackId);
+        const trackLaneState = trackLaneStates[trackId];
         if (!trackLaneState) {
           continue;
         }
@@ -81,7 +81,7 @@ const getSharedGridState = () => {
           laneSearch === '' ||
           trackNames.some((name) => name.toLowerCase().includes(laneSearch.toLowerCase()));
         if (trackMatchesSearch) {
-          const height = laneHeights.get(trackId) ?? 0;
+          const height = laneHeights[trackId] ?? 0;
           const trackLane: TrackLaneDisplay = {
             top: y,
             bottom: y + height,
@@ -92,12 +92,12 @@ const getSharedGridState = () => {
           };
           lanesInner.push(trackLane);
           trackLanesDisplay.trackLane = trackLane;
-          y += laneHeights.get(trackId) ?? 0;
+          y += laneHeights[trackId] ?? 0;
         }
         if (trackLaneState.expanded) {
-          const trackParameters = parameterOrder.get(trackId) ?? [];
+          const trackParameters = parameterOrder[trackId] ?? [];
           for (const parameterId of trackParameters) {
-            const parameterLaneState = parameterLaneStates.get(parameterId);
+            const parameterLaneState = parameterLaneStates[parameterId];
             if (!parameterLaneState) {
               continue;
             }
@@ -105,7 +105,7 @@ const getSharedGridState = () => {
               laneSearch === '' ||
               parameterLaneState.name.toLowerCase().includes(laneSearch.toLowerCase());
             if (parameterMatchesSearch || trackMatchesSearch) {
-              const height = laneHeights.get(parameterId) ?? 0;
+              const height = laneHeights[parameterId] ?? 0;
               const parameterLane: ParameterLaneDisplay = {
                 top: y,
                 bottom: y + height,
@@ -116,85 +116,97 @@ const getSharedGridState = () => {
               };
               lanesInner.push(parameterLane);
               trackLanesDisplay.parameterLanes.push(parameterLane);
-              y += laneHeights.get(parameterId) ?? 0;
+              y += laneHeights[parameterId] ?? 0;
             }
           }
         }
         lanesByTrackInner.push(trackLanesDisplay);
       }
+      console.log('sharedGridState: lanes', {
+        lanes: lanesInner,
+        lanesByTrack: lanesByTrackInner,
+      });
       return { lanes: lanesInner, lanesByTrack: lanesByTrackInner };
     });
 
   async function syncWithDb(db: AutomationDatabase) {
     const tracks = await db.tracks.getAllTracks();
-    // TODO make this sync logic more robust - we should merge tracks and params
-    if (trackLaneStates.size === tracks.length) {
-      console.log('syncWithDb: tracks already synced');
-      return;
-    }
-    console.log('syncWithDb: resetting all track display state', {
+    console.log('syncWithDb', {
       trackLaneStates: $state.snapshot(trackLaneStates),
       tracks,
     });
     if (tracks.length > 0) {
-      trackOrder = tracks.map((t) => t.id);
-      laneHeights = new SvelteMap(tracks.map((t) => [t.id, DEFAULT_TRACK_HEIGHT]));
-
       // Expand all parameters for each track
       for (const track of tracks) {
+        if (!trackOrder.includes(track.id)) {
+          trackOrder.push(track.id);
+        }
+        if (!laneHeights[track.id]) {
+          laneHeights[track.id] = DEFAULT_TRACK_HEIGHT;
+        }
         const [device, parameters] = await Promise.all([
           db.devices.getDeviceById(track.deviceId),
           db.tracks.getParametersForTrack(track.id),
         ]);
         const nonMuteParameters = parameters.filter((p) => !p.isMute);
-        trackLaneStates.set(track.id, { expanded: true, track, device });
+        if (!trackLaneStates[track.id]) {
+          trackLaneStates[track.id] = { expanded: true, track, device };
+        }
         if (nonMuteParameters) {
           nonMuteParameters.forEach((param) => {
-            parameterLaneStates.set(param.id, {
-              expanded: true,
-              name: param.parameterName,
-              track,
-              device: device,
-              parameter: param,
-            });
-
-            laneHeights.set(param.id, DEFAULT_PARAMETER_HEIGHT);
+            if (!parameterLaneStates[param.id]) {
+              parameterLaneStates[param.id] = {
+                expanded: true,
+                name: param.parameterName,
+                track,
+                device: device,
+                parameter: param,
+              };
+            }
+            if (!laneHeights[param.id]) {
+              laneHeights[param.id] = DEFAULT_PARAMETER_HEIGHT;
+            }
           });
         }
-        parameterOrder.set(
-          track.id,
-          nonMuteParameters.map((p) => p.id),
-        );
+        if (!parameterOrder[track.id]) {
+          parameterOrder[track.id] = nonMuteParameters.map((p) => p.id);
+        } else {
+          nonMuteParameters.forEach((param) => {
+            if (!parameterOrder[track.id]?.includes(param.id)) {
+              parameterOrder[track.id]?.push(param.id);
+            }
+          });
+        }
       }
     }
   }
 
   function toggleTrackExpansion(trackId: string) {
-    const trackLaneState = trackLaneStates.get(trackId);
+    const trackLaneState = trackLaneStates[trackId];
     if (!trackLaneState) {
       return;
     }
     const newExpandedState = !trackLaneState.expanded;
-    trackLaneStates.set(trackId, { ...trackLaneState, expanded: newExpandedState });
+    trackLaneStates[trackId] = { ...trackLaneState, expanded: newExpandedState };
 
     if (newExpandedState) {
-      laneHeights.set(trackId, DEFAULT_TRACK_HEIGHT);
+      laneHeights[trackId] = DEFAULT_TRACK_HEIGHT;
     } else {
-      laneHeights.set(trackId, DEFAULT_COLLAPSED_HEIGHT);
+      laneHeights[trackId] = DEFAULT_COLLAPSED_HEIGHT;
     }
   }
 
   function toggleParameterExpansion(parameterId: string) {
-    const parameterLaneState = parameterLaneStates.get(parameterId);
+    const parameterLaneState = parameterLaneStates[parameterId];
     if (!parameterLaneState) {
       return;
     }
     const newExpandedState = !parameterLaneState.expanded;
-    parameterLaneStates.set(parameterId, { ...parameterLaneState, expanded: newExpandedState });
+    parameterLaneStates[parameterId] = { ...parameterLaneState, expanded: newExpandedState };
     if (newExpandedState) {
-      laneHeights.set(parameterId, DEFAULT_PARAMETER_HEIGHT);
+      laneHeights[parameterId] = DEFAULT_PARAMETER_HEIGHT;
     } else {
-      laneHeights.set(parameterId, DEFAULT_COLLAPSED_HEIGHT);
+      laneHeights[parameterId] = DEFAULT_COLLAPSED_HEIGHT;
     }
   }
 
@@ -204,8 +216,8 @@ const getSharedGridState = () => {
     },
     getLaneSearch: () => laneSearch,
     syncWithDb,
-    getTrackState: (trackId: string) => trackLaneStates.get(trackId),
-    getParameterState: (parameterId: string) => parameterLaneStates.get(parameterId),
+    getTrackState: (trackId: string) => trackLaneStates[trackId],
+    getParameterState: (parameterId: string) => parameterLaneStates[parameterId],
     toggleTrackExpansion,
     toggleParameterExpansion,
     getTrackOrder: () => trackOrder,
@@ -214,14 +226,14 @@ const getSharedGridState = () => {
       trackOrder = order;
     },
     setParameterOrder: (trackId: string, order: string[]) => {
-      parameterOrder.set(trackId, order);
+      parameterOrder[trackId] = order;
     },
-    getLaneHeight: (trackOrParamId: string) => laneHeights.get(trackOrParamId) ?? 0,
+    getLaneHeight: (trackOrParamId: string) => laneHeights[trackOrParamId] ?? 0,
     getGridHeight: () => sum(lanes.map((l) => l.height)),
     getLanes: () => lanes,
     getLanesByTrack: () => lanesByTrack,
     setLaneHeight: (trackOrParamId: string, height: number) => {
-      laneHeights.set(trackOrParamId, height);
+      laneHeights[trackOrParamId] = height;
     },
   };
 };

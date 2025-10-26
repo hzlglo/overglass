@@ -151,8 +151,9 @@ export class TracksService {
   /**
    * Create a new parameter
    */
-  async createParameter(parameter: Parameter): Promise<void> {
+  async createParameter(parameter: Parameter): Promise<Parameter | null> {
     await this.db.insertRecord('parameters', parameter);
+    return this.getParameterById(parameter.id);
   }
 
   /**

@@ -1,25 +1,33 @@
 import { ElektronNameMatcher } from '$lib/config/regex';
 import type { AutomationDatabase } from '../duckdb';
-import type { MidiMapping, Track } from '../schema';
+import type { MidiMapping, Parameter, Track } from '../schema';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function createParameters(
   db: AutomationDatabase,
   parameters: MidiMapping[],
-): Promise<void> {
+): Promise<Parameter[]> {
   const tracks = await db.tracks.getAllTracks();
   const devices = await db.devices.getDevicesWithTracks();
-  parameters.forEach(async (row) => {
+  const existingParameters = await db.tracks.getAllParameters();
+  const newParameters: Parameter[] = [];
+  for (const row of parameters) {
+    const existingParameter = existingParameters.find((p) => p.vstParameterId === row.paramId);
+    if (existingParameter) {
+      console.log('Parameter already exists', row.paramId, existingParameter.parameterName);
+      newParameters.push(existingParameter);
+      continue;
+    }
     const device = devices.find((d) => d.deviceName === row.device);
     if (!device) {
       console.error('Could not find device', row.device);
-      return;
+      continue;
     }
     const { isMute } = ElektronNameMatcher.parseMuteParameter(row.name);
     const trackNumber = ElektronNameMatcher.extractTrackNumber(row.name);
     if (!trackNumber) {
       console.error('Could not extract track number from parameter name', row.name);
-      return;
+      continue;
     }
     let track: Track | null | undefined = tracks.find(
       (t) => t.deviceId === device.id && t.trackNumber === trackNumber,
@@ -27,7 +35,7 @@ export async function createParameters(
     if (!track) {
       if (!isMute) {
         console.error('Could not find track', row.device, trackNumber);
-        return;
+        continue;
       }
       // we need to create a new track
       track = await db.tracks.createTrack({
@@ -40,9 +48,9 @@ export async function createParameters(
     }
     if (!track) {
       console.error('Could not create track', row.device, trackNumber);
-      return;
+      continue;
     }
-    db.tracks.createParameter({
+    const newParameter = await db.tracks.createParameter({
       id: uuidv4(),
       trackId: track.id, // Foreign key to tracks
       parameterName: row.name, // e.g., "Filter Cutoff", "Volume"
@@ -54,5 +62,13 @@ export async function createParameters(
       isMute: isMute, // Whether this parameter is a mute parameter
       createdAt: new Date(),
     });
-  });
+    if (newParameter) {
+      newParameters.push(newParameter);
+    }
+    // Create a negative-time automation point
+    if (!isMute && newParameter) {
+      await db.automation.createAutomationPoint(newParameter.id, -63072000, 0.0);
+    }
+  }
+  return newParameters;
 }
