@@ -75,7 +75,7 @@
             {title}
           {/if}
         </div>
-        <div class="flex flex-row gap-1">
+        <div class="flex flex-row items-center gap-1">
           {#if onRename}
             {#if isRenaming}
               <button

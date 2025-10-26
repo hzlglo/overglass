@@ -8,6 +8,8 @@
   import { dndzone, SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
   import { uniq } from 'lodash';
   import { flip } from 'svelte/animate';
+  import { PlusIcon } from '@lucide/svelte';
+  import { appModalState } from '../app/appModals/appModalState.svelte';
 
   interface TrackProps {
     trackId: string;
@@ -46,6 +48,19 @@
         value={trackConfig?.color || getThemeColor('primary')}
         onValueChange={(color) => appConfigStore.setTrackColor(trackId, color)}
       />
+    {/snippet}
+    {#snippet actions()}
+      <button
+        class="btn btn-xs btn-square btn-ghost hidden justify-items-center group-hover:block"
+        onclick={() => {
+          appModalState.setModal({
+            type: 'newLane',
+            props: { initialName: trackState.track.trackName },
+          });
+        }}
+      >
+        <PlusIcon class="size-3" />
+      </button>
     {/snippet}
     <div
       class="flex flex-col"

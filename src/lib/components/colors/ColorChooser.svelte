@@ -4,20 +4,17 @@
   import classNames from 'classnames';
   import { colorOptions } from './colorOptions';
 
-  let {
-    value,
-    onValueChange,
-    class: className,
-  }: { value: string; onValueChange: (color: string) => void; class?: string } = $props();
+  let { value, onValueChange }: { value: string; onValueChange: (color: string) => void } =
+    $props();
 
   let isOpen = $state(false);
 </script>
 
 <Popover.Root bind:open={isOpen}>
-  <Popover.Trigger class={classNames('group-hover:block', isOpen ? 'block' : 'hidden', className)}>
-    <button class="btn btn-xs btn-square" aria-label="Color Chooser">
-      <div class="size-4" style="background-color: {value}"></div>
-    </button>
+  <Popover.Trigger
+    class={classNames('btn btn-xs btn-square group-hover:block', isOpen ? 'block' : 'hidden')}
+  >
+    <div class="size-3" style="background-color: {value}"></div>
   </Popover.Trigger>
   <Popover.Content class="menu rounded-box bg-base-100 border-base-content/20 z-50 border">
     <div class="flex flex-row gap-1">

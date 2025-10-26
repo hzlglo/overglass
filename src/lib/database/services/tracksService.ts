@@ -1,4 +1,4 @@
-import type { Track, Parameter, ParameterStats } from '../schema';
+import type { Track, Parameter, ParameterStats, MidiMapping } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
 import SQL from 'sql-template-tag';
 
@@ -153,5 +153,13 @@ export class TracksService {
    */
   async createParameter(parameter: Parameter): Promise<void> {
     await this.db.insertRecord('parameters', parameter);
+  }
+
+  /**
+   * Create a new track
+   */
+  async createTrack(track: Track): Promise<Track | null> {
+    await this.db.insertRecord('tracks', track);
+    return this.getTrackById(track.id);
   }
 }

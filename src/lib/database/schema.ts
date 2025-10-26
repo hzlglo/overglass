@@ -69,6 +69,7 @@ export interface MuteTransition {
 }
 
 export interface MidiMapping {
+  id: string; // UUID for the mapping
   manufacturer: string; // e.g., "Elektron"
   device: string; // e.g., "Digitakt II"
   paramId: string; // Parameter ID from device
@@ -172,6 +173,7 @@ export const CREATE_TABLES = {
 
   midi_mappings: `
     CREATE TABLE midi_mappings (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       manufacturer VARCHAR NOT NULL,
       device VARCHAR NOT NULL,
       param_id VARCHAR NOT NULL,
@@ -188,7 +190,6 @@ export const CREATE_TABLES = {
       orientation VARCHAR,
       notes TEXT,
       usage TEXT,
-      PRIMARY KEY (manufacturer, device, param_id)
     )
   `,
 };
