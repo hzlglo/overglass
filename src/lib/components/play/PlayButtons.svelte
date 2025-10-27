@@ -73,7 +73,7 @@
         tracks.track_number as track_number,
         devices.device_name as device_name,
         parameters.is_mute,
-        midi_mappings.*,
+        midi_mappings.* EXCLUDE (id),
       FROM parameters
       JOIN tracks on parameters.track_id = tracks.id
       JOIN devices on tracks.device_id = devices.id
@@ -230,7 +230,6 @@
 
       if (isTyping) return;
       if (event.code.toLowerCase() === 'space') {
-        console.log('Space pressed', event);
         if (isPlaying) {
           await stopPlayback();
         } else {

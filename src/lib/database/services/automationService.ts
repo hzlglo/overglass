@@ -44,6 +44,19 @@ export class AutomationService {
       updatedAt: now,
     };
 
+    const existingPoints = await this.getAutomationPoints({ parameterId });
+
+    // if there's only one point and it's at negative time, update it so that we
+    // have a flat line at the beginning
+    if (existingPoints.length === 1 && existingPoints[0].timePosition < 0) {
+      await this.updateAutomationPoint(
+        existingPoints[0].id,
+        parameterId,
+        existingPoints[0].timePosition,
+        value,
+      );
+    }
+
     await this.db.insertRecord('automation_points', pointData);
 
     console.log(
@@ -79,6 +92,18 @@ export class AutomationService {
 
     if (parameter.length === 0) {
       throw new Error(`Parameter ${parameterId} not found`);
+    }
+
+    // if theres only two points (this one and the one at negative time)
+    // update the one at negative time so that we have a flat line at the beginning
+    const existingPoints = await this.getAutomationPoints({ parameterId });
+    if (existingPoints.length === 2 && existingPoints[0].timePosition < 0) {
+      await this.updateAutomationPoint(
+        existingPoints[0].id,
+        parameterId,
+        existingPoints[0].timePosition,
+        value,
+      );
     }
 
     // Check if automation point exists
