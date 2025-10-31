@@ -132,6 +132,7 @@ const getSharedGridState = () => {
       tracks,
     });
     trackOrder = appConfigStore.get()?.trackOrder ?? [];
+    parameterOrder = appConfigStore.get()?.parameterOrder ?? {};
     if (tracks.length > 0) {
       // Expand all parameters for each track
       for (const track of tracks) {
@@ -176,6 +177,8 @@ const getSharedGridState = () => {
         }
       }
     }
+    appConfigStore.setTrackOrder(trackOrder);
+    appConfigStore.setParameterOrder(parameterOrder);
   }
 
   function toggleTrackExpansion(trackId: string) {
@@ -225,6 +228,7 @@ const getSharedGridState = () => {
     },
     setParameterOrder: (trackId: string, order: string[]) => {
       parameterOrder[trackId] = order;
+      appConfigStore.setParameterOrder(parameterOrder);
     },
     getLaneHeight: (trackOrParamId: string) => laneHeights[trackOrParamId] ?? 0,
     getGridHeight: () => sum(lanes.map((l) => l.height)),

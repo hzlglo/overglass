@@ -11,7 +11,7 @@ export class ALSParser {
   private regexMatcher = new RegexMatcher(createRegexConfig('elektron'));
   private debug = false;
 
-  private generateId(prefix?: string, name?: string): string {
+  static generateId(prefix?: string, name?: string): string {
     if (prefix && name) {
       const key = prefix + ':' + name;
       console.log('Generating UUID for', key);
@@ -129,7 +129,7 @@ export class ALSParser {
         let device = devices.find((d) => d.deviceName === trackName);
         if (!device) {
           device = {
-            id: this.generateId('device', trackName),
+            id: ALSParser.generateId('device', trackName),
             deviceName: trackName,
             deviceType: 'elektron',
             createdAt: new Date(),
@@ -303,7 +303,7 @@ export class ALSParser {
     parametersByTrack.forEach((trackParameters, trackNumber) => {
       // Create track entity
       const trackName = `${deviceName} Track ${trackNumber}`;
-      const trackId = trackIdMapping?.[trackName] || this.generateId('track', trackName);
+      const trackId = trackIdMapping?.[trackName] || ALSParser.generateId('track', trackName);
       const track: Track = {
         id: trackId,
         deviceId: device.id,
@@ -327,7 +327,7 @@ export class ALSParser {
       let hasCreatedMuteTransitions = false;
 
       trackParameters.forEach(({ parameterName, originalPointeeId, vstParameterId, points }) => {
-        const parameterId = this.generateId('parameter', parameterName);
+        const parameterId = ALSParser.generateId('parameter', parameterName);
 
         if (originalPointeeId) {
           console.log(
@@ -388,7 +388,7 @@ export class ALSParser {
 
           filteredPoints.forEach((point) => {
             const muteTransition: MuteTransition = {
-              id: this.generateId(),
+              id: ALSParser.generateId(),
               trackId,
               timePosition: point.timePosition,
               isMuted: point.value === 1, // 1 = muted, 0 = unmuted
@@ -410,7 +410,7 @@ export class ALSParser {
           }
           points.forEach((point) => {
             const automationPoint: AutomationPoint = {
-              id: this.generateId(),
+              id: ALSParser.generateId(),
               parameterId,
               timePosition: point.timePosition,
               value: point.value,

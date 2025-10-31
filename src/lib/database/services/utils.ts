@@ -1,4 +1,5 @@
 import { ElektronNameMatcher } from '$lib/config/regex';
+import { ALSParser } from '$lib/parsers/alsParser';
 import type { AutomationDatabase } from '../duckdb';
 import type { MidiMapping, Parameter, Track } from '../schema';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,7 +40,7 @@ export async function createParameters(
       }
       // we need to create a new track
       track = await db.tracks.createTrack({
-        id: uuidv4(),
+        id: ALSParser.generateId('track', row.name),
         deviceId: device.id,
         trackNumber,
         trackName: row.name,
@@ -51,7 +52,7 @@ export async function createParameters(
       continue;
     }
     const newParameter = await db.tracks.createParameter({
-      id: uuidv4(),
+      id: ALSParser.generateId('parameter', row.name),
       trackId: track.id, // Foreign key to tracks
       parameterName: row.name, // e.g., "Filter Cutoff", "Volume"
       parameterPath: `${device.deviceName}/${row.name}`, // Full automation target path from ALS

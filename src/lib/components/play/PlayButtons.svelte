@@ -99,6 +99,7 @@
               endTime,
               isBeginningPlay,
             );
+            const currentTime = WebMidi.time;
             return Promise.all(
               muteTransitions.map(async (m) =>
                 sendMidiControlChange({
@@ -106,7 +107,7 @@
                   midiMapping,
                   value: m.isMuted ? 1 : 0,
                   channel: midiMapping.trackNumber,
-                  time: m.timePosition,
+                  time: currentTime + (m.timePosition - startTime) * 1000,
                 }),
               ),
             );
@@ -120,6 +121,7 @@
               granularity: GRANULARITY,
               isBeginningPlay: isBeginningPlay,
             });
+            const currentTime = WebMidi.time;
             return Promise.all(
               automation.map(async (a) =>
                 sendMidiControlChange({
@@ -127,7 +129,7 @@
                   midiMapping,
                   value: a.value,
                   channel: midiMapping.trackNumber,
-                  time: a.timePosition,
+                  time: currentTime + (a.timePosition - startTime) * 1000,
                 }),
               ),
             );

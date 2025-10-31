@@ -27,12 +27,12 @@
       })) ?? [];
   });
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[trackId] ?? null);
+  let subtitle = $derived(trackConfig?.userEnteredName ? trackState.track.trackName : undefined);
 </script>
 
 {#if trackState}
   <LaneControl
     title={trackConfig?.userEnteredName || trackState.track.trackName}
-    subtitle={trackConfig?.userEnteredName ? trackState.track.trackName : undefined}
     onRename={(newTitle) => appConfigStore.setTrackName(trackState.track.id, newTitle)}
     class="font-bold"
     isExpanded={trackState.expanded}
@@ -47,19 +47,26 @@
       />
     {/snippet}
     {#snippet actions()}
-      <button
-        class="btn btn-xs btn-square btn-ghost hidden justify-items-center group-hover:block"
-        onclick={() => {
-          appModalState.setModal({
-            type: 'newLane',
-            props: {
-              initialName: `${trackState.device.deviceName} T${trackState.track.trackNumber}`,
-            },
-          });
-        }}
-      >
-        <PlusIcon class="size-3" />
-      </button>
+      <div class="ml-7 flex flex-row gap-2">
+        {#if subtitle}
+          <div class="text-base-content/60 text-sm">
+            {subtitle}
+          </div>
+        {/if}
+        <button
+          class="btn btn-xs btn-square btn-ghost hidden justify-items-center group-hover:block"
+          onclick={() => {
+            appModalState.setModal({
+              type: 'newLane',
+              props: {
+                initialName: `${trackState.device.deviceName} T${trackState.track.trackNumber}`,
+              },
+            });
+          }}
+        >
+          <PlusIcon class="size-3" />
+        </button>
+      </div>
     {/snippet}
     <div
       class="flex flex-col"
