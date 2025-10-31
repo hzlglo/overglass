@@ -41,8 +41,10 @@ export interface Parameter {
   trackId: string; // Foreign key to tracks
   parameterName: string; // e.g., "Filter Cutoff", "Volume"
   parameterPath?: string; // Full automation target path from ALS
-  originalParameterId: string; // Original parameter ID from ALS XML for matching to MIDI controls
-  originalPointeeId: string; // Original PointeeId from ALS XML for envelope matching
+  vstParameterId: string; // Parameter ID defined by the VST
+  // Original PointeeId from ALS XML, which corresponds to AutomationEnvelope.
+  // Null if the parameter was added in Overglass
+  originalPointeeId: string | null;
   isMute: boolean; // Whether this parameter is a mute parameter
   createdAt: Date;
 }
@@ -52,7 +54,6 @@ export interface AutomationPoint {
   parameterId: string; // Foreign key to parameters
   timePosition: number; // Time in beats/samples
   value: number; // Automation value (normalized 0-1)
-  curveType?: string; // Linear, bezier, etc. (future)
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -68,6 +69,7 @@ export interface MuteTransition {
 }
 
 export interface MidiMapping {
+  id: string; // UUID for the mapping
   manufacturer: string; // e.g., "Elektron"
   device: string; // e.g., "Digitakt II"
   paramId: string; // Parameter ID from device
@@ -123,7 +125,7 @@ export const CREATE_TABLES = {
       track_id VARCHAR NOT NULL,
       parameter_name VARCHAR NOT NULL,
       parameter_path VARCHAR,
-      original_parameter_id VARCHAR,
+      vst_parameter_id VARCHAR,
       original_pointee_id VARCHAR,
       is_mute BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMP NOT NULL,
@@ -171,6 +173,7 @@ export const CREATE_TABLES = {
 
   midi_mappings: `
     CREATE TABLE midi_mappings (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       manufacturer VARCHAR NOT NULL,
       device VARCHAR NOT NULL,
       param_id VARCHAR NOT NULL,
@@ -187,7 +190,6 @@ export const CREATE_TABLES = {
       orientation VARCHAR,
       notes TEXT,
       usage TEXT,
-      PRIMARY KEY (manufacturer, device, param_id)
     )
   `,
 };

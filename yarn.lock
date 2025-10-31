@@ -1821,6 +1821,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ag-charts-types@npm:12.3.0":
+  version: 12.3.0
+  resolution: "ag-charts-types@npm:12.3.0"
+  checksum: 10c0/186b263afc2dae50eee35c670f91e28c829bff3272e0ffcb06b73cbc49b112681175ae8edff8a78530a77e95cd2ad982e56c4dd5d8e281011f6c947b0d744457
+  languageName: node
+  linkType: hard
+
+"ag-grid-community@npm:^34.3.0":
+  version: 34.3.0
+  resolution: "ag-grid-community@npm:34.3.0"
+  dependencies:
+    ag-charts-types: "npm:12.3.0"
+  checksum: 10c0/65bce00bcd09878b3e125ae1c420ccf9d6cdc2e8e76c7d8183a25ce086e25ec3e675a6ddf18f5f671f503f3c017e00ef07925061d170251a46ded6497178ab64
+  languageName: node
+  linkType: hard
+
 "agent-base@npm:6, agent-base@npm:^6.0.2":
   version: 6.0.2
   resolution: "agent-base@npm:6.0.2"
@@ -4769,6 +4785,7 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.43.0"
     "@vitest/ui": "npm:^3.2.4"
     "@xmldom/xmldom": "npm:^0.8.11"
+    ag-grid-community: "npm:^34.3.0"
     bits-ui: "npm:^2.9.9"
     classnames: "npm:^2.5.1"
     culori: "npm:^4.0.2"

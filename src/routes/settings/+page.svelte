@@ -18,12 +18,12 @@
   <Tabs
     options={[{ value: 'Settings' }, { value: 'Debugger' }]}
     value="Settings"
-    class="min-h-0 overflow-y-auto"
+    class="min-h-0 min-w-0 overflow-y-auto"
   >
     <Tab value="Settings">
       <Settings />
     </Tab>
-    <Tab value="Debugger">
+    <Tab value="Debugger" class="min-h-0 min-w-0 overflow-y-auto">
       <Debugger />
     </Tab>
   </Tabs>

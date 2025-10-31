@@ -3,7 +3,7 @@
   import Grid from './Grid.svelte';
   import { sharedGridState } from './sharedGridState.svelte';
   import { trackDb } from '../../stores/trackDb.svelte';
-
+  import AppModal from '../app/appModals/AppModal.svelte';
   let isInitialized = $derived(trackDb.isInitialized());
 
   $effect(() => {
@@ -21,6 +21,7 @@
   {#if isInitialized}
     <Grid bind:gridScroll />
     <TrackList bind:gridScroll />
+    <AppModal />
   {:else}
     <div class="text-error">Database not initialized</div>
   {/if}

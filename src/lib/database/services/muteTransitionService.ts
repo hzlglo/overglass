@@ -33,75 +33,6 @@ export class MuteTransitionService {
     return result;
   }
 
-  /**
-   * Add a mute transition, automatically determining state and maintaining the on/off pattern
-   * This ensures we maintain alternating on/off states by adding a second transition if needed
-   */
-  async addMuteTransition(
-    trackId: string,
-    timePosition: number,
-    muteParameterId: string,
-  ): Promise<MuteTransition[]> {
-    const existingTransitions = await this.getMuteTransitionsForTrack(trackId);
-
-    // Find the state we should be at this time position
-    const transitionsBefore = existingTransitions.filter((t) => t.timePosition < timePosition);
-    const lastBefore =
-      transitionsBefore.length > 0 ? transitionsBefore[transitionsBefore.length - 1] : null;
-
-    // Determine what state we should transition to (opposite of current state)
-    let currentState = false; // Default to unmuted if no previous transitions
-    if (lastBefore) {
-      currentState = lastBefore.isMuted;
-    }
-    const newState = !currentState;
-
-    const transitionsAfter = existingTransitions.filter((t) => t.timePosition > timePosition);
-    const nextAfter = transitionsAfter.length > 0 ? transitionsAfter[0] : null;
-
-    const createdTransitions: MuteTransition[] = [];
-
-    // Create the primary transition
-    const primaryTransition = await this.createMuteTransition(
-      trackId,
-      timePosition,
-      newState,
-      muteParameterId,
-    );
-    createdTransitions.push(primaryTransition);
-
-    // Check if we need to add a second transition to maintain the alternating pattern
-    let needsSecondTransition = false;
-
-    if (nextAfter) {
-      // If there's a transition after, and it would create an invalid pattern (same state twice)
-      if (nextAfter.isMuted === newState) {
-        needsSecondTransition = true;
-      }
-    }
-
-    if (needsSecondTransition) {
-      // Calculate position for second transition
-      const defaultGap = 5; // 5 seconds default gap
-      let secondTransitionTime = timePosition + defaultGap;
-
-      // If there's a next transition that's too close, place our second transition just before it
-      if (nextAfter && nextAfter.timePosition < secondTransitionTime) {
-        secondTransitionTime = Math.max(timePosition + 0.1, nextAfter.timePosition - 0.1);
-      }
-
-      const secondTransition = await this.createMuteTransition(
-        trackId,
-        secondTransitionTime,
-        !newState, // Opposite of the primary transition
-        muteParameterId,
-      );
-      createdTransitions.push(secondTransition);
-    }
-
-    return createdTransitions;
-  }
-
   // ===== CLIP-BASED OPERATIONS =====
 
   /**
@@ -337,7 +268,11 @@ export class MuteTransitionService {
       const finalNegative = sortedFinal.find((t) => t.timePosition < 0);
       const finalFirstPositive = sortedFinal.find((t) => t.timePosition >= 0);
 
-      if (finalNegative && finalFirstPositive && finalNegative.isMuted === finalFirstPositive.isMuted) {
+      if (
+        finalNegative &&
+        finalFirstPositive &&
+        finalNegative.isMuted === finalFirstPositive.isMuted
+      ) {
         await this.deleteMuteTransition(finalFirstPositive.id);
       }
     }
@@ -526,7 +461,17 @@ export class MuteTransitionService {
   async addMuteTransitionClip(trackId: string, timePosition: number): Promise<MuteTransition[]> {
     const allTransitions = await this.getMuteTransitionsForTrack(trackId);
     if (isEmpty(allTransitions)) {
-      throw new Error('cannot make a clip without any existing transitions');
+      const muteParameterId = await this.db.run(
+        `SELECT id FROM parameters WHERE is_mute = true AND track_id = '${trackId}' LIMIT 1`,
+      );
+      if (muteParameterId.length === 0) {
+        throw new Error(
+          'cannot make a clip without any existing transitions and no mute parameter',
+        );
+      }
+      allTransitions.push(
+        await this.createMuteTransition(trackId, -63072000, true, muteParameterId[0].id),
+      );
     }
     const muteParameterId = allTransitions[0].muteParameterId;
     const clips = MuteTransitionService.deriveClipsFromTransitions(allTransitions);

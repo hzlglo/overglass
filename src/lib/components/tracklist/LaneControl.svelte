@@ -6,7 +6,6 @@
 
   interface TrackLaneProps {
     title?: string;
-    subtitle?: string;
     onRename?: (newTitle: string) => void;
     isExpanded?: boolean;
     onToggleExpanded?: () => void;
@@ -20,7 +19,6 @@
 
   let {
     title,
-    subtitle,
     onRename,
     isExpanded: isExpandedProp,
     onToggleExpanded,
@@ -75,7 +73,7 @@
             {title}
           {/if}
         </div>
-        <div class="flex flex-row gap-1">
+        <div class="flex flex-row items-center gap-1">
           {#if onRename}
             {#if isRenaming}
               <button
@@ -107,14 +105,7 @@
     </div>
 
     {#if isExpanded}
-      <div class="ml-7 flex flex-col">
-        {#if subtitle}
-          <div class="text-base-content/60 text-sm">
-            {subtitle}
-          </div>
-        {/if}
-        {@render actions?.()}
-      </div>
+      {@render actions?.()}
     {/if}
   </div>
   {#if isExpanded && children}

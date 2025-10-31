@@ -23,6 +23,7 @@
     "@internationalized/date": "^3.10.0",
     "@lucide/svelte": "^0.544.0",
     "@tailwindcss/vite": "^4.1.13",
+    "ag-grid-community": "^34.3.0",
     "bits-ui": "^2.9.9",
     "classnames": "^2.5.1",
     "culori": "^4.0.2",

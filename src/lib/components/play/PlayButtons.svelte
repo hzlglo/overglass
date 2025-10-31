@@ -73,11 +73,11 @@
         tracks.track_number as track_number,
         devices.device_name as device_name,
         parameters.is_mute,
-        midi_mappings.*,
+        midi_mappings.* EXCLUDE (id),
       FROM parameters
       JOIN tracks on parameters.track_id = tracks.id
       JOIN devices on tracks.device_id = devices.id
-      JOIN midi_mappings on parameters.original_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
+      JOIN midi_mappings on parameters.vst_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
       `);
 
     await Promise.all(
@@ -99,6 +99,7 @@
               endTime,
               isBeginningPlay,
             );
+            const currentTime = WebMidi.time;
             return Promise.all(
               muteTransitions.map(async (m) =>
                 sendMidiControlChange({
@@ -106,7 +107,7 @@
                   midiMapping,
                   value: m.isMuted ? 1 : 0,
                   channel: midiMapping.trackNumber,
-                  time: m.timePosition,
+                  time: currentTime + (m.timePosition - startTime) * 1000,
                 }),
               ),
             );
@@ -120,6 +121,7 @@
               granularity: GRANULARITY,
               isBeginningPlay: isBeginningPlay,
             });
+            const currentTime = WebMidi.time;
             return Promise.all(
               automation.map(async (a) =>
                 sendMidiControlChange({
@@ -127,7 +129,7 @@
                   midiMapping,
                   value: a.value,
                   channel: midiMapping.trackNumber,
-                  time: a.timePosition,
+                  time: currentTime + (a.timePosition - startTime) * 1000,
                 }),
               ),
             );

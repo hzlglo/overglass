@@ -6,19 +6,20 @@
     children,
     content,
     titleString,
-  }: { children: Snippet; content: Snippet; titleString?: string } = $props();
+    isOpen = $bindable(false),
+  }: { children?: Snippet; content: Snippet; titleString?: string; isOpen?: boolean } = $props();
 </script>
 
-<Dialog.Root>
+<Dialog.Root bind:open={isOpen}>
   <Dialog.Trigger class="btn btn-ghost btn-sm btn-square">
-    {@render children()}
+    {@render children?.()}
   </Dialog.Trigger>
   <Dialog.Portal>
     <Dialog.Overlay
       class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 bg-base-300/70 fixed inset-0 z-50"
     />
     <Dialog.Content
-      class="card bg-base-100 card-border data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 w-lg translate-x-[-50%] translate-y-[-50%] outline-hidden"
+      class="card bg-base-100 card-border data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 translate-x-[-50%] translate-y-[-50%] outline-hidden"
     >
       <div class="card-body max-h-[80vh] gap-0 overflow-y-auto">
         <Dialog.Title class="card-title border-base-content/20 border-b pb-2">

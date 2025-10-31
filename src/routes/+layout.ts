@@ -9,6 +9,7 @@ export const load = async () => {
       defaults: '2025-05-24',
       person_profiles: 'always',
     });
+    posthog.opt_out_capturing();
   }
 
   return;

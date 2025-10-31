@@ -32,7 +32,8 @@
 
       // Export the current database state back to ALS format
       // This uses the edited data, not the original
-      const exportFileName = `${loadedFile.name}_overglass_${filenameTimestamp()}.als`;
+      const cleanedFileName = loadedFile.name?.replace(/_overglass.*/g, '') ?? 'overglass';
+      const exportFileName = `${cleanedFileName}_overglass_${filenameTimestamp()}.als`;
       const exportedFile = await writer.writeALSFile(loadedFile, exportFileName);
       appConfigStore.copyConfigToNewfile(exportFileName);
 
