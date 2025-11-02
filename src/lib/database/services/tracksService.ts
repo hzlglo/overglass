@@ -163,4 +163,41 @@ export class TracksService {
     await this.db.insertRecord('tracks', track);
     return this.getTrackById(track.id);
   }
+  async deleteTrack(trackId: string): Promise<void> {
+    const track = await this.getTrackById(trackId);
+    if (!track) {
+      throw new Error(`Track ${trackId} not found`);
+    }
+    let sql = SQL`
+    DELETE FROM tracks WHERE id = ${trackId}
+    `;
+    await this.db.run(sql.sql, sql.values);
+  }
+
+  async deleteParameter(parameterId: string): Promise<void> {
+    const parameter = await this.getParameterById(parameterId);
+    if (!parameter) {
+      throw new Error(`Parameter ${parameterId} not found`);
+    }
+    let sql = SQL`
+      DELETE FROM automation_points WHERE parameter_id = ${parameterId}
+    `;
+    await this.db.run(sql.sql, sql.values);
+    sql = SQL`
+      DELETE FROM parameters WHERE id = ${parameterId}
+    `;
+    await this.db.run(sql.sql, sql.values);
+    const trackParams = await this.getParametersForTrack(parameter.trackId);
+    if (trackParams.length === 0) {
+      await this.deleteTrack(parameter.trackId);
+    }
+  }
+  async moveAutomationTo(sourceParameterId: string, targetParameterId: string): Promise<void> {
+    let sql = SQL`
+        UPDATE automation_points
+        SET parameter_id = ${targetParameterId}
+        WHERE parameter_id = ${sourceParameterId}
+      `;
+    await this.db.run(sql.sql, sql.values);
+  }
 }

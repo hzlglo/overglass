@@ -175,6 +175,28 @@ describe('ALS Round-Trip Integration Test', () => {
     await verifyXMLDifferences('mute_edit', 2);
   });
 
+  it('should remove parameters without leaving orphaned envelopes', async () => {
+    await runRoundTripTest('remove_parameters', async (db) => {
+      // Find parameters with automation to delete
+      const parametersWithPoints = await findParametersWithPoints(db);
+      expect(parametersWithPoints.length).toBeGreaterThan(2);
+
+      // Delete 2 parameters
+      const param1 = parametersWithPoints[0].parameter;
+      const param2 = parametersWithPoints[1].parameter;
+
+      console.log(`🗑️  Deleting parameter "${param1.parameterName}"`);
+      await db.tracks.deleteParameter(param1.id);
+
+      console.log(`🗑️  Deleting parameter "${param2.parameterName}"`);
+      await db.tracks.deleteParameter(param2.id);
+
+      console.log(
+        `✅ Deleted 2 parameters: "${param1.parameterName}" and "${param2.parameterName}"`,
+      );
+    });
+  });
+
   it('should add new parameters and edit existing parameters in the same operation', async () => {
     await runRoundTripTest('add_and_edit_parameters', async (db) => {
       // Find parameters to work with
@@ -210,7 +232,7 @@ describe('ALS Round-Trip Integration Test', () => {
         await db.run(`
         SELECT * FROM midi_mappings
         WHERE device = 'Digitakt II'
-        AND name = 'T12 Filter Frequency'
+        AND name = 'T6 Filter Frequency'
       `)
       )[0];
       console.log('midiMappingToCreate', midiMappingToCreate);
@@ -220,7 +242,7 @@ describe('ALS Round-Trip Integration Test', () => {
         await db.run(`
         SELECT * FROM midi_mappings
         WHERE device = 'Digitakt II'
-        AND name = 'T12 Mute'
+        AND name = 'T6 Mute'
       `)
       )[0];
       console.log('midiMappingToCreate', midiMappingToCreate);

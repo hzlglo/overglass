@@ -131,7 +131,8 @@ const getSharedGridState = () => {
       trackLaneStates: $state.snapshot(trackLaneStates),
       tracks,
     });
-    trackOrder = appConfigStore.get()?.trackOrder ?? [];
+    trackOrder =
+      appConfigStore.get()?.trackOrder.filter((t) => tracks.some((t2) => t2.id === t)) ?? [];
     parameterOrder = appConfigStore.get()?.parameterOrder ?? {};
     if (tracks.length > 0) {
       // Expand all parameters for each track
@@ -174,6 +175,9 @@ const getSharedGridState = () => {
               parameterOrder[track.id]?.push(param.id);
             }
           });
+          parameterOrder[track.id] = parameterOrder[track.id].filter((p) =>
+            nonMuteParameters.some((p2) => p2.id === p),
+          );
         }
       }
     }

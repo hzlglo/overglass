@@ -44,7 +44,7 @@ describe('ALS Structure Verification', () => {
     expect(devices[0].deviceType).toBe('elektron');
   });
 
-  it('should have exactly 16 tracks (T1-T16)', async () => {
+  it('should have exactly 3 tracks with automation (T1, T3, T6)', async () => {
     const devices = await db.devices.getDevicesWithTracks();
     const device = devices[0];
 
@@ -53,15 +53,16 @@ describe('ALS Structure Verification', () => {
     console.log('Tracks found:', tracks);
     console.log('Device ID used:', device.id);
 
-    expect(tracks).toHaveLength(16);
+    // Only tracks with automation envelopes are created
+    expect(tracks).toHaveLength(3);
 
     // Check track numbers
     const trackNumbers = tracks.map((t) => t.trackNumber).sort((a, b) => a - b);
-    expect(trackNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    expect(trackNumbers).toEqual([1, 3, 6]);
 
     // Verify track names contain track numbers
     tracks.forEach((track) => {
-      expect(track.trackName).toMatch(/Track \d+/);
+      expect(track.trackName).toMatch(/Track [136]/);
     });
   });
 
@@ -73,7 +74,7 @@ describe('ALS Structure Verification', () => {
     // Sort tracks by track number for consistent testing
     const sortedTracks = tracks.sort((a, b) => a.trackNumber - b.trackNumber);
 
-    // T1 should have just the Mute parameter
+    // T1 should have just the Mute parameter (with automation)
     const t1 = sortedTracks.find((t) => t.trackNumber === 1);
     expect(t1).toBeDefined();
     const t1Params = await db.tracks.getParametersForTrack(t1!.id);
@@ -84,7 +85,7 @@ describe('ALS Structure Verification', () => {
     expect(t1Params).toHaveLength(1);
     expect(t1Params[0].parameterName).toMatch(/mute/i);
 
-    // T3 should have 2 parameters (Mute + Filter Frequency)
+    // T3 should have 1 parameter (Filter Frequency with automation)
     const t3 = sortedTracks.find((t) => t.trackNumber === 3);
     expect(t3).toBeDefined();
     const t3Params = await db.tracks.getParametersForTrack(t3!.id);
@@ -92,9 +93,10 @@ describe('ALS Structure Verification', () => {
       'T3 parameters:',
       t3Params.map((p) => p.parameterName),
     );
-    expect(t3Params).toHaveLength(2);
+    expect(t3Params).toHaveLength(1);
+    expect(t3Params[0].parameterName).toBe('T3 Filter Frequency');
 
-    // T6 should have 3 parameters
+    // T6 should have 3 parameters (all with automation)
     const t6 = sortedTracks.find((t) => t.trackNumber === 6);
     expect(t6).toBeDefined();
     const t6Params = await db.tracks.getParametersForTrack(t6!.id);
@@ -155,8 +157,9 @@ describe('ALS Structure Verification', () => {
         );
       });
 
-      expect(tracks).toHaveLength(16);
-      expect(tracks.map((t) => t.trackNumber).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+      // Only tracks with automation envelopes are created
+      expect(tracks).toHaveLength(3);
+      expect(tracks.map((t) => t.trackNumber).sort((a, b) => a - b)).toEqual([1, 3, 6]);
     }
   });
 });

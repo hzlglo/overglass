@@ -65,13 +65,13 @@
       // Load data into DuckDB
       appConfigStore.setCurrentFile(file.name);
       const savedTracks = appConfigStore.get()?.trackCustomizations;
-      const trackToName = fromPairs(
+      const savedTrackIds = fromPairs(
         toPairs(savedTracks ?? {})?.map(([trackId, trackCustomization]) => [
           trackCustomization.rawTrackName,
           trackId,
         ]),
       );
-      await trackDb.init(parsedSet, trackToName);
+      await trackDb.init(parsedSet, savedTrackIds);
       const tracks = await trackDb.get().tracks.getAllTracks();
       appConfigStore.initializeTrackCustomizations(tracks);
 

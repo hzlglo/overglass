@@ -2,7 +2,6 @@ import { ElektronNameMatcher } from '$lib/config/regex';
 import { ALSParser } from '$lib/parsers/alsParser';
 import type { AutomationDatabase } from '../duckdb';
 import type { MidiMapping, Parameter, Track } from '../schema';
-import { v4 as uuidv4 } from 'uuid';
 
 export async function createParameters(
   db: AutomationDatabase,

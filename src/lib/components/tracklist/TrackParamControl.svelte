@@ -1,9 +1,10 @@
 <script lang="ts">
   import { ElektronNameMatcher } from '$lib/config/regex';
   import { appConfigStore } from '$lib/stores/customization.svelte';
-  import { Maximize2Icon, Minimize2Icon } from '@lucide/svelte';
+  import { Maximize2Icon, Minimize2Icon, PencilIcon, TrashIcon } from '@lucide/svelte';
   import { sharedGridState } from '../grid/sharedGridState.svelte';
   import LaneControl from './LaneControl.svelte';
+  import { appModalState } from '../app/appModals/appModalState.svelte';
 
   interface AutomationParameterProps {
     parameterId: string;
@@ -53,6 +54,32 @@
           }}
         >
           <Minimize2Icon class="size-3" />
+        </button>
+        <button
+          class="btn btn-xs btn-ghost hidden group-hover:block"
+          onclick={() => {
+            appModalState.setModal({
+              type: 'changeParameter',
+              props: {
+                parameterLaneState: parameterState,
+              },
+            });
+          }}
+        >
+          <PencilIcon class="size-3" />
+        </button>
+        <button
+          class="btn btn-xs btn-ghost hidden group-hover:block"
+          onclick={() => {
+            appModalState.setModal({
+              type: 'deleteParameter',
+              props: {
+                parameterLaneState: parameterState,
+              },
+            });
+          }}
+        >
+          <TrashIcon class="size-3" />
         </button>
       </div>
     {/snippet}

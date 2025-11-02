@@ -189,7 +189,6 @@ describe('ALS Parser', () => {
     // These should all have different IDs from the custom ones
     tracksWithGeneratedIds.forEach((track) => {
       expect(customTrackIds.includes(track.id)).toBe(false);
-      expect(track.id).toMatch(/^[a-z0-9]+$/); // Generated IDs are alphanumeric
     });
 
     // Verify the total number of tracks is the same

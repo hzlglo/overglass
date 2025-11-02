@@ -255,6 +255,7 @@ export class ALSWriter {
 
     let updatedCount = 0;
     let createdCount = 0;
+    let deletedCount = 0;
 
     // Find all MidiTracks/AudioTracks that contain devices
     const trackElements = xmlDoc.querySelectorAll('MidiTrack, AudioTrack');
@@ -306,6 +307,16 @@ export class ALSWriter {
         const pointeeId = pointeeIdElement?.getAttribute('Value');
         if (pointeeId) {
           envelopesByPointeeId.set(pointeeId, envelope);
+        }
+      }
+
+      // Build a set of all originalPointeeIds that should be kept (from database parameters)
+      const validPointeeIds = new Set<string>();
+      for (const [trackId, trackInfo] of deviceData.tracks) {
+        for (const [parameterId, parameterInfo] of trackInfo.parameters) {
+          if (parameterInfo.parameter.originalPointeeId) {
+            validPointeeIds.add(parameterInfo.parameter.originalPointeeId);
+          }
         }
       }
 
@@ -419,10 +430,25 @@ export class ALSWriter {
           }
         }
       }
+
+      // Remove envelopes for deleted parameters (those not in validPointeeIds)
+      let deviceDeletedCount = 0;
+      for (const [pointeeId, envelope] of envelopesByPointeeId) {
+        if (!validPointeeIds.has(pointeeId)) {
+          envelopesContainer.removeChild(envelope);
+          deviceDeletedCount++;
+          console.log(`🗑️  Removed envelope for deleted parameter (PointeeId: ${pointeeId})`);
+        }
+      }
+
+      if (deviceDeletedCount > 0) {
+        console.log(`🗑️  Removed ${deviceDeletedCount} envelopes for deleted parameters`);
+        deletedCount += deviceDeletedCount;
+      }
     }
 
     console.log(
-      `✅ XML automation update complete: ${updatedCount} updated, ${createdCount} created`,
+      `✅ XML automation update complete: ${updatedCount} updated, ${createdCount} created, ${deletedCount} deleted`,
     );
   }
 }

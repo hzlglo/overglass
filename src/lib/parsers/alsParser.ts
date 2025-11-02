@@ -252,7 +252,7 @@ export class ALSParser {
     // Extract ALL automation envelopes first
     const allEnvelopes = this.extractAutomationEnvelopes(trackElement, parameterMapping);
 
-    // Group parameters by track number - include ALL parameters from parameterMapping
+    // Group parameters by track number - only include parameters with automation envelopes
     const parametersByTrack = new Map<
       number,
       {
@@ -263,11 +263,22 @@ export class ALSParser {
       }[]
     >();
 
-    // First, add all parameters from the parameter mapping (regardless of automation)
+    // Build a set of automation envelope PointeeIds that exist in the file
+    const envelopePointeeIds = new Set<string>();
+    allEnvelopes.forEach((envelope) => {
+      envelopePointeeIds.add(envelope.originalPointeeId);
+    });
+
+    // Only create parameters that have corresponding automation envelopes
     // Filter out parameters with vstParameterId == "-1" as these are not real VST parameters
     Object.entries(parameterMapping).forEach(([automationTargetId, paramInfo]) => {
       // Skip parameters that don't have a valid VST parameter ID
       if (paramInfo.vstParameterId === '-1') {
+        return;
+      }
+
+      // Skip parameters without automation envelopes
+      if (!envelopePointeeIds.has(automationTargetId)) {
         return;
       }
 
@@ -277,26 +288,15 @@ export class ALSParser {
         parametersByTrack.set(trackNumber, []);
       }
 
+      // Find the corresponding envelope
+      const envelope = allEnvelopes.find((e) => e.originalPointeeId === automationTargetId);
+
       parametersByTrack.get(trackNumber)!.push({
         parameterName: paramInfo.parameterName,
         originalPointeeId: automationTargetId,
         vstParameterId: paramInfo.vstParameterId,
-        points: undefined, // Will be filled in if automation exists
+        points: envelope?.points, // Add points directly from the envelope
       });
-    });
-
-    // Then, overlay automation envelope data for parameters that have automation
-    allEnvelopes.forEach((envelope) => {
-      const trackNumber = this.regexMatcher.extractTrackNumber(envelope.parameterName) ?? 0;
-      const trackParams = parametersByTrack.get(trackNumber);
-
-      if (trackParams) {
-        // Find the matching parameter by originalPointeeId and add the automation points
-        const param = trackParams.find((p) => p.originalPointeeId === envelope.originalPointeeId);
-        if (param) {
-          param.points = envelope.points;
-        }
-      }
     });
 
     // Create database entities for each track number found
@@ -357,12 +357,6 @@ export class ALSParser {
             `🔍 Parameter object created with originalPointeeId: "${originalPointeeId}", vstParameterId: "${vstParameterId}"`,
           );
         parameters.push(parameter);
-
-        // Only process automation if points exist
-        if (!points || points.length === 0) {
-          console.log(`ℹ️  Parameter "${parameterName}" has no automation data`);
-          return;
-        }
 
         // Check if this is a mute parameter with only 0/1 values - if so, create mute transitions instead of automation points
         // But only use the first mute parameter per track for transitions, others become normal automation

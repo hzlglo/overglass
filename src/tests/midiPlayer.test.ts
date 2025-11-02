@@ -85,35 +85,35 @@ describe('Midi Player', () => {
     });
     describe('change outside of range', () => {
       it('at the beginning', async () => {
-        await db.automation.createAutomationPoint(testParameterId, -2, 0);
-        await db.automation.createAutomationPoint(testParameterId, 2, 1);
+        await db.automation.createAutomationPoint(testParameterId, 0, 0);
+        await db.automation.createAutomationPoint(testParameterId, 4, 1);
         const result = await midiPlayer.getInterpolatedValuesToPlay({
           parameterId: testParameterId,
-          startTime: 0,
-          endTime: 1,
+          startTime: 2,
+          endTime: 3,
           isBeginningPlay: true,
           granularity: 0.5,
         });
         expect(result).toEqual([
-          { timePosition: 0, value: 0.5 },
-          { timePosition: 0.5, value: 0.625 },
-          { timePosition: 1, value: 0.75 },
+          { timePosition: 2, value: 0.5 },
+          { timePosition: 2.5, value: 0.625 },
+          { timePosition: 3, value: 0.75 },
         ]);
       });
       it('not at the beginning', async () => {
-        await db.automation.createAutomationPoint(testParameterId, -2, 0);
-        await db.automation.createAutomationPoint(testParameterId, 2, 1);
+        await db.automation.createAutomationPoint(testParameterId, 0, 0);
+        await db.automation.createAutomationPoint(testParameterId, 4, 1);
         const result = await midiPlayer.getInterpolatedValuesToPlay({
           parameterId: testParameterId,
-          startTime: 0,
-          endTime: 1,
+          startTime: 2,
+          endTime: 3,
           isBeginningPlay: false,
           granularity: 0.5,
         });
         expect(result).toEqual([
-          { timePosition: 0, value: 0.5 },
-          { timePosition: 0.5, value: 0.625 },
-          { timePosition: 1, value: 0.75 },
+          { timePosition: 2, value: 0.5 },
+          { timePosition: 2.5, value: 0.625 },
+          { timePosition: 3, value: 0.75 },
         ]);
       });
     });

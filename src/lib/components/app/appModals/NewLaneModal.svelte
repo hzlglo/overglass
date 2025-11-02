@@ -51,7 +51,6 @@
       }))
       .filter((prop) => searchRegex()?.test(prop.label)),
   );
-  $inspect('NewLaneModal', { availableProps, filteredAvailableProps });
   const columns: ColDef<TableData>[] = [
     { field: 'device' },
     { field: 'name' },
@@ -94,6 +93,7 @@
           class="btn btn-primary"
           onclick={async () => {
             await createParameters(trackDb.get(), selectedRows);
+            await trackDb.refreshData();
             await sharedGridState.syncWithDb(trackDb.get());
             const tracks = await trackDb.get().tracks.getAllTracks();
             await appConfigStore.initializeTrackCustomizations(tracks);

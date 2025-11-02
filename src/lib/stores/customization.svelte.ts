@@ -198,6 +198,7 @@ const createCustomizationStore = () => {
       }
       const newFile = { ...state.fileCustomizations[currentFile] };
       state.fileCustomizations[fileName] = newFile;
+      currentFile = fileName;
       saveStateToStorage(state);
     },
   };
