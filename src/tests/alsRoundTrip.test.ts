@@ -242,7 +242,7 @@ describe('ALS Round-Trip Integration Test', () => {
         await db.run(`
         SELECT * FROM midi_mappings
         WHERE device = 'Digitakt II'
-        AND name = 'T6 Mute'
+        AND name = 'T7 Mute'
       `)
       )[0];
       console.log('midiMappingToCreate', midiMappingToCreate);

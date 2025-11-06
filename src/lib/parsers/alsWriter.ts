@@ -197,11 +197,12 @@ export class ALSWriter {
 
             // Create or update parameter data for mute parameter
             if (parameterData.has(muteParameterId)) {
-              // If parameter already exists (shouldn't happen for mute params), add to existing points
+              // Replace automation points with mute transitions (mute transitions take precedence)
               const existingData = parameterData.get(muteParameterId)!;
-              const allPoints = [...existingData.automationPoints, ...muteAutomationPoints];
-              allPoints.sort((a, b) => a.timePosition - b.timePosition);
-              existingData.automationPoints = allPoints;
+              existingData.automationPoints = muteAutomationPoints;
+              console.log(
+                `🔇 Replaced automation points with ${muteAutomationPoints.length} mute transition points for "${existingData.parameter.parameterName}"`,
+              );
             } else {
               // Create a synthetic parameter entry for the mute parameter
               // We need to find the parameter info for this muteParameterId
@@ -299,15 +300,29 @@ export class ALSWriter {
       }
 
       // Build a map of existing AutomationEnvelopes by their PointeeId
+      // If there are duplicates (multiple envelopes with same PointeeId), keep only the last one
+      // and collect the duplicates for removal
       const envelopesByPointeeId = new Map<string, Element>();
+      const duplicateEnvelopes: Element[] = [];
       const existingEnvelopes = getDirectChildren(envelopesContainer, 'AutomationEnvelope');
       for (const envelope of existingEnvelopes) {
         const targetElement = getDirectChild(envelope, 'EnvelopeTarget');
         const pointeeIdElement = targetElement ? getDirectChild(targetElement, 'PointeeId') : null;
         const pointeeId = pointeeIdElement?.getAttribute('Value');
         if (pointeeId) {
+          // If we already have an envelope for this PointeeId, mark the old one for removal
+          const existingEnvelope = envelopesByPointeeId.get(pointeeId);
+          if (existingEnvelope) {
+            duplicateEnvelopes.push(existingEnvelope);
+            console.log(`⚠️  Found duplicate envelope for PointeeId ${pointeeId} - will remove old one`);
+          }
           envelopesByPointeeId.set(pointeeId, envelope);
         }
+      }
+
+      // Remove duplicate envelopes
+      for (const envelope of duplicateEnvelopes) {
+        envelopesContainer.removeChild(envelope);
       }
 
       // Build a set of all originalPointeeIds that should be kept (from database parameters)
@@ -401,7 +416,12 @@ export class ALSWriter {
 
             // Update the placeholder PluginFloatParameter
             const nextVisualIndex = getNextVisualIndex(placeholder.parameterList);
-            const manualValue = events.length > 0 ? events[0].value : 0.5;
+            // For mute parameters, default to 0 (unmuted), otherwise use first event value or 0.5
+            const manualValue = events.length > 0
+              ? events[0].value
+              : parameter.isMute
+                ? 0
+                : 0.5;
 
             updatePluginFloatParameter(
               placeholder.element,

@@ -19,8 +19,8 @@ export function generatePalette({
   backgroundHex,
   contentHex,
   themePrimaryHex,
-  numCategories = 8,
-  numShades = 6,
+  numCategories = 10,
+  numShades = 5,
 }: PaletteOptions) {
   const background = toOklch(backgroundHex)!;
   const content = toOklch(contentHex)!;
@@ -58,8 +58,8 @@ export function generatePalette({
       };
 
       // Ensure contrast from background
-      if (Math.abs(adjusted.l - background.l) < 0.2) {
-        adjusted.l = background.l > 0.5 ? adjusted.l - 0.2 : adjusted.l + 0.2; // push away from background
+      if (Math.abs(adjusted.l - background.l) < 0.1) {
+        adjusted.l = background.l > 0.5 ? adjusted.l - 0.1 : adjusted.l + 0.1; // push away from background
       }
 
       return toHex({ mode: 'oklch', ...adjusted });

@@ -8,6 +8,7 @@
   import { createParameters } from '$lib/database/services/utils';
   import { sharedGridState } from '$lib/components/grid/sharedGridState.svelte';
   import { appConfigStore } from '$lib/stores/customization.svelte';
+  import { sharedToastQueue } from '$lib/components/core/Toast/sharedToastQueue.svelte';
 
   let {
     initialName = $bindable(''),
@@ -92,11 +93,19 @@
         <button
           class="btn btn-primary"
           onclick={async () => {
-            await createParameters(trackDb.get(), selectedRows);
-            await trackDb.refreshData();
-            await sharedGridState.syncWithDb(trackDb.get());
-            const tracks = await trackDb.get().tracks.getAllTracks();
-            await appConfigStore.initializeTrackCustomizations(tracks);
+            try {
+              await createParameters(trackDb.get(), selectedRows);
+
+              await trackDb.refreshData();
+              await sharedGridState.syncWithDb(trackDb.get());
+              const tracks = await trackDb.get().tracks.getAllTracks();
+              await appConfigStore.initializeTrackCustomizations(tracks);
+            } catch (e: any) {
+              sharedToastQueue.addToast({
+                type: 'error',
+                message: e.message,
+              });
+            }
             isOpen = false;
           }}>Add</button
         >

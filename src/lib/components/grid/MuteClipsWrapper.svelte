@@ -12,6 +12,8 @@
 
   let { lane, width, muteTransitions }: MuteTransitionWrapperProps = $props();
 
+  $inspect('MuteClipsWrapper', lane.track.trackNumber, { lane, width, muteTransitions });
+
   let isExpanded = $derived(lane.expanded);
   let trackConfig = $derived(appConfigStore.get()?.trackCustomizations[lane.track.id] ?? null);
 </script>

@@ -14,7 +14,7 @@
   <Popover.Trigger
     class={classNames('btn btn-xs btn-square group-hover:block', isOpen ? 'block' : 'hidden')}
   >
-    <div class="size-3" style="background-color: {value}"></div>
+    <div class="size-3 justify-self-center" style="background-color: {value}"></div>
   </Popover.Trigger>
   <Popover.Content class="menu rounded-box bg-base-100 border-base-content/20 z-50 border">
     <div class="flex flex-row gap-1">

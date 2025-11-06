@@ -224,14 +224,15 @@
     nextMessageBatchStart = 0;
     playFunctions = [];
   }
-  let playContainerListeners = (_ref: any) => {
+  $effect(() => {
     if (!document) return;
-    document.addEventListener('keydown', async (event: KeyboardEvent) => {
+    const listener = async (event: KeyboardEvent) => {
       const isTyping =
         event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
 
       if (isTyping) return;
       if (event.code.toLowerCase() === 'space') {
+        console.log('Play button: space pressed', isPlaying);
         if (isPlaying) {
           await stopPlayback();
         } else {
@@ -239,8 +240,12 @@
         }
         event.preventDefault();
       }
-    });
-  };
+    };
+    document.addEventListener('keydown', listener);
+    return () => {
+      document.removeEventListener('keydown', listener);
+    };
+  });
 </script>
 
 <div class="flex flex-row items-center">
@@ -271,7 +276,6 @@
       class={classNames('btn btn-square btn-success btn-outline')}
       onclick={() => (isPlaying ? stopPlayback() : handlePlay())}
       title={isPlaying ? 'Stop playback' : 'Play the project via MIDI'}
-      use:playContainerListeners
     >
       {#if isPlaying}
         <SquareIcon />

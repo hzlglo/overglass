@@ -20,29 +20,30 @@ export async function createParameters(
     }
     const device = devices.find((d) => d.deviceName === row.device);
     if (!device) {
-      console.error('Could not find device', row.device);
-      continue;
+      throw new Error(`Could not find device ${row.device}`);
     }
     const { isMute } = ElektronNameMatcher.parseMuteParameter(row.name);
     const trackNumber = ElektronNameMatcher.extractTrackNumber(row.name);
     if (!trackNumber) {
-      console.error('Could not extract track number from parameter name', row.name);
-      continue;
+      throw new Error(`Could not extract track number from parameter name ${row.name}`);
     }
     let track: Track | null | undefined = tracks.find(
       (t) => t.deviceId === device.id && t.trackNumber === trackNumber,
     );
     if (!track) {
       if (!isMute) {
-        console.error('Could not find track', row.device, trackNumber);
-        continue;
+        throw new Error(
+          `Could not find track ${row.device} ${trackNumber} - please add a mute parameter for the track first`,
+        );
       }
       // we need to create a new track
+      // Use the same naming convention as the parser: "${deviceName} Track ${trackNumber}"
+      const trackName = `${device.deviceName} Track ${trackNumber}`;
       track = await db.tracks.createTrack({
-        id: ALSParser.generateId('track', row.name),
+        id: ALSParser.generateId('track', trackName),
         deviceId: device.id,
         trackNumber,
-        trackName: row.name,
+        trackName,
         createdAt: new Date(),
       });
     }
