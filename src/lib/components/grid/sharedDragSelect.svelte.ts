@@ -32,6 +32,14 @@ const getSharedDragSelect = () => {
     clearBrush();
   };
 
+  const getSnappedPointSeconds = (pointPixels: number) => {
+    const updatedPointBars = sharedXScale.getZoomedXScaleBars().invert(pointPixels);
+    const snappedPointBars = sharedXScale.getSnapPointToGrid()(updatedPointBars);
+    const snappedPointPixels = sharedXScale.getZoomedXScaleBars()(snappedPointBars);
+    const snappedPointSeconds = sharedXScale.getZoomedXScale().invert(snappedPointPixels);
+    return snappedPointSeconds;
+  };
+
   return {
     clear,
     setClearBrush: (clearBrushInner: () => void) => {
@@ -64,6 +72,7 @@ const getSharedDragSelect = () => {
     registerDragHandler: (parameterId: string, handler: () => void) => {
       dragHandlers.set(parameterId, handler);
     },
+    getSnappedPointSeconds,
     dragEvent: ({
       event,
       currentTimePosition,
@@ -77,10 +86,7 @@ const getSharedDragSelect = () => {
       let diffSeconds = sharedXScale.getDataDeltaForScreenDelta(event.dx);
       if (shouldSnapToGrid) {
         const updatedPointPixels = event.x;
-        const updatedPointBars = sharedXScale.getZoomedXScaleBars().invert(updatedPointPixels);
-        const snappedPointBars = sharedXScale.getSnapPointToGrid()(updatedPointBars);
-        const snappedPointPixels = sharedXScale.getZoomedXScaleBars()(snappedPointBars);
-        const snappedPointSeconds = sharedXScale.getZoomedXScale().invert(snappedPointPixels);
+        const snappedPointSeconds = getSnappedPointSeconds(updatedPointPixels);
         diffSeconds = snappedPointSeconds - currentTimePosition;
       }
 

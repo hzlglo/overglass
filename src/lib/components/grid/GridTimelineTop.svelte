@@ -2,6 +2,7 @@
   import * as d3 from 'd3';
   import { sharedXScale } from './sharedXScale.svelte';
   import { playState } from '../play/playState.svelte';
+  import { sharedDragSelect } from './sharedDragSelect.svelte';
 
   let { width, height }: { width: number; height: number } = $props();
 
@@ -49,7 +50,7 @@
   $effect(() => {
     gGroup?.on('click', (event) => {
       if (playState.getIsPlaying()) return;
-      playState.setPlayPoint(sharedXScale.getZoomedXScale().invert(event.offsetX));
+      playState.setPlayPoint(sharedDragSelect.getSnappedPointSeconds(event.offsetX));
     });
   });
 </script>
