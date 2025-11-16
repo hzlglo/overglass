@@ -189,7 +189,6 @@ describe('ALS Parser', () => {
     // These should all have different IDs from the custom ones
     tracksWithGeneratedIds.forEach((track) => {
       expect(customTrackIds.includes(track.id)).toBe(false);
-      expect(track.id).toMatch(/^[a-z0-9]+$/); // Generated IDs are alphanumeric
     });
 
     // Verify the total number of tracks is the same
@@ -283,38 +282,38 @@ describe('ALS Parser', () => {
     expect(automationPointsForMuteParams.length).toBe(0);
   });
 
-  it('should capture originalParameterId for all parameters', async () => {
+  it('should capture vstParameterId for all parameters', async () => {
     const result = await parser.parseALSFile(testFile);
     const entities = parser.extractDatabaseEntities(result);
 
     expect(entities.parameters.length).toBeGreaterThan(0);
 
-    // Check that all parameters have originalParameterId defined
+    // Check that all parameters have vstParameterId defined
     entities.parameters.forEach((param) => {
       console.log(
-        `Parameter: "${param.parameterName}", originalPointeeId: ${param.originalPointeeId || 'none'}, originalParameterId: ${param.originalParameterId || 'none'}`,
+        `Parameter: "${param.parameterName}", originalPointeeId: ${param.originalPointeeId || 'none'}, vstParameterId: ${param.vstParameterId || 'none'}`,
       );
 
-      // All parameters should have an originalParameterId
-      expect(param.originalParameterId).toBeDefined();
-      expect(param.originalParameterId).not.toBe('');
-      expect(typeof param.originalParameterId).toBe('string');
+      // All parameters should have an vstParameterId
+      expect(param.vstParameterId).toBeDefined();
+      expect(param.vstParameterId).not.toBe('');
+      expect(typeof param.vstParameterId).toBe('string');
     });
 
     // Verify specific parameter IDs from the test file
     const t6Mute = entities.parameters.find((p) => p.parameterName === 'T6 Mute');
     expect(t6Mute).toBeDefined();
-    expect(t6Mute?.originalParameterId).toBe('55853');
+    expect(t6Mute?.vstParameterId).toBe('55853');
     expect(t6Mute?.originalPointeeId).toBe('22353');
 
     const t1Mute = entities.parameters.find((p) => p.parameterName === 'T1 Mute');
     expect(t1Mute).toBeDefined();
-    expect(t1Mute?.originalParameterId).toBe('55848');
+    expect(t1Mute?.vstParameterId).toBe('55848');
     expect(t1Mute?.originalPointeeId).toBe('22343');
 
     const t3FilterFreq = entities.parameters.find((p) => p.parameterName === 'T3 Filter Frequency');
     expect(t3FilterFreq).toBeDefined();
-    expect(t3FilterFreq?.originalParameterId).toBe('1573269');
+    expect(t3FilterFreq?.vstParameterId).toBe('1573269');
     expect(t3FilterFreq?.originalPointeeId).toBe('22375');
   });
 });

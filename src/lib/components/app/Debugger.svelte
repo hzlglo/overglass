@@ -19,7 +19,7 @@
   });
 </script>
 
-<div class="flex flex-col gap-2 p-4">
+<div class="flex min-h-0 min-w-0 flex-col gap-2 p-4">
   <div class="flex flex-col gap-2">
     <p>Enter SQL</p>
     <textarea bind:value class="textarea textarea-bordered w-full"> </textarea>
@@ -29,7 +29,7 @@
   {:then resolved}
     {#if resolved.length > 0}
       {@const columns = Object.keys(resolved[0])}
-      <table class="table-pin-rows table border">
+      <table class="table-pin-rows table min-h-0 min-w-0 overflow-auto border">
         <thead>
           <tr>
             {#each columns as column}

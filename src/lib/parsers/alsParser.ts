@@ -3,15 +3,21 @@ import { sortBy, reverse, uniqBy } from 'lodash';
 import type { ParsedALS } from '../database/schema';
 import type { Device, Track, Parameter, AutomationPoint, MuteTransition } from '../database/schema';
 import { RegexMatcher, createRegexConfig } from '../config/regex';
+import { v5 as uuidv5, v4 as uuidv4 } from 'uuid';
+
+const APP_NAMESPACE = uuidv5('overglass', uuidv5.DNS);
 
 export class ALSParser {
   private regexMatcher = new RegexMatcher(createRegexConfig('elektron'));
   private debug = false;
 
-  private generateId(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-    );
+  static generateId(prefix?: string, name?: string): string {
+    if (prefix && name) {
+      const key = prefix + ':' + name;
+      console.log('Generating UUID for', key);
+      return uuidv5(key, APP_NAMESPACE);
+    }
+    return uuidv4();
   }
 
   setDebug(enabled: boolean): void {
@@ -123,7 +129,7 @@ export class ALSParser {
         let device = devices.find((d) => d.deviceName === trackName);
         if (!device) {
           device = {
-            id: this.generateId(),
+            id: ALSParser.generateId('device', trackName),
             deviceName: trackName,
             deviceType: 'elektron',
             createdAt: new Date(),
@@ -246,38 +252,58 @@ export class ALSParser {
     // Extract ALL automation envelopes first
     const allEnvelopes = this.extractAutomationEnvelopes(trackElement, parameterMapping);
 
-    // Group envelopes by track number found in parameter names
-    const envelopesByTrack = new Map<
+    // Group parameters by track number - only include parameters with automation envelopes
+    const parametersByTrack = new Map<
       number,
       {
         parameterName: string;
         originalPointeeId: string;
-        originalParameterId: string;
-        points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
+        vstParameterId: string;
+        points?: Pick<AutomationPoint, 'timePosition' | 'value'>[];
       }[]
     >();
 
+    // Build a set of automation envelope PointeeIds that exist in the file
+    const envelopePointeeIds = new Set<string>();
     allEnvelopes.forEach((envelope) => {
-      // Extract track number from parameter name (e.g., "T1 Mute" -> 1, "T3 Filter Frequency" -> 3)
-      const trackNumber = this.regexMatcher.extractTrackNumber(envelope.parameterName) ?? 0;
+      envelopePointeeIds.add(envelope.originalPointeeId);
+    });
 
-      if (!envelopesByTrack.has(trackNumber)) {
-        envelopesByTrack.set(trackNumber, []);
+    // Only create parameters that have corresponding automation envelopes
+    // Filter out parameters with vstParameterId == "-1" as these are not real VST parameters
+    Object.entries(parameterMapping).forEach(([automationTargetId, paramInfo]) => {
+      // Skip parameters that don't have a valid VST parameter ID
+      if (paramInfo.vstParameterId === '-1') {
+        return;
       }
 
-      envelopesByTrack.get(trackNumber)!.push({
-        parameterName: envelope.parameterName,
-        originalPointeeId: envelope.originalPointeeId,
-        originalParameterId: envelope.originalParameterId,
-        points: envelope.points,
+      // Skip parameters without automation envelopes
+      if (!envelopePointeeIds.has(automationTargetId)) {
+        return;
+      }
+
+      const trackNumber = this.regexMatcher.extractTrackNumber(paramInfo.parameterName) ?? 0;
+
+      if (!parametersByTrack.has(trackNumber)) {
+        parametersByTrack.set(trackNumber, []);
+      }
+
+      // Find the corresponding envelope
+      const envelope = allEnvelopes.find((e) => e.originalPointeeId === automationTargetId);
+
+      parametersByTrack.get(trackNumber)!.push({
+        parameterName: paramInfo.parameterName,
+        originalPointeeId: automationTargetId,
+        vstParameterId: paramInfo.vstParameterId,
+        points: envelope?.points, // Add points directly from the envelope
       });
     });
 
     // Create database entities for each track number found
-    envelopesByTrack.forEach((trackParameters, trackNumber) => {
+    parametersByTrack.forEach((trackParameters, trackNumber) => {
       // Create track entity
       const trackName = `${deviceName} Track ${trackNumber}`;
-      const trackId = trackIdMapping?.[trackName] || this.generateId();
+      const trackId = trackIdMapping?.[trackName] || ALSParser.generateId('track', trackName);
       const track: Track = {
         id: trackId,
         deviceId: device.id,
@@ -300,104 +326,101 @@ export class ALSParser {
       // Track whether we've already created mute transitions for this track (only use first mute parameter)
       let hasCreatedMuteTransitions = false;
 
-      trackParameters.forEach(
-        ({ parameterName, originalPointeeId, originalParameterId, points }) => {
-          const parameterId = this.generateId();
+      trackParameters.forEach(({ parameterName, originalPointeeId, vstParameterId, points }) => {
+        const parameterId = ALSParser.generateId('parameter', parameterName);
 
-          if (originalPointeeId) {
-            console.log(
-              `📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}", originalParameterId: "${originalParameterId || 'none'}"`,
-            );
-          } else {
-            console.log(
-              `📝 Creating parameter "${parameterName}" with NO originalPointeeId, originalParameterId: "${originalParameterId || 'none'}"`,
-            );
+        if (originalPointeeId) {
+          console.log(
+            `📝 Creating parameter "${parameterName}" with originalPointeeId: "${originalPointeeId}", vstParameterId: "${vstParameterId || 'none'}", hasAutomation: ${!!points}`,
+          );
+        } else {
+          console.log(
+            `📝 Creating parameter "${parameterName}" with NO originalPointeeId, vstParameterId: "${vstParameterId || 'none'}", hasAutomation: ${!!points}`,
+          );
+        }
+
+        // Check if parameter is a mute parameter using the regex pattern
+        const { isMute } = this.regexMatcher.parseMuteParameter(parameterName);
+
+        const parameter: Parameter = {
+          id: parameterId,
+          trackId,
+          parameterName,
+          parameterPath: `/${deviceName}/${parameterName}`,
+          vstParameterId,
+          originalPointeeId,
+          isMute,
+          createdAt: new Date(),
+        };
+        if (this.debug)
+          console.log(
+            `🔍 Parameter object created with originalPointeeId: "${originalPointeeId}", vstParameterId: "${vstParameterId}"`,
+          );
+        parameters.push(parameter);
+
+        // Check if this is a mute parameter with only 0/1 values - if so, create mute transitions instead of automation points
+        // But only use the first mute parameter per track for transitions, others become normal automation
+        if (isMute && !hasCreatedMuteTransitions && this.hasOnlyBinaryValues(points)) {
+          console.log(
+            `🔇 Creating mute transitions for mute parameter "${parameterName}" (first mute param for track ${trackNumber})`,
+          );
+          // Dedupe by time, keeping the last value for each time position
+          const dedupedPoints = reverse(
+            uniqBy(reverse(sortBy(points, 'timePosition')), 'timePosition'),
+          );
+
+          // Filter to only include actual state changes (alternating pattern)
+          const filteredPoints = [];
+          let lastState = null;
+          for (const point of dedupedPoints) {
+            const currentState = point.value === 1; // 1 = muted, 0 = unmuted
+            if (lastState === null || currentState !== lastState) {
+              filteredPoints.push(point);
+              lastState = currentState;
+            }
           }
 
-          // Check if parameter is a mute parameter using the regex pattern
-          const { isMute } = this.regexMatcher.parseMuteParameter(parameterName);
-
-          const parameter: Parameter = {
-            id: parameterId,
-            trackId,
-            parameterName,
-            parameterPath: `/${deviceName}/${parameterName}`,
-            originalParameterId,
-            originalPointeeId,
-            isMute,
-            createdAt: new Date(),
-          };
-          if (this.debug)
+          filteredPoints.forEach((point) => {
+            const muteTransition: MuteTransition = {
+              id: ALSParser.generateId(),
+              trackId,
+              timePosition: point.timePosition,
+              isMuted: point.value === 1, // 1 = muted, 0 = unmuted
+              muteParameterId: parameterId,
+              createdAt: new Date(),
+            };
+            muteTransitions.push(muteTransition);
+          });
+          console.log(
+            `🔇 Created ${filteredPoints.length} mute transitions for track ${trackNumber} (filtered from ${dedupedPoints.length} deduped points)`,
+          );
+          hasCreatedMuteTransitions = true;
+        } else {
+          // Create automation points for non-mute parameters, mute parameters with non-binary values, or additional mute parameters
+          if (isMute && hasCreatedMuteTransitions) {
             console.log(
-              `🔍 Parameter object created with originalPointeeId: "${originalPointeeId}", originalParameterId: "${originalParameterId}"`,
+              `📊 Creating automation points for additional mute parameter "${parameterName}" (already have mute transitions for track ${trackNumber})`,
             );
-          parameters.push(parameter);
-
-          // Check if this is a mute parameter with only 0/1 values - if so, create mute transitions instead of automation points
-          // But only use the first mute parameter per track for transitions, others become normal automation
-          if (isMute && !hasCreatedMuteTransitions && this.hasOnlyBinaryValues(points)) {
-            console.log(
-              `🔇 Creating mute transitions for mute parameter "${parameterName}" (first mute param for track ${trackNumber})`,
-            );
-            // Dedupe by time, keeping the last value for each time position
-            const dedupedPoints = reverse(
-              uniqBy(reverse(sortBy(points, 'timePosition')), 'timePosition'),
-            );
-
-            // Filter to only include actual state changes (alternating pattern)
-            const filteredPoints = [];
-            let lastState = null;
-            for (const point of dedupedPoints) {
-              const currentState = point.value === 1; // 1 = muted, 0 = unmuted
-              if (lastState === null || currentState !== lastState) {
-                filteredPoints.push(point);
-                lastState = currentState;
-              }
-            }
-
-            filteredPoints.forEach((point) => {
-              const muteTransition: MuteTransition = {
-                id: this.generateId(),
-                trackId,
-                timePosition: point.timePosition,
-                isMuted: point.value === 1, // 1 = muted, 0 = unmuted
-                muteParameterId: parameterId,
-                createdAt: new Date(),
-              };
-              muteTransitions.push(muteTransition);
-            });
-            console.log(
-              `🔇 Created ${filteredPoints.length} mute transitions for track ${trackNumber} (filtered from ${dedupedPoints.length} deduped points)`,
-            );
-            hasCreatedMuteTransitions = true;
-          } else {
-            // Create automation points for non-mute parameters, mute parameters with non-binary values, or additional mute parameters
-            if (isMute && hasCreatedMuteTransitions) {
-              console.log(
-                `📊 Creating automation points for additional mute parameter "${parameterName}" (already have mute transitions for track ${trackNumber})`,
-              );
-            }
-            points.forEach((point) => {
-              const automationPoint: AutomationPoint = {
-                id: this.generateId(),
-                parameterId,
-                timePosition: point.timePosition,
-                value: point.value,
-                createdAt: new Date(),
-              };
-              automationPoints.push(automationPoint);
-            });
           }
-        },
-      );
+          points.forEach((point) => {
+            const automationPoint: AutomationPoint = {
+              id: ALSParser.generateId(),
+              parameterId,
+              timePosition: point.timePosition,
+              value: point.value,
+              createdAt: new Date(),
+            };
+            automationPoints.push(automationPoint);
+          });
+        }
+      });
     });
   }
 
   private buildParameterMapping(
     deviceElement: Element,
-  ): Record<string, { parameterName: string; originalParameterId: string }> {
-    const parameterMapping: Record<string, { parameterName: string; originalParameterId: string }> =
-      {};
+  ): Record<string, { parameterName: string; vstParameterId: string }> {
+    const parameterMapping: Record<string, { parameterName: string; vstParameterId: string }> = {};
 
     // Find PluginFloatParameter elements in the DeviceChain
     const pluginFloatParam = this.getDirectChild(deviceElement, 'ParameterList');
@@ -423,7 +446,7 @@ export class ALSParser {
       if (automationTargetId && parameterId) {
         parameterMapping[automationTargetId] = {
           parameterName: paramName,
-          originalParameterId: parameterId,
+          vstParameterId: parameterId,
         };
         if (this.debug && index < 3) {
           console.log(
@@ -438,17 +461,17 @@ export class ALSParser {
 
   private extractAutomationEnvelopes(
     trackElement: Element,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
+    parameterMapping: Record<string, { parameterName: string; vstParameterId: string }>,
   ): {
     parameterName: string;
     originalPointeeId: string;
-    originalParameterId: string;
+    vstParameterId: string;
     points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
   }[] {
     const envelopes: {
       parameterName: string;
       originalPointeeId: string;
-      originalParameterId: string;
+      vstParameterId: string;
       points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
     }[] = [];
 
@@ -467,11 +490,11 @@ export class ALSParser {
 
   private parseAutomationEnvelope(
     envElement: Element,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
+    parameterMapping: Record<string, { parameterName: string; vstParameterId: string }>,
   ): {
     parameterName: string;
     originalPointeeId: string;
-    originalParameterId: string;
+    vstParameterId: string;
     points: Pick<AutomationPoint, 'timePosition' | 'value'>[];
   } | null {
     // Extract parameter name and original PointeeId from automation target using the parameter mapping
@@ -492,15 +515,15 @@ export class ALSParser {
     return {
       parameterName: extractedInfo.parameterName,
       originalPointeeId: extractedInfo.originalPointeeId,
-      originalParameterId: extractedInfo.originalParameterId,
+      vstParameterId: extractedInfo.vstParameterId,
       points,
     };
   }
 
   private extractParameterInfo(
     envElement: Element,
-    parameterMapping: Record<string, { parameterName: string; originalParameterId: string }>,
-  ): { parameterName: string; originalPointeeId: string; originalParameterId: string } | null {
+    parameterMapping: Record<string, { parameterName: string; vstParameterId: string }>,
+  ): { parameterName: string; originalPointeeId: string; vstParameterId: string } | null {
     if (this.debug) console.log(`🔍 Extracting parameter info for envelope`);
     if (this.debug) {
       console.log(`    🔍 Extracting parameter info for envelope:`);
@@ -540,13 +563,13 @@ export class ALSParser {
         }
         if (this.debug) {
           console.log(
-            `    ✅ Storing originalPointeeId: "${pointeeId}" for parameter: "${paramInfo.parameterName}" (originalParameterId: ${paramInfo.originalParameterId || 'none'})`,
+            `    ✅ Storing originalPointeeId: "${pointeeId}" for parameter: "${paramInfo.parameterName}" (vstParameterId: ${paramInfo.vstParameterId || 'none'})`,
           );
         }
         return {
           parameterName: paramInfo.parameterName,
           originalPointeeId: pointeeId,
-          originalParameterId: paramInfo.originalParameterId,
+          vstParameterId: paramInfo.vstParameterId,
         };
       } else {
         if (this.debug) console.log(`❌ PointeeId "${pointeeId}" not found in parameter mapping`);

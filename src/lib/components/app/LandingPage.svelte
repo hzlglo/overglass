@@ -42,6 +42,9 @@
               Read the docs
             </a>
           </p>
+          <p class="text-base-content/70 text-sm">
+            Currently supports: Ableton 12, Digitone II, Digitakt II.
+          </p>
           <div class="divider"></div>
           <div class="flex flex-col gap-4 text-xs">
             <EmailSubscribe />

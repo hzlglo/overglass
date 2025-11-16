@@ -24,6 +24,7 @@ export class WasmDuckDBAdapter implements DatabaseAdapter {
       const logger = new duckdb.ConsoleLogger();
       this.db = new duckdb.AsyncDuckDB(logger, worker);
       await this.db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+      URL.revokeObjectURL(worker_url);
       this.connection = await this.db.connect();
 
       this.isInitialized = true;

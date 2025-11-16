@@ -1,3 +1,5 @@
+import { compact } from 'lodash';
+
 export type themeColor =
   | 'primary'
   | 'primary-content'
@@ -43,4 +45,8 @@ export function filenameTimestamp(date = new Date()) {
       hour12: false,
     })
     .replace(/[/:,\s]+/g, '-');
+}
+
+export function safeConcat(strs: (string | null | undefined)[], separator: string = ' ') {
+  return compact(strs).join(separator);
 }

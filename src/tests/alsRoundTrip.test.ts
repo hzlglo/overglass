@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { runRoundTripTest, findParametersWithPoints, verifyXMLDifferences } from './helpers/roundTripTestHelper';
+import {
+  runRoundTripTest,
+  findParametersWithPoints,
+  verifyXMLDifferences,
+} from './helpers/roundTripTestHelper';
 import { MuteTransitionService } from '../lib/database/services/muteTransitionService';
+import { createParameters } from '$lib/database/services/utils';
 
 describe('ALS Round-Trip Integration Test', () => {
   console.log('🚀 Starting ALS Round-Trip Integration Test');
@@ -122,7 +127,7 @@ describe('ALS Round-Trip Integration Test', () => {
           const transitions = await db.muteTransitions.getMuteTransitionsForTrack(track.id);
 
           // Find a transition that's not at the beginning of time (which we can meaningfully edit)
-          const editableTransition = transitions.find(t => t.timePosition > -60000000);
+          const editableTransition = transitions.find((t) => t.timePosition > -60000000);
 
           if (editableTransition) {
             const originalTime = editableTransition.timePosition;
@@ -133,14 +138,22 @@ describe('ALS Round-Trip Integration Test', () => {
             const parameterName = parameter?.parameterName || 'Unknown';
 
             // Move the mute transition by 1 second using the new API
-            const allTrackTransitions = await db.muteTransitions.getMuteTransitionsForTrack(editableTransition.trackId);
-            const movedTransitions = MuteTransitionService.getMovedMuteTransitions([editableTransition], allTrackTransitions, 1.0);
+            const allTrackTransitions = await db.muteTransitions.getMuteTransitionsForTrack(
+              editableTransition.trackId,
+            );
+            const movedTransitions = MuteTransitionService.getMovedMuteTransitions(
+              [editableTransition],
+              allTrackTransitions,
+              1.0,
+            );
             if (movedTransitions.length > 0) {
               const actualNewTime = movedTransitions[0].timePosition;
-              await db.muteTransitions.updateMuteTransitions([{
-                id: editableTransition.id,
-                timePosition: actualNewTime
-              }]);
+              await db.muteTransitions.updateMuteTransitions([
+                {
+                  id: editableTransition.id,
+                  timePosition: actualNewTime,
+                },
+              ]);
 
               console.log(
                 `✅ Edited mute transition: ${parameterName} at time ${originalTime.toFixed(3)} → ${actualNewTime.toFixed(3)}`,
@@ -160,5 +173,91 @@ describe('ALS Round-Trip Integration Test', () => {
 
     // Verify that only 2 changes were made to the XML structure (mute transitions create 2 FloatEvents)
     await verifyXMLDifferences('mute_edit', 2);
+  });
+
+  it('should remove parameters without leaving orphaned envelopes', async () => {
+    await runRoundTripTest('remove_parameters', async (db) => {
+      // Find parameters with automation to delete
+      const parametersWithPoints = await findParametersWithPoints(db);
+      expect(parametersWithPoints.length).toBeGreaterThan(2);
+
+      // Delete 2 parameters
+      const param1 = parametersWithPoints[0].parameter;
+      const param2 = parametersWithPoints[1].parameter;
+
+      console.log(`🗑️  Deleting parameter "${param1.parameterName}"`);
+      await db.tracks.deleteParameter(param1.id);
+
+      console.log(`🗑️  Deleting parameter "${param2.parameterName}"`);
+      await db.tracks.deleteParameter(param2.id);
+
+      console.log(
+        `✅ Deleted 2 parameters: "${param1.parameterName}" and "${param2.parameterName}"`,
+      );
+    });
+  });
+
+  it('should add new parameters and edit existing parameters in the same operation', async () => {
+    await runRoundTripTest('add_and_edit_parameters', async (db) => {
+      // Find parameters to work with
+      const parametersWithPoints = await findParametersWithPoints(db);
+      console.log('parametersWithPoints', parametersWithPoints);
+      expect(parametersWithPoints.length).toBeGreaterThan(0);
+
+      // Edit an existing parameter
+      const { parameter: existingParam, points } = parametersWithPoints[0];
+      if (points.length > 0) {
+        const existingPoint = points[0];
+        const originalValue = existingPoint.value;
+        const newValue = originalValue === 0 ? 0.8 : 0.2;
+
+        await db.automation.updateAutomationPoint(
+          existingPoint.id,
+          existingParam.id,
+          existingPoint.timePosition,
+          newValue,
+        );
+
+        console.log(
+          `✅ Edited existing parameter "${existingParam.parameterName}": ${originalValue} → ${newValue}`,
+        );
+      }
+      // create new parameters
+
+      await db.run(`
+        INSERT INTO midi_mappings (SELECT gen_random_uuid(), * FROM "./static/midi-maps/Digitakt II.csv")
+        `);
+
+      let midiMappingToCreate = (
+        await db.run(`
+        SELECT * FROM midi_mappings
+        WHERE device = 'Digitakt II'
+        AND name = 'T6 Filter Frequency'
+      `)
+      )[0];
+      console.log('midiMappingToCreate', midiMappingToCreate);
+      const newParam = (await createParameters(db, [midiMappingToCreate]))[0];
+
+      midiMappingToCreate = (
+        await db.run(`
+        SELECT * FROM midi_mappings
+        WHERE device = 'Digitakt II'
+        AND name = 'T7 Mute'
+      `)
+      )[0];
+      console.log('midiMappingToCreate', midiMappingToCreate);
+      const existingMuteParam = (await createParameters(db, [midiMappingToCreate]))[0];
+      console.log('newParameters', newParam, existingMuteParam);
+
+      // Add automation points for the new parameters
+      await db.automation.createAutomationPoint(newParam.id, -63072000, 0.3);
+      await db.automation.createAutomationPoint(newParam.id, 5.0, 0.7);
+
+      await db.muteTransitions.addMuteTransitionClip(existingMuteParam.trackId, 10.0);
+
+      console.log(
+        `✅ Created 2 new parameters: "${newParam.parameterName}" and "${existingMuteParam.parameterName}"`,
+      );
+    });
   });
 });

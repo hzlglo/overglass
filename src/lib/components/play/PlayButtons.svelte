@@ -43,8 +43,8 @@
   let nextMessageBatchStart = $state(0);
 
   type PlayFunctionArgs = {
-    startTime: number;
-    endTime: number;
+    timeRangeStart: number;
+    timeRangeEnd: number;
     isBeginningPlay: boolean;
   };
 
@@ -73,11 +73,11 @@
         tracks.track_number as track_number,
         devices.device_name as device_name,
         parameters.is_mute,
-        midi_mappings.*,
+        midi_mappings.* EXCLUDE (id),
       FROM parameters
       JOIN tracks on parameters.track_id = tracks.id
       JOIN devices on tracks.device_id = devices.id
-      JOIN midi_mappings on parameters.original_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
+      JOIN midi_mappings on parameters.vst_parameter_id = midi_mappings.param_id and devices.device_name = midi_mappings.device
       `);
 
     await Promise.all(
@@ -92,46 +92,54 @@
         }
 
         if (midiMapping.isMute) {
-          playFunctions.push(async ({ startTime, endTime, isBeginningPlay }) => {
+          playFunctions.push(async ({ timeRangeStart, timeRangeEnd, isBeginningPlay }) => {
             const muteTransitions = await midiPlayer.getMuteTransitionsToPlay(
               midiMapping.trackId,
-              startTime,
-              endTime,
+              timeRangeStart,
+              timeRangeEnd,
               isBeginningPlay,
             );
-            return Promise.all(
-              muteTransitions.map(async (m) =>
-                sendMidiControlChange({
-                  output: midiOutput,
-                  midiMapping,
-                  value: m.isMuted ? 1 : 0,
-                  channel: midiMapping.trackNumber,
-                  time: m.timePosition,
-                }),
-              ),
+            const currentTime = WebMidi.time;
+            const elapsedTime = audioCtx?.currentTime ?? 0;
+            muteTransitions.forEach((m) =>
+              sendMidiControlChange({
+                output: midiOutput,
+                midiMapping,
+                value: m.isMuted ? 1 : 0,
+                channel: midiMapping.trackNumber,
+                time:
+                  m.timePosition - startTime - elapsedTime > 0
+                    ? currentTime + (m.timePosition - startTime - elapsedTime) * 1000
+                    : '+0',
+              }),
             );
           });
         } else {
-          playFunctions.push(async ({ startTime, endTime, isBeginningPlay }: PlayFunctionArgs) => {
-            const automation = await midiPlayer.getInterpolatedValuesToPlay({
-              parameterId: midiMapping.id,
-              startTime: startTime,
-              endTime: endTime,
-              granularity: GRANULARITY,
-              isBeginningPlay: isBeginningPlay,
-            });
-            return Promise.all(
-              automation.map(async (a) =>
+          playFunctions.push(
+            async ({ timeRangeStart, timeRangeEnd, isBeginningPlay }: PlayFunctionArgs) => {
+              const automation = await midiPlayer.getInterpolatedValuesToPlay({
+                parameterId: midiMapping.id,
+                startTime: timeRangeStart,
+                endTime: timeRangeEnd,
+                granularity: GRANULARITY,
+                isBeginningPlay: isBeginningPlay,
+              });
+              const currentTime = WebMidi.time;
+              const elapsedTime = audioCtx?.currentTime ?? 0;
+              automation.forEach((a) =>
                 sendMidiControlChange({
                   output: midiOutput,
                   midiMapping,
                   value: a.value,
                   channel: midiMapping.trackNumber,
-                  time: a.timePosition,
+                  time:
+                    a.timePosition - startTime - elapsedTime > 0
+                      ? currentTime + (a.timePosition - startTime - elapsedTime) * 1000
+                      : '+0',
                 }),
-              ),
-            );
-          });
+              );
+            },
+          );
         }
       }),
     );
@@ -144,13 +152,13 @@
 
     // start playing
     await Promise.all(
-      playFunctions.map((playFunction) => {
-        return playFunction({
-          startTime,
-          endTime: startTime + LOOKAHEAD * 2,
+      playFunctions.map((playFunction) =>
+        playFunction({
+          timeRangeStart: startTime,
+          timeRangeEnd: startTime + LOOKAHEAD * 2,
           isBeginningPlay: true,
-        });
-      }),
+        }),
+      ),
     );
     // todo when should this be continue vs start?
     midiOutputs.forEach((midiOutput) => {
@@ -180,8 +188,8 @@
     await Promise.all(
       playFunctions.map((playFunction) => {
         return playFunction({
-          startTime: nextMessageBatchStart,
-          endTime: nextMessageBatchStart + LOOKAHEAD,
+          timeRangeStart: nextMessageBatchStart,
+          timeRangeEnd: nextMessageBatchStart + LOOKAHEAD,
           isBeginningPlay: false,
         });
       }),
@@ -222,14 +230,15 @@
     nextMessageBatchStart = 0;
     playFunctions = [];
   }
-  let playContainerListeners = (_ref: any) => {
+  $effect(() => {
     if (!document) return;
-    document.addEventListener('keydown', async (event: KeyboardEvent) => {
+    const listener = async (event: KeyboardEvent) => {
       const isTyping =
         event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
 
       if (isTyping) return;
       if (event.code.toLowerCase() === 'space') {
+        console.log('Play button: space pressed', isPlaying);
         if (isPlaying) {
           await stopPlayback();
         } else {
@@ -237,8 +246,12 @@
         }
         event.preventDefault();
       }
-    });
-  };
+    };
+    document.addEventListener('keydown', listener);
+    return () => {
+      document.removeEventListener('keydown', listener);
+    };
+  });
 </script>
 
 <div class="flex flex-row items-center">
@@ -269,7 +282,6 @@
       class={classNames('btn btn-square btn-success btn-outline')}
       onclick={() => (isPlaying ? stopPlayback() : handlePlay())}
       title={isPlaying ? 'Stop playback' : 'Play the project via MIDI'}
-      use:playContainerListeners
     >
       {#if isPlaying}
         <SquareIcon />

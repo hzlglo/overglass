@@ -1,4 +1,4 @@
-import type { Track, Parameter, ParameterStats } from '../schema';
+import type { Track, Parameter, ParameterStats, MidiMapping } from '../schema';
 import type { AutomationDatabase } from '../duckdb';
 import SQL from 'sql-template-tag';
 
@@ -73,6 +73,7 @@ export class TracksService {
         p.track_id,
         p.parameter_name,
         p.parameter_path,
+        p.vst_parameter_id,
         p.original_pointee_id,
         p.is_mute,
         p.created_at,
@@ -84,7 +85,7 @@ export class TracksService {
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE p.track_id = ${trackId}
-      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.is_mute, p.created_at
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.vst_parameter_id, p.original_pointee_id, p.is_mute, p.created_at
       ORDER BY p.parameter_name
     `;
     const parameters = await this.db.run(sql.sql, sql.values);
@@ -99,6 +100,7 @@ export class TracksService {
         p.track_id,
         p.parameter_name,
         p.parameter_path,
+        p.vst_parameter_id,
         p.original_pointee_id,
         p.is_mute,
         p.created_at,
@@ -110,7 +112,7 @@ export class TracksService {
       FROM parameters p
       LEFT JOIN automation_points ap ON p.id = ap.parameter_id
       WHERE p.id = ${parameterId}
-      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.original_pointee_id, p.is_mute, p.created_at
+      GROUP BY p.id, p.track_id, p.parameter_name, p.parameter_path, p.vst_parameter_id, p.original_pointee_id, p.is_mute, p.created_at
     `;
     const parameters = await this.db.run(sql.sql, sql.values);
     return parameters.length > 0 ? parameters[0] : null;
@@ -144,5 +146,58 @@ export class TracksService {
     const tracks = await this.db.run(sql.sql, sql.values);
 
     return tracks.length > 0 ? tracks[0] : null;
+  }
+
+  /**
+   * Create a new parameter
+   */
+  async createParameter(parameter: Parameter): Promise<Parameter | null> {
+    await this.db.insertRecord('parameters', parameter);
+    return this.getParameterById(parameter.id);
+  }
+
+  /**
+   * Create a new track
+   */
+  async createTrack(track: Track): Promise<Track | null> {
+    await this.db.insertRecord('tracks', track);
+    return this.getTrackById(track.id);
+  }
+  async deleteTrack(trackId: string): Promise<void> {
+    const track = await this.getTrackById(trackId);
+    if (!track) {
+      throw new Error(`Track ${trackId} not found`);
+    }
+    let sql = SQL`
+    DELETE FROM tracks WHERE id = ${trackId}
+    `;
+    await this.db.run(sql.sql, sql.values);
+  }
+
+  async deleteParameter(parameterId: string): Promise<void> {
+    const parameter = await this.getParameterById(parameterId);
+    if (!parameter) {
+      throw new Error(`Parameter ${parameterId} not found`);
+    }
+    let sql = SQL`
+      DELETE FROM automation_points WHERE parameter_id = ${parameterId}
+    `;
+    await this.db.run(sql.sql, sql.values);
+    sql = SQL`
+      DELETE FROM parameters WHERE id = ${parameterId}
+    `;
+    await this.db.run(sql.sql, sql.values);
+    const trackParams = await this.getParametersForTrack(parameter.trackId);
+    if (trackParams.length === 0) {
+      await this.deleteTrack(parameter.trackId);
+    }
+  }
+  async moveAutomationTo(sourceParameterId: string, targetParameterId: string): Promise<void> {
+    let sql = SQL`
+        UPDATE automation_points
+        SET parameter_id = ${targetParameterId}
+        WHERE parameter_id = ${sourceParameterId}
+      `;
+    await this.db.run(sql.sql, sql.values);
   }
 }

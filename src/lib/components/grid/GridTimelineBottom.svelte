@@ -42,7 +42,13 @@
         .call(
           d3
             .axisBottom(xScale)
-            .tickFormat((d) => `${d}s`)
+            .tickFormat((d) => {
+              // d is seconds, format as M:SS
+              let totalSeconds = Math.floor(Number(d));
+              let minutes = Math.floor(totalSeconds / 60);
+              let seconds = totalSeconds % 60;
+              return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            })
             .tickSize(-innerHeight)
             .ticks(5),
         )

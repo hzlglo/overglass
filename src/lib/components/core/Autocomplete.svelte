@@ -1,17 +1,19 @@
 <script lang="ts">
   import { CheckIcon } from '@lucide/svelte';
   import { Combobox } from 'bits-ui';
-
+  import classNames from 'classnames';
   let {
     options,
     placeholder,
     open = $bindable(false),
     onchange,
+    class: className,
   }: {
     options: { label: string; value: string }[];
     placeholder: string;
-    open: boolean;
+    open?: boolean;
     onchange: (value: string) => void;
+    class?: string;
   } = $props();
 
   let searchValue = $state('');
@@ -24,18 +26,19 @@
 </script>
 
 <Combobox.Root
-  type="multiple"
+  type="single"
   onOpenChangeComplete={(o) => {
     if (!o) searchValue = '';
   }}
   onValueChange={(value) => {
     onchange(value);
+    open = false;
   }}
   bind:open
 >
   <Combobox.Input
     oninput={(e) => (searchValue = e.currentTarget.value)}
-    class="select select-sm w-[200px]"
+    class={classNames('select select-sm', className)}
     {placeholder}
     aria-label={placeholder}
   />

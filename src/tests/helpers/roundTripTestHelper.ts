@@ -215,6 +215,7 @@ export async function runRoundTripTest(
     // Common assertions that every round-trip test should pass
 
     // Should preserve exact structure - no spurious entities
+    console.log('structuralComparison', JSON.stringify(structuralComparison, null, 2));
     expect(structuralComparison.devicesOnlyInOriginal.length, 'Should not lose any devices').toBe(
       0,
     );

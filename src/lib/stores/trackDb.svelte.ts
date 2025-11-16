@@ -33,7 +33,7 @@ const createTrackDbStore = () => {
     isRecalculating = false;
   };
 
-  const init = async (parsedALS: ParsedALS, trackToName: Record<string, string>) => {
+  const init = async (parsedALS: ParsedALS, savedTrackIds: Record<string, string>) => {
     if (database) {
       console.error('Cannot init - database already initialized');
       return;
@@ -50,13 +50,13 @@ const createTrackDbStore = () => {
       database = new AutomationDatabase(adapter);
       await database.initialize();
 
-      await database.loadALSData(parsedALS, trackToName);
+      await database.loadALSData(parsedALS, savedTrackIds);
       await database.run('INSTALL httpfs; LOAD httpfs;');
       await database.run(
-        `INSERT INTO midi_mappings (SELECT * from "${page.url.origin}/midi-maps/Digitakt II.csv")`,
+        `INSERT INTO midi_mappings (SELECT gen_random_uuid(), * from "${page.url.origin}/midi-maps/Digitakt II.csv")`,
       );
       await database.run(
-        `INSERT INTO midi_mappings (SELECT * from "${page.url.origin}/midi-maps/Digitone II.csv")`,
+        `INSERT INTO midi_mappings (SELECT gen_random_uuid(), * from "${page.url.origin}/midi-maps/Digitone II.csv")`,
       );
       await refreshData();
       return;
@@ -107,7 +107,6 @@ export const useTrackDbQuery = <T>(
       if (isEqual(result, r)) {
         return;
       }
-      // console.log('useTrackDbQuery: result changed', r, result);
       result = r;
     });
   });

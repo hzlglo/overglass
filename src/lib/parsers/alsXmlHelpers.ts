@@ -3,18 +3,20 @@
  * Separated from gzipXmlHelpers to keep concerns focused
  */
 
+import { getDirectChild, getDirectChildren, getViaPath } from './xmlUtils';
+
 /**
  * Extract automation envelopes from ALS XML document
  */
 export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
   id: string;
   element: Element;
-  events: Array<{ time: number; value: number; curveType?: string }>;
+  events: Array<{ time: number; value: number }>;
 }> {
   const envelopes: Array<{
     id: string;
     element: Element;
-    events: Array<{ time: number; value: number; curveType?: string }>;
+    events: Array<{ time: number; value: number }>;
   }> = [];
 
   const automationEnvelopes = xmlDoc.querySelectorAll('AutomationEnvelope');
@@ -36,15 +38,14 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
     }
 
     // Extract existing events - ALS uses 'Automation > FloatEvent', not 'Events > FloatEvent'
-    const events: Array<{ time: number; value: number; curveType?: string }> = [];
+    const events: Array<{ time: number; value: number }> = [];
     const eventElements = envelope.querySelectorAll('Automation FloatEvent');
 
     for (const eventElement of eventElements) {
       const time = parseFloat(eventElement.getAttribute('Time') || '0');
       const value = parseFloat(eventElement.getAttribute('Value') || '0');
-      const curveType = eventElement.getAttribute('CurveType') || 'linear';
 
-      events.push({ time, value, curveType });
+      events.push({ time, value });
     }
 
     envelopes.push({
@@ -62,7 +63,7 @@ export function extractAutomationEnvelopes(xmlDoc: Document): Array<{
  */
 export function updateAutomationEvents(
   envelopeElement: Element,
-  newEvents: Array<{ time: number; value: number; curveType?: string }>,
+  newEvents: Array<{ time: number; value: number }>,
 ): void {
   // Find the Automation element
   let automationElement = envelopeElement.querySelector('Automation');
@@ -91,10 +92,6 @@ export function updateAutomationEvents(
     eventElement.setAttribute('Id', (index + 1).toString()); // Use 1-indexed IDs
     eventElement.setAttribute('Time', String(event.time));
     eventElement.setAttribute('Value', String(event.value));
-    // Only add CurveType if it's not the default 'linear' to match original ALS format
-    if (event.curveType && event.curveType !== 'linear') {
-      eventElement.setAttribute('CurveType', event.curveType);
-    }
 
     eventsElement.appendChild(eventElement);
   }
@@ -140,7 +137,7 @@ export function createAutomationEnvelope(
   xmlDoc: Document,
   parameterId: string,
   parameterPath: string,
-  events: Array<{ time: number; value: number; curveType?: string }>,
+  events: Array<{ time: number; value: number }>,
 ): Element {
   const envelope = xmlDoc.createElement('AutomationEnvelope');
 
@@ -188,4 +185,172 @@ export function getOrCreateAutomationEnvelope(
   }
 
   return envelope;
+}
+
+/**
+ * Find the next available AutomationEnvelope ID in the MidiTrack's AutomationEnvelopes.Envelopes
+ */
+export function getNextAutomationEnvelopeId(midiTrack: Element): number {
+  const automationEnvelopes = getViaPath(midiTrack, ['AutomationEnvelopes', 'Envelopes']);
+  if (!automationEnvelopes) {
+    return 0;
+  }
+
+  const envelopes = getDirectChildren(automationEnvelopes, 'AutomationEnvelope');
+  let maxId = -1;
+
+  for (const envelope of envelopes) {
+    const idAttr = envelope.getAttribute('Id');
+    if (idAttr !== null) {
+      const id = parseInt(idAttr, 10);
+      if (!isNaN(id) && id > maxId) {
+        maxId = id;
+      }
+    }
+  }
+
+  return maxId + 1;
+}
+
+/**
+ * Create a new AutomationEnvelope element for a new parameter
+ * This creates the structure needed when adding a parameter that wasn't in the original ALS
+ *
+ * @param xmlDoc - The XML document
+ * @param envelopeId - The ID for the new envelope
+ * @param pointeeId - The PointeeId that links this envelope to a PluginFloatParameter
+ * @param events - Array of automation events
+ * @returns The created AutomationEnvelope element
+ */
+export function createNewParameterAutomationEnvelope(
+  xmlDoc: Document,
+  envelopeId: number,
+  pointeeId: string,
+  events: Array<{ time: number; value: number }>,
+): Element {
+  const envelope = xmlDoc.createElement('AutomationEnvelope');
+  envelope.setAttribute('Id', envelopeId.toString());
+
+  // Add EnvelopeTarget with PointeeId
+  const targetElement = xmlDoc.createElement('EnvelopeTarget');
+  const pointeeIdElement = xmlDoc.createElement('PointeeId');
+  pointeeIdElement.setAttribute('Value', pointeeId);
+  targetElement.appendChild(pointeeIdElement);
+  envelope.appendChild(targetElement);
+
+  // Add Automation container
+  const automationElement = xmlDoc.createElement('Automation');
+
+  // Add Events container
+  const eventsElement = xmlDoc.createElement('Events');
+  for (const [index, event] of events.entries()) {
+    const eventElement = xmlDoc.createElement('FloatEvent');
+    eventElement.setAttribute('Id', index.toString());
+    eventElement.setAttribute('Time', String(event.time));
+    eventElement.setAttribute('Value', String(event.value));
+    eventsElement.appendChild(eventElement);
+  }
+  automationElement.appendChild(eventsElement);
+
+  // Add AutomationTransformViewState (required structure)
+  const transformViewState = xmlDoc.createElement('AutomationTransformViewState');
+  const isTransformPending = xmlDoc.createElement('IsTransformPending');
+  isTransformPending.setAttribute('Value', 'false');
+  transformViewState.appendChild(isTransformPending);
+  const timeAndValueTransforms = xmlDoc.createElement('TimeAndValueTransforms');
+  transformViewState.appendChild(timeAndValueTransforms);
+  automationElement.appendChild(transformViewState);
+
+  envelope.appendChild(automationElement);
+
+  return envelope;
+}
+
+/**
+ * Find a placeholder PluginFloatParameter (one with ParameterId="-1") within a DeviceChain
+ * Returns the element and its parent ParameterList
+ */
+export function findPlaceholderPluginFloatParameter(
+  deviceChain: Element,
+): { element: Element; parameterList: Element } | null {
+  // Path: DeviceChain > Devices > PluginDevice > ParameterList > PluginFloatParameter
+  const pluginDevice = getViaPath(deviceChain, ['Devices', 'PluginDevice']);
+  if (!pluginDevice) {
+    return null;
+  }
+
+  const parameterList = getDirectChild(pluginDevice, 'ParameterList');
+  if (!parameterList) {
+    return null;
+  }
+
+  const pluginFloatParams = getDirectChildren(parameterList, 'PluginFloatParameter');
+
+  for (const param of pluginFloatParams) {
+    const parameterIdElement = getDirectChild(param, 'ParameterId');
+    if (parameterIdElement?.getAttribute('Value') === '-1') {
+      return { element: param, parameterList };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Update a PluginFloatParameter placeholder with actual parameter data
+ */
+export function updatePluginFloatParameter(
+  pluginFloatParam: Element,
+  parameterName: string,
+  parameterId: string,
+  visualIndex: number,
+  manualValue: number,
+): void {
+  // Update ParameterName
+  const parameterNameElement = getDirectChild(pluginFloatParam, 'ParameterName');
+  if (parameterNameElement) {
+    parameterNameElement.setAttribute('Value', parameterName);
+  }
+
+  // Update ParameterId
+  const parameterIdElement = getDirectChild(pluginFloatParam, 'ParameterId');
+  if (parameterIdElement) {
+    parameterIdElement.setAttribute('Value', parameterId);
+  }
+
+  // Update VisualIndex
+  const visualIndexElement = getDirectChild(pluginFloatParam, 'VisualIndex');
+  if (visualIndexElement) {
+    visualIndexElement.setAttribute('Value', visualIndex.toString());
+  }
+
+  // Update Manual value in ParameterValue
+  const parameterValue = getDirectChild(pluginFloatParam, 'ParameterValue');
+  if (parameterValue) {
+    const manualElement = getDirectChild(parameterValue, 'Manual');
+    if (manualElement) {
+      manualElement.setAttribute('Value', manualValue.toString());
+    }
+  }
+}
+
+/**
+ * Get the next available VisualIndex for PluginFloatParameter
+ */
+export function getNextVisualIndex(parameterList: Element): number {
+  const pluginFloatParams = getDirectChildren(parameterList, 'PluginFloatParameter');
+  let maxIndex = -1;
+
+  for (const param of pluginFloatParams) {
+    const visualIndexElement = getDirectChild(param, 'VisualIndex');
+    if (visualIndexElement) {
+      const index = parseInt(visualIndexElement.getAttribute('Value') || '-1', 10);
+      // Ignore the special placeholder value 1073741823
+      if (!isNaN(index) && index !== 1073741823 && index > maxIndex) {
+        maxIndex = index;
+      }
+    }
+  }
+
+  return maxIndex + 1;
 }
