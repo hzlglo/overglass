@@ -20,7 +20,6 @@
     trackLanesById = keyBy(sharedGridState.getLanesByTrack(), (t: TrackLanesDisplay) => t.trackId);
     trackOrder = sharedGridState.getTrackOrder().map((id) => ({ id, name: id }));
   });
-  $inspect('TrackList', trackLanesById, trackOrder);
 
   let trackListContainer = $state<HTMLDivElement>();
   $effect(() => {

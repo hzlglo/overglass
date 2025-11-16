@@ -107,7 +107,6 @@ export const useTrackDbQuery = <T>(
       if (isEqual(result, r)) {
         return;
       }
-      // console.log('useTrackDbQuery: result changed', r, result);
       result = r;
     });
   });

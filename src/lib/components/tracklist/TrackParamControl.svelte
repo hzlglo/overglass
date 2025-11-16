@@ -85,6 +85,5 @@
     {/snippet}
   </LaneControl>
 {:else}
-  {$inspect('TrackParamControl - parameter not found', parameterId, parameterState)}
   <div class="text-error">Parameter not found</div>
 {/if}

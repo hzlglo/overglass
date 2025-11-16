@@ -43,8 +43,8 @@
   let nextMessageBatchStart = $state(0);
 
   type PlayFunctionArgs = {
-    startTime: number;
-    endTime: number;
+    timeRangeStart: number;
+    timeRangeEnd: number;
     isBeginningPlay: boolean;
   };
 
@@ -92,48 +92,54 @@
         }
 
         if (midiMapping.isMute) {
-          playFunctions.push(async ({ startTime, endTime, isBeginningPlay }) => {
+          playFunctions.push(async ({ timeRangeStart, timeRangeEnd, isBeginningPlay }) => {
             const muteTransitions = await midiPlayer.getMuteTransitionsToPlay(
               midiMapping.trackId,
-              startTime,
-              endTime,
+              timeRangeStart,
+              timeRangeEnd,
               isBeginningPlay,
             );
             const currentTime = WebMidi.time;
-            return Promise.all(
-              muteTransitions.map(async (m) =>
-                sendMidiControlChange({
-                  output: midiOutput,
-                  midiMapping,
-                  value: m.isMuted ? 1 : 0,
-                  channel: midiMapping.trackNumber,
-                  time: currentTime + (m.timePosition - startTime) * 1000,
-                }),
-              ),
+            const elapsedTime = audioCtx?.currentTime ?? 0;
+            muteTransitions.forEach((m) =>
+              sendMidiControlChange({
+                output: midiOutput,
+                midiMapping,
+                value: m.isMuted ? 1 : 0,
+                channel: midiMapping.trackNumber,
+                time:
+                  m.timePosition - startTime - elapsedTime > 0
+                    ? currentTime + (m.timePosition - startTime - elapsedTime) * 1000
+                    : '+0',
+              }),
             );
           });
         } else {
-          playFunctions.push(async ({ startTime, endTime, isBeginningPlay }: PlayFunctionArgs) => {
-            const automation = await midiPlayer.getInterpolatedValuesToPlay({
-              parameterId: midiMapping.id,
-              startTime: startTime,
-              endTime: endTime,
-              granularity: GRANULARITY,
-              isBeginningPlay: isBeginningPlay,
-            });
-            const currentTime = WebMidi.time;
-            return Promise.all(
-              automation.map(async (a) =>
+          playFunctions.push(
+            async ({ timeRangeStart, timeRangeEnd, isBeginningPlay }: PlayFunctionArgs) => {
+              const automation = await midiPlayer.getInterpolatedValuesToPlay({
+                parameterId: midiMapping.id,
+                startTime: timeRangeStart,
+                endTime: timeRangeEnd,
+                granularity: GRANULARITY,
+                isBeginningPlay: isBeginningPlay,
+              });
+              const currentTime = WebMidi.time;
+              const elapsedTime = audioCtx?.currentTime ?? 0;
+              automation.forEach((a) =>
                 sendMidiControlChange({
                   output: midiOutput,
                   midiMapping,
                   value: a.value,
                   channel: midiMapping.trackNumber,
-                  time: currentTime + (a.timePosition - startTime) * 1000,
+                  time:
+                    a.timePosition - startTime - elapsedTime > 0
+                      ? currentTime + (a.timePosition - startTime - elapsedTime) * 1000
+                      : '+0',
                 }),
-              ),
-            );
-          });
+              );
+            },
+          );
         }
       }),
     );
@@ -146,13 +152,13 @@
 
     // start playing
     await Promise.all(
-      playFunctions.map((playFunction) => {
-        return playFunction({
-          startTime,
-          endTime: startTime + LOOKAHEAD * 2,
+      playFunctions.map((playFunction) =>
+        playFunction({
+          timeRangeStart: startTime,
+          timeRangeEnd: startTime + LOOKAHEAD * 2,
           isBeginningPlay: true,
-        });
-      }),
+        }),
+      ),
     );
     // todo when should this be continue vs start?
     midiOutputs.forEach((midiOutput) => {
@@ -182,8 +188,8 @@
     await Promise.all(
       playFunctions.map((playFunction) => {
         return playFunction({
-          startTime: nextMessageBatchStart,
-          endTime: nextMessageBatchStart + LOOKAHEAD,
+          timeRangeStart: nextMessageBatchStart,
+          timeRangeEnd: nextMessageBatchStart + LOOKAHEAD,
           isBeginningPlay: false,
         });
       }),

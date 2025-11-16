@@ -27,7 +27,6 @@ const createAppStore = () => {
       fileContents = file.rawXML;
     },
     setHasUnsavedChanges(hasUnsavedChangesInner: boolean) {
-      console.log('setHasUnsavedChanges', hasUnsavedChangesInner);
       hasUnsavedChanges = hasUnsavedChangesInner;
     },
     getHasUnsavedChanges() {
